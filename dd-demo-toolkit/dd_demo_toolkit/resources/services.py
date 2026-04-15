@@ -1,0 +1,299 @@
+"""
+Service Catalog resource manager for dd-demo-toolkit.
+
+Handles deployment, deletion, and listing of Datadog service catalog entries for verticals.
+"""
+
+import logging
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+
+import yaml
+
+from dd_demo_toolkit.utils.dd_api import DatadogAPIClient
+
+
+logger = logging.getLogger(__name__)
+
+
+class ServiceCatalogManager:
+    """Manages deployment and lifecycle of Datadog service catalog entries."""
+
+    def __init__(self) -> None:
+        """Initialize the service catalog manager."""
+        pass
+
+    def deploy(
+        self,
+        vertical_path: str,
+        api_client: DatadogAPIClient,
+        tags: Optional[Dict[str, str]] = None,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Deploy services to the Datadog Service Catalog.
+
+        Reads services.yaml from the vertical path and registers services via API.
+        Each service definition should include service catalog fields like name, owner, etc.
+
+        Args:
+            vertical_path: Path to the vertical directory.
+            api_client: Datadog API client instance.
+            tags: Additional tags to inject (vertical and dd-demo-toolkit tags added automatically).
+            dry_run: If True, skip API calls and return what would be created.
+
+        Returns:
+            Dictionary with keys:
+            - created_names: List of registered service names
+            - errors: List of error messages
+            - total_created: Number of successfully registered services
+            - total_errors: Number of failed registrations
+        """
+        vertical_path_obj = Path(vertical_path)
+        services_file = vertical_path_obj / "services.yaml"
+
+        result = {
+            "created_names": [],
+            "errors": [],
+            "total_created": 0,
+            "total_errors": 0,
+        }
+
+        if not services_file.exists():
+            logger.info(f"No services.yaml file found at {services_file}")
+            return result
+
+        vertical_name = vertical_path_obj.name
+
+        try:
+            with open(services_file, "r") as f:
+                config = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            error_msg = f"Failed to parse services.yaml: {str(e)}"
+            result["errors"].append(error_msg)
+            result["total_errors"] += 1
+            logger.error(error_msg)
+            return result
+        except IOError as e:
+            error_msg = f"Failed to read services.yaml: {str(e)}"
+            result["errors"].append(error_msg)
+            result["total_errors"] += 1
+            logger.error(error_msg)
+            return result
+
+        if not config:
+            logger.info("No services defined in services.yaml")
+            return result
+
+        services = config if isinstance(config, list) else config.get("services", [])
+        if not services:
+            logger.info("No services found in services.yaml")
+            return result
+
+        logger.info(f"Deploying {len(services)} service(s) for vertical '{vertical_name}'")
+
+        for idx, service_config in enumerate(services):
+            try:
+                # Build the service payload
+                payload = self._build_service_payload(service_config, vertical_name, tags)
+
+                if dry_run:
+                    service_name = payload.get("schema-version", {}).get("0.2.1", {}).get("info", {}).get("dd-service", f"service-{idx}")
+                    logger.info(f"[DRY RUN] Would register service '{service_name}'")
+                    result["created_names"].append(service_name)
+                    result["total_created"] += 1
+                else:
+                    # Convert payload to YAML for service registration
+                    yaml_payload = yaml.dump(payload, default_flow_style=False)
+                    response = api_client.register_service(yaml_payload)
+
+                    # Extract service name from response or payload
+                    service_name = payload.get("info", {}).get("dd-service", f"service-{idx}")
+                    result["created_names"].append(service_name)
+                    result["total_created"] += 1
+                    logger.info(f"Registered service '{service_name}'")
+
+            except KeyError as e:
+                error_msg = f"Service {idx} missing required field: {str(e)}"
+                result["errors"].append(error_msg)
+                result["total_errors"] += 1
+                logger.error(error_msg)
+            except RuntimeError as e:
+                error_msg = f"API error registering service {idx}: {str(e)}"
+                result["errors"].append(error_msg)
+                result["total_errors"] += 1
+                logger.error(error_msg)
+            except Exception as e:
+                error_msg = f"Unexpected error registering service {idx}: {str(e)}"
+                result["errors"].append(error_msg)
+                result["total_errors"] += 1
+                logger.error(error_msg)
+
+        logger.info(
+            f"Service deployment complete: {result['total_created']} registered, "
+            f"{result['total_errors']} errors"
+        )
+
+        return result
+
+    def _build_service_payload(
+        self,
+        config: Dict[str, Any],
+        vertical_name: str,
+        additional_tags: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Build a service payload from config.
+
+        Args:
+            config: Service configuration dict.
+            vertical_name: Vertical name for tagging.
+            additional_tags: Additional tags to add.
+
+        Returns:
+            Service payload ready for API submission.
+
+        Raises:
+            KeyError: If required fields are missing.
+        """
+        # Validate required fields
+        required = ["dd-service"]
+        for field in required:
+            if field not in config:
+                raise KeyError(f"Required field '{field}' missing")
+
+        # Build base service definition structure
+        # Following Datadog service definition schema v2.1
+        payload = {
+            "schema-version": "v2.2",
+        }
+
+        # Create info section with service name and optional fields
+        info = {
+            "dd-service": config["dd-service"],
+        }
+
+        if "display-name" in config:
+            info["display-name"] = config["display-name"]
+        if "description" in config:
+            info["description"] = config["description"]
+        if "owner" in config:
+            info["owner"] = config["owner"]
+
+        payload["info"] = info
+
+        # Add tags - injecting vertical and toolkit tags
+        tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []
+        tags.append(f"vertical:{vertical_name}")
+        tags.append("dd-demo-toolkit:true")
+
+        if additional_tags:
+            for key, value in additional_tags.items():
+                tags.append(f"{key}:{value}")
+
+        if tags:
+            payload["tags"] = tags
+
+        # Copy over any other fields from config
+        excluded_fields = {"dd-service", "display-name", "description", "owner", "tags"}
+        for key, value in config.items():
+            if key not in excluded_fields:
+                payload[key] = value
+
+        return payload
+
+    def teardown(
+        self,
+        api_client: DatadogAPIClient,
+        vertical_name: str,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Deregister all services tagged with a vertical.
+
+        Note: Datadog's service catalog API may not provide a direct deregistration method.
+        This implementation attempts to deregister by tag matching, but actual behavior
+        depends on API availability.
+
+        Args:
+            api_client: Datadog API client instance.
+            vertical_name: Name of the vertical to clean up.
+            dry_run: If True, skip API calls and return what would be deleted.
+
+        Returns:
+            Dictionary with keys:
+            - deregistered_names: List of deregistered service names
+            - errors: List of error messages
+            - total_deregistered: Number of successfully deregistered services
+            - total_errors: Number of failed deregistrations
+        """
+        result = {
+            "deregistered_names": [],
+            "errors": [],
+            "total_deregistered": 0,
+            "total_errors": 0,
+        }
+
+        logger.warning(
+            "Service deregistration depends on Datadog API availability. "
+            "Services may need to be manually removed from the Service Catalog."
+        )
+
+        # For now, log that teardown was requested but cannot be fully automated
+        logger.info(f"Service teardown requested for vertical '{vertical_name}'")
+        logger.info(
+            "Note: Service Catalog deregistration may require manual intervention "
+            "or future API updates."
+        )
+
+        return result
+
+    def list_deployed(
+        self,
+        api_client: DatadogAPIClient,
+        vertical_name: str,
+    ) -> Dict[str, Any]:
+        """
+        List all services registered for a vertical.
+
+        Note: This queries available service definition endpoints.
+        Actual filtering depends on API response format.
+
+        Args:
+            api_client: Datadog API client instance.
+            vertical_name: Name of the vertical.
+
+        Returns:
+            Dictionary with keys:
+            - services: List of service objects
+            - total: Count of services
+            - error: Error message if listing failed, None otherwise
+        """
+        result = {
+            "services": [],
+            "total": 0,
+            "error": None,
+        }
+
+        try:
+            # Attempt to query service definitions endpoint
+            services_response = api_client._request("GET", "/api/v2/services/definitions")
+            service_list = services_response.get("data", [])
+        except RuntimeError as e:
+            # Service definitions endpoint may not be available or accessible
+            result["error"] = f"Failed to list services: {str(e)}"
+            logger.warning(result["error"])
+            return result
+
+        # Filter by vertical tag
+        target_tag = f"vertical:{vertical_name}"
+        deployed = [
+            s for s in service_list
+            if any(target_tag in str(tag_value) for tag_value in s.get("tags", []))
+        ]
+
+        result["services"] = deployed
+        result["total"] = len(deployed)
+        logger.info(f"Found {result['total']} service(s) for vertical '{vertical_name}'")
+
+        return result

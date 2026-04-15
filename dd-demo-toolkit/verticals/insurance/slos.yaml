@@ -1,0 +1,68 @@
+slos:
+  - name: "Claims Processing Time (FNOL to Assignment < 4 hours)"
+    description: |
+      First Notice of Loss to adjuster assignment must complete within 4 hours.
+      Critical for customer satisfaction, loss containment, and claims outcome.
+      Target: 95% of claims assigned within SLA over rolling 30-day window.
+    type: metric
+    target: 95.0
+    timeframe: "30d"
+    query:
+      numerator: "count:insurer.claims.fnol_to_assignment_sec{service:claims-management-platform} where fnol_to_assignment_sec <= 14400"
+      denominator: "count:insurer.claims.fnol_to_assignment_sec{service:claims-management-platform}"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:claims-operations"
+      - "compliance:fnol-timeliness"
+
+  - name: "Digital Quoting Availability"
+    description: |
+      Digital quoting engine (web portal + chatbot) must be available to receive quotes.
+      Impacts top-of-funnel conversion and customer acquisition cost.
+      Target: 99.95% uptime (max 21 minutes downtime/month) over rolling 30-day window.
+    type: metric
+    target: 99.95
+    timeframe: "30d"
+    query:
+      numerator: "sum:insurer.quoting.requests_total{service:digital-quoting-engine} - sum:insurer.quoting.errors_total{service:digital-quoting-engine}"
+      denominator: "sum:insurer.quoting.requests_total{service:digital-quoting-engine}"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:digital-sales"
+      - "compliance:availability"
+
+  - name: "Payment Disbursement Success Rate"
+    description: |
+      Claims payments and premium refunds must process successfully.
+      Failed payments impact customer experience and accounting reconciliation.
+      Target: 99.9% of disbursement attempts succeed (max 8.6 failures/hour) over rolling 30-day window.
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:insurer.payments.successful_total{service:billing-payments-service}"
+      denominator: "sum:insurer.payments.attempted_total{service:billing-payments-service}"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:billing-operations"
+      - "compliance:payment-accuracy"
+
+  - name: "Policy Admin System Uptime"
+    description: |
+      Core policy admin system (issuance, endorsements, renewals, cancellations) must be available.
+      Backbone of all customer-facing operations; any downtime cascades to agents and customers.
+      Target: 99.99% uptime (max 4.3 minutes downtime/month) over rolling 30-day window.
+    type: metric
+    target: 99.99
+    timeframe: "30d"
+    query:
+      numerator: "sum:insurer.policy_admin.requests_total{service:policy-admin-system} - sum:insurer.policy_admin.errors_total{service:policy-admin-system}"
+      denominator: "sum:insurer.policy_admin.requests_total{service:policy-admin-system}"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:policy-operations"
+      - "compliance:core-system-uptime"

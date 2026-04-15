@@ -1,0 +1,998 @@
+{
+  "title": "🏥 Healthcare NOC — Network & Device Operations Center",
+  "description": "SolarWinds-style NOC overview for hospital infrastructure monitoring. Real-time device status, alerts, network health, and facility operations across all floors and departments. Fully dynamic — all navigation and status panels auto-populate from live metric data.",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# 🏥 Healthcare NOC — Network & Device Operations Center\n\n**Real-time Infrastructure Monitoring** | Hospital-wide device status, alerts, and network health\n\nUse the template variables above to drill down by **Floor → Wing → Department → Device Type → Manufacturer** • All navigation is live-driven from metric tags",
+        "background_color": "vivid_blue",
+        "font_size": "13",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "🎯 Current Filter Context",
+        "widgets": [
+          {
+            "id": 3,
+            "definition": {
+              "title": "Devices in Scope",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "count:hospital.device.online{$floor,$wing,$department,$device_type,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 0,
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": 100,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": ">",
+                  "value": 10,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": "<=",
+                  "value": 10,
+                  "color": "vivid_red"
+                }
+              ]
+            }
+          },
+          {
+            "id": 4,
+            "definition": {
+              "title": "Locations Active",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "count:hospital.device.online{$device_type,$department} by {floor,wing}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 0,
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": 5,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": ">",
+                  "value": 1,
+                  "color": "vivid_yellow"
+                }
+              ]
+            }
+          },
+          {
+            "id": 5,
+            "definition": {
+              "title": "Alerts (Filtered)",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:hospital.device.alerts_total{$floor,$wing,$department,$device_type}.as_count()"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 0,
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": 20,
+                  "color": "vivid_red"
+                },
+                {
+                  "comparator": ">",
+                  "value": 5,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": "<=",
+                  "value": 5,
+                  "color": "vivid_green"
+                }
+              ]
+            }
+          },
+          {
+            "id": 6,
+            "definition": {
+              "title": "Avg Signal (Filtered)",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.signal_strength_dbm{$floor,$wing,$department,$device_type}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 0,
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": -50,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": ">",
+                  "value": -70,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": "<=",
+                  "value": -70,
+                  "color": "vivid_red"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 1,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "📊 All Nodes — By Status",
+        "widgets": [
+          {
+            "id": 8,
+            "definition": {
+              "title": "Device Types — Online Percentage",
+              "type": "toplist",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "(avg:hospital.device.online{$floor,$wing,$department} by {device_type}) * 100"
+                    }
+                  ],
+                  "queries": [],
+                  "response_format": "scalar",
+                  "sort": {
+                    "count": 25,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "display": {
+                  "type": "numbers"
+                }
+              },
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": 90,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": ">",
+                  "value": 50,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": "<=",
+                  "value": 50,
+                  "color": "vivid_red"
+                }
+              ]
+            }
+          },
+          {
+            "id": 9,
+            "definition": {
+              "title": "Device Fleet by Category & Type",
+              "type": "treemap",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "count:hospital.device.online{$floor,$wing,$department} by {device_category,device_type}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            }
+          },
+          {
+            "id": 10,
+            "definition": {
+              "title": "Manufacturers — Device Count",
+              "type": "toplist",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "count:hospital.device.online{$floor,$wing,$department} by {manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar",
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "display": {
+                  "type": "numbers"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 3,
+        "width": 6,
+        "height": 5
+      }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "🗺️ All Nodes — By Location",
+        "widgets": [
+          {
+            "id": 12,
+            "definition": {
+              "title": "Alerts by Floor & Wing",
+              "type": "toplist",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:hospital.device.alerts_total{$device_type,$department}.as_count() by {floor,wing}"
+                    }
+                  ],
+                  "response_format": "scalar",
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "display": {
+                  "type": "numbers"
+                }
+              },
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": 10,
+                  "color": "vivid_red"
+                },
+                {
+                  "comparator": ">",
+                  "value": 3,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": "<=",
+                  "value": 3,
+                  "color": "vivid_green"
+                }
+              ],
+              "custom_links": [
+                {
+                  "label": "Filter by Location",
+                  "link": "?var-floor={{floor}}&var-wing={{wing}}"
+                }
+              ]
+            }
+          },
+          {
+            "id": 13,
+            "definition": {
+              "title": "Device Distribution by Floor & Wing",
+              "type": "treemap",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "count:hospital.device.online{$device_type,$department} by {floor,wing}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            }
+          },
+          {
+            "id": 14,
+            "definition": {
+              "title": "Department Device Health",
+              "type": "toplist",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "avg:hospital.device.online{$floor,$wing} by {department}"
+                    }
+                  ],
+                  "queries": [],
+                  "response_format": "scalar",
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "display": {
+                  "type": "numbers"
+                }
+              },
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": 0.8,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": ">",
+                  "value": 0.5,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": "<=",
+                  "value": 0.5,
+                  "color": "vivid_red"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 3,
+        "width": 6,
+        "height": 5
+      }
+    },
+    {
+      "id": 15,
+      "definition": {
+        "type": "note",
+        "content": "## 🔴 Completely Down Devices\n\nDevices currently offline or in critical failure state. Click device_id to view detailed diagnostics.",
+        "background_color": "vivid_red",
+        "font_size": "12",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 8,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 16,
+      "definition": {
+        "title": "Offline Devices Summary",
+        "type": "query_table",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.online{$floor,$wing,$department,$device_type} by {hospital.floor,hospital.wing,hospital.department,device.type,device.id,device.manufacturer}"
+              }
+            ],
+            "response_format": "scalar",
+            "limit": 50,
+            "sort": {
+              "count": 25,
+              "order_by": [
+                {
+                  "type": "formula",
+                  "index": 0,
+                  "order": "asc"
+                }
+              ]
+            }
+          }
+        ],
+        "has_search_bar": "auto",
+        "custom_links": [
+          {
+            "label": "Device Detail Dashboard",
+            "link": "#"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 9,
+        "width": 12,
+        "height": 3
+      }
+    },
+    {
+      "id": 17,
+      "definition": {
+        "type": "note",
+        "content": "## ⚠️ All Network Alerts — Last 24 Hours\n\nReal-time alert activity sorted by severity and frequency. Click device_id to drill down to device detail dashboard.",
+        "background_color": "vivid_yellow",
+        "font_size": "12",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 12,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 18,
+      "definition": {
+        "title": "Network Alerts — Devices with Most Activity (Last 24h)",
+        "type": "query_table",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.alerts_total{$floor,$wing,$department,$device_type}.as_count() by {hospital.floor,hospital.wing,device.type,device.id,device.manufacturer}"
+              }
+            ],
+            "response_format": "scalar",
+            "limit": 50,
+            "sort": {
+              "count": 25,
+              "order_by": [
+                {
+                  "type": "formula",
+                  "index": 0,
+                  "order": "desc"
+                }
+              ]
+            }
+          }
+        ],
+        "has_search_bar": "auto",
+        "custom_links": [
+          {
+            "label": "Device Detail Dashboard",
+            "link": "#"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 13,
+        "width": 12,
+        "height": 3
+      }
+    },
+    {
+      "id": 19,
+      "definition": {
+        "type": "note",
+        "content": "## 📡 Network Infrastructure Health\n\nWiFi coverage, signal strength, and network performance metrics across hospital floors",
+        "background_color": "orange",
+        "font_size": "12",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 16,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 20,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 21,
+            "definition": {
+              "title": "WiFi Channel Utilization by Floor",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.network.wifi_channel_utilization_pct{$floor} by {hospital.floor}"
+                    }
+                  ],
+                  "response_format": "timeseries"
+                }
+              ]
+            }
+          },
+          {
+            "id": 22,
+            "definition": {
+              "title": "Signal Strength Distribution (dBm)",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.signal_strength_dbm{$floor,$wing} by {hospital.floor}"
+                    }
+                  ],
+                  "response_format": "timeseries"
+                }
+              ]
+            }
+          },
+          {
+            "id": 23,
+            "definition": {
+              "title": "Network Retransmission Rate",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.network.wifi_retransmission_rate_pct{$floor}"
+                    }
+                  ],
+                  "response_format": "timeseries"
+                }
+              ]
+            }
+          },
+          {
+            "id": 24,
+            "definition": {
+              "title": "Peak Network Utilization",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "max:hospital.network.bandwidth_utilization_pct{$floor} by {hospital.floor}"
+                    }
+                  ],
+                  "response_format": "timeseries"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 17,
+        "width": 12,
+        "height": 5
+      }
+    },
+    {
+      "id": 25,
+      "definition": {
+        "type": "note",
+        "content": "## 🏥 Application Services Health\n\nMedical device application performance, error rates, and latency across hospital infrastructure",
+        "background_color": "vivid_blue",
+        "font_size": "12",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 22,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 26,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 27,
+            "definition": {
+              "title": "Application Error Rates by Device Type",
+              "type": "toplist",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:hospital.app.error_rate{$floor,$wing} by {device.type}"
+                    }
+                  ],
+                  "response_format": "scalar",
+                  "sort": {
+                    "count": 20,
+                    "order_by": [
+                      {
+                        "type": "formula",
+                        "index": 0,
+                        "order": "desc"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "style": {
+                "display": {
+                  "type": "numbers"
+                }
+              },
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": 5,
+                  "color": "vivid_red"
+                },
+                {
+                  "comparator": ">",
+                  "value": 1,
+                  "color": "vivid_yellow"
+                }
+              ]
+            }
+          },
+          {
+            "id": 28,
+            "definition": {
+              "title": "Application Latency (p99)",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "pct_95:hospital.app.latency_ms{$floor} by {device.type}"
+                    }
+                  ],
+                  "response_format": "timeseries"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 23,
+        "width": 12,
+        "height": 4
+      }
+    },
+    {
+      "id": 29,
+      "definition": {
+        "type": "note",
+        "content": "## 🌡️ Environmental Overview\n\nTemperature, humidity, and facility environmental monitoring across hospital floors and departments",
+        "background_color": "vivid_green",
+        "font_size": "12",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 27,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 30,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 31,
+            "definition": {
+              "title": "Temperature by Floor (°C)",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.facility.temperature_celsius{$floor} by {hospital.floor}"
+                    }
+                  ],
+                  "response_format": "timeseries"
+                }
+              ]
+            }
+          },
+          {
+            "id": 32,
+            "definition": {
+              "title": "Humidity Levels by Floor (%)",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.facility.humidity_pct{$floor} by {hospital.floor}"
+                    }
+                  ],
+                  "response_format": "timeseries"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 28,
+        "width": 12,
+        "height": 4
+      }
+    },
+    {
+      "id": 33,
+      "definition": {
+        "type": "note",
+        "content": "**Dashboard Last Updated**: Real-time data from hospital monitoring infrastructure | **All navigation is dynamic** — floors, departments, devices, and manufacturers auto-populate from metric tags | **Tags**: `vertical:healthcare`, `dashboard-type:noc` | For issues, contact Network Operations Center",
+        "background_color": "gray",
+        "font_size": "11",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 32,
+        "width": 12,
+        "height": 1
+      }
+    }
+  ],
+  "template_variables": [
+    {
+      "name": "floor",
+      "prefix": "hospital.floor",
+      "default": "*"
+    },
+    {
+      "name": "wing",
+      "prefix": "hospital.wing",
+      "default": "*"
+    },
+    {
+      "name": "department",
+      "prefix": "hospital.department",
+      "default": "*"
+    },
+    {
+      "name": "device_type",
+      "prefix": "device.type",
+      "default": "*"
+    },
+    {
+      "name": "manufacturer",
+      "prefix": "device.manufacturer",
+      "default": "*"
+    }
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed",
+  "tags": [
+    "vertical:healthcare",
+    "dd-demo-toolkit:true",
+    "dashboard-type:noc"
+  ]
+}

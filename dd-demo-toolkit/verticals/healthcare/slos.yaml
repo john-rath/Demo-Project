@@ -1,0 +1,30 @@
+slos:
+  - name: "Patient Portal Availability (MyAdventHealth)"
+    description: "Patient portal availability impacts HCAHPS scores. Target 99.9% success rate over rolling 30-day window."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.app.requests_total{service_name:patient-portal} - sum:hospital.app.errors_total{service_name:patient-portal}"
+      denominator: "sum:hospital.app.requests_total{service_name:patient-portal}"
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "team:digital-health"]
+
+  - name: "Medical IoT Device Fleet Uptime"
+    description: "Medical device connectivity. Target 99.5% of fleet online over rolling 30-day window."
+    type: metric
+    target: 99.5
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.device.online{device_category:medical_iot}"
+      denominator: "count:hospital.device.online{device_category:medical_iot}"
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "team:biomed"]
+
+  - name: "Nurse Call Response Time SLA (Urgent <120s)"
+    description: "Urgent calls must be answered within 120 seconds. Target 95% compliance over rolling 30-day window."
+    type: metric
+    target: 95.0
+    timeframe: "30d"
+    query:
+      numerator: "count:hospital.nursecall.response_time_sec{call_type:urgent} where response_time < 120"
+      denominator: "count:hospital.nursecall.response_time_sec{call_type:urgent}"
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "team:operations"]

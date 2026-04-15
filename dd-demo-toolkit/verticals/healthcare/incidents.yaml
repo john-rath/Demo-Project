@@ -1,0 +1,66 @@
+incidents:
+  - name: "WiFi AP Outage — Floor 3 East"
+    severity: "SEV-2"
+    description: "WiFi access point channel utilization exceeded critical threshold on Floor 3 East, causing medical device connectivity loss."
+    customer_impact: "Medical devices on Floor 3 East losing connectivity. Clinical staff switching to manual monitoring."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Monitor triggered: WiFi Channel Utilization Critical on Floor 3 East"
+      - timestamp_offset_sec: 90
+        content: "Correlated alert: Medical device signal degradation detected on 4 infusion pumps"
+      - timestamp_offset_sec: 180
+        content: "Escalation: Biomedical Engineering on-call paged via PagerDuty"
+      - timestamp_offset_sec: 300
+        content: "Investigation: Root cause identified — AP channel saturation due to rogue client storm"
+      - timestamp_offset_sec: 450
+        content: "Remediation: Auto-healing workflow restarted AP radio interface"
+      - timestamp_offset_sec: 600
+        content: "Recovery: Channel utilization normalized, devices reconnecting"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+
+  - name: "Infusion Pump Critical Alert — Pediatric Ward"
+    severity: "SEV-1"
+    description: "Infusion pump on pediatric patient disconnected from hospital network. Critical medication delivery interrupted."
+    customer_impact: "One pediatric patient's IV medication paused. Nursing staff implemented manual drip oversight. Patient safety maintained but unverified dose flow."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Alert triggered: Infusion pump offline detection on Floor 4 Pediatric"
+      - timestamp_offset_sec: 45
+        content: "Clinical notification sent to nursing unit"
+      - timestamp_offset_sec: 120
+        content: "Biomedical Engineering on-call notified. Began device troubleshooting."
+      - timestamp_offset_sec: 300
+        content: "Root cause: Network cable disconnected at bedside device port"
+      - timestamp_offset_sec: 420
+        content: "Remediation: Device reconnected, network connectivity restored"
+      - timestamp_offset_sec: 480
+        content: "Verification: Pump resumed normal operation, medication flow confirmed"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+
+  - name: "Nurse Call System Response SLA Breach"
+    severity: "SEV-3"
+    description: "Nurse call system response time exceeded 2-minute SLA on Floor 2 Medical-Surgical. Staff workload imbalance."
+    customer_impact: "Patient call requests averaged 4.5-minute response time. Standard of care maintained but patient satisfaction impacted."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "SLA monitor triggered: Nurse call response time > 2 minutes on Floor 2"
+      - timestamp_offset_sec: 180
+        content: "Root cause analysis: 3 call light requests pending, only 1 RN and 2 CNAs staffed"
+      - timestamp_offset_sec: 360
+        content: "Workflow notification: Float pool staff availability checked"
+      - timestamp_offset_sec: 600
+        content: "Staffing adjustment: 1 additional CNA assigned from float pool to Floor 2"
+      - timestamp_offset_sec: 900
+        content: "Recovery: Call response time normalized to 1.8 minutes average"
+      - timestamp_offset_sec: 1200
+        content: "Incident resolved. Unit operating within SLA"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"

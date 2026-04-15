@@ -1,0 +1,124 @@
+workflows:
+  - name: "[Healthcare] WiFi AP Auto-Remediation"
+    description: "Automatically restarts degraded WiFi APs when channel utilization exceeds threshold. Triggered by WiFi Channel Utilization Critical monitor."
+    trigger:
+      type: monitor
+      monitor_tags: ["incident_domain:network-to-device"]
+    steps:
+      - name: check_ap_status
+        type: http_request
+        description: "Query Cisco DNA Center for AP status"
+        parameters:
+          method: GET
+          url: "https://dnac.hospital.internal/api/v1/network-device/{{device_id}}"
+          headers:
+            X-Auth-Token: "{{vault.cisco_dnac_token}}"
+      - name: evaluate_remediation
+        type: condition
+        description: "Check if utilization > 80% for > 5 minutes"
+        parameters:
+          condition: "{{steps.check_ap_status.response.body.channel_utilization}} > 80"
+      - name: restart_ap_radio
+        type: http_request
+        description: "Restart AP radio interface via Cisco DNA Center"
+        parameters:
+          method: POST
+          url: "https://dnac.hospital.internal/api/v1/network-device/{{device_id}}/radio/restart"
+      - name: wait_for_recovery
+        type: sleep
+        description: "Wait 60 seconds for AP to recover"
+        parameters:
+          duration_seconds: 60
+      - name: verify_recovery
+        type: datadog_query
+        description: "Verify channel utilization has dropped below threshold"
+        parameters:
+          query: "avg(last_5m):avg:hospital.network.channel_utilization_pct{device_id:{{device_id}}} < 70"
+      - name: notify_team
+        type: slack_message
+        description: "Notify network operations team of auto-remediation result"
+        parameters:
+          channel: "#network-ops"
+          message: "✅ Auto-remediation complete for AP {{device_id}} on Floor {{floor}} {{wing}}. Channel utilization restored to normal."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:auto-remediation"
+
+  - name: "[Healthcare] Infusion Pump Disconnect Escalation"
+    description: "Escalates when critical medical devices go offline. Creates incident, pages biomedical engineering, and initiates investigation."
+    trigger:
+      type: monitor
+      monitor_tags: ["signal_chain:3-symptom"]
+    steps:
+      - name: gather_context
+        type: datadog_query
+        description: "Collect device fleet status for affected floor/wing"
+        parameters:
+          query: "avg:hospital.device.online{device_type:infusion_pump,floor:{{floor}},wing:{{wing}}}"
+      - name: declare_incident
+        type: datadog_incident
+        description: "Declare SEV-2 incident for medical device disconnection"
+        parameters:
+          title: "Medical Device Connectivity Loss — Floor {{floor}} {{wing}}"
+          severity: "SEV-2"
+          commander: "biomedical-engineering-oncall"
+      - name: page_oncall
+        type: pagerduty_trigger
+        description: "Page Biomedical Engineering on-call"
+        parameters:
+          service: "biomedical-engineering"
+          severity: "high"
+          description: "Infusion pumps offline on Floor {{floor}} {{wing}}"
+      - name: create_investigation_case
+        type: datadog_case
+        description: "Create investigation case linked to incident"
+        parameters:
+          title: "Investigate: Infusion Pump Disconnect — Floor {{floor}} {{wing}}"
+          priority: "P2"
+      - name: notify_clinical_team
+        type: slack_message
+        parameters:
+          channel: "#clinical-alerts"
+          message: "🚨 CRITICAL: Infusion pumps on Floor {{floor}} {{wing}} are disconnected. Incident declared. Biomedical engineering paged. Nursing staff: switch to manual monitoring."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:escalation"
+
+  - name: "[Healthcare] Nurse Call SLA Breach Response"
+    description: "When nurse call response time SLA is breached, notifies charge nurse and adjusts staffing recommendations."
+    trigger:
+      type: monitor
+      monitor_tags: ["sla:nurse-call-response"]
+    steps:
+      - name: check_staffing
+        type: datadog_query
+        description: "Check current nurse-to-patient ratios"
+        parameters:
+          query: "avg:hospital.bed.occupied_count{floor:{{floor}},wing:{{wing}}}"
+      - name: check_call_volume
+        type: datadog_query
+        description: "Check nurse call volume trend"
+        parameters:
+          query: "sum(last_15m):sum:hospital.nursecall.calls_total{floor:{{floor}},wing:{{wing}}}.as_count()"
+      - name: notify_charge_nurse
+        type: slack_message
+        parameters:
+          channel: "#nursing-operations"
+          message: "⚠️ Nurse Call SLA breach on Floor {{floor}} {{wing}}. Response time exceeding 2-minute target. Current call volume: {{steps.check_call_volume.result}}. Consider reassigning float pool staff."
+      - name: create_staffing_ticket
+        type: http_request
+        description: "Create staffing adjustment request in workforce management system"
+        parameters:
+          method: POST
+          url: "https://workforce.hospital.internal/api/v1/staffing-requests"
+          body:
+            floor: "{{floor}}"
+            wing: "{{wing}}"
+            reason: "Nurse call SLA breach"
+            priority: "urgent"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:staffing"

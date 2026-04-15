@@ -1,0 +1,158 @@
+workflows:
+  - name: "[Manufacturing] Robot Arm Servo Degradation Handler"
+    description: "Detects servo performance degradation and automatically reduces arm speed to prevent damage and production line shutdown."
+    trigger:
+      type: monitor
+      monitor_tags: ["robot:servo-health"]
+    steps:
+      - name: measure_servo_temperature
+        type: datadog_query
+        description: "Check servo motor temperature"
+        parameters:
+          query: "avg(last_5m):avg:manufacturing.robot.servo_temp_c{arm_id:{{arm_id}}}"
+      - name: measure_servo_current
+        type: datadog_query
+        description: "Check servo current draw"
+        parameters:
+          query: "avg(last_5m):avg:manufacturing.robot.servo_current_amps{arm_id:{{arm_id}}}"
+      - name: evaluate_degradation
+        type: condition
+        description: "Check if temperature > 65C AND current draw trending up"
+        parameters:
+          condition: "{{steps.measure_servo_temperature.result}} > 65"
+      - name: reduce_arm_speed
+        type: http_request
+        description: "Reduce arm movement speed to 70% via robot controller"
+        parameters:
+          method: POST
+          url: "https://robot-controller.mfg.internal/api/v1/arm/{{arm_id}}/speed"
+          body:
+            speed_percent: 70
+            reason: "Servo degradation detected"
+      - name: notify_maintenance
+        type: slack_message
+        parameters:
+          channel: "#manufacturing-ops"
+          message: "⚠️ Robot Arm {{arm_id}} servo degradation detected. Temp: {{steps.measure_servo_temperature.result}}°C (threshold: 65°C). Speed reduced to 70%. Schedule maintenance."
+      - name: create_maintenance_work_order
+        type: http_request
+        description: "Create preventive maintenance work order"
+        parameters:
+          method: POST
+          url: "https://cmms.mfg.internal/api/v1/work-orders"
+          body:
+            asset_id: "ARM-{{arm_id}}"
+            work_type: "PREVENTIVE"
+            description: "Servo motor replacement due to temperature drift"
+            priority: "HIGH"
+            due_date: "2 days"
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:predictive-maintenance"
+
+  - name: "[Manufacturing] Quality Defect Spike Response"
+    description: "When defect rate exceeds SPC limits, pauses production line and triggers immediate QC inspection protocol."
+    trigger:
+      type: monitor
+      monitor_tags: ["quality:defect-rate"]
+    steps:
+      - name: measure_defect_rate
+        type: datadog_query
+        description: "Get current defect rate"
+        parameters:
+          query: "avg(last_30m):avg:manufacturing.quality.defect_rate_pct{line:{{line_id}}}"
+      - name: measure_process_capability
+        type: datadog_query
+        description: "Check process capability index (Cpk)"
+        parameters:
+          query: "avg(last_2h):avg:manufacturing.quality.cpk_index{line:{{line_id}}}"
+      - name: identify_root_cause
+        type: datadog_query
+        description: "Check which parameter is out of control"
+        parameters:
+          query: "avg(last_10m):avg:manufacturing.quality.{temperature,pressure,humidity}{line:{{line_id}}}"
+      - name: pause_production
+        type: http_request
+        description: "Pause production line immediately"
+        parameters:
+          method: POST
+          url: "https://mfg-control.mfg.internal/api/v1/line/{{line_id}}/pause"
+          body:
+            reason: "Quality control intervention"
+            incident_id: "{{incident.id}}"
+      - name: alert_qc_team
+        type: slack_message
+        parameters:
+          channel: "#quality-control"
+          message: "🛑 STOP: Production line {{line_id}} paused. Defect rate: {{steps.measure_defect_rate.result}}% (SPC limit: 2.5%). Cpk: {{steps.measure_process_capability.result}}. Investigate: {{steps.identify_root_cause.result}}"
+      - name: trigger_qc_inspection
+        type: http_request
+        description: "Initiate expedited QC inspection protocol"
+        parameters:
+          method: POST
+          url: "https://qc-system.mfg.internal/api/v1/inspection-protocol"
+          body:
+            line_id: "{{line_id}}"
+            protocol: "EXPEDITED_FULL_INSPECTION"
+            sample_size: 100
+            priority: "IMMEDIATE"
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:quality-intervention"
+
+  - name: "[Manufacturing] Predictive Maintenance RUL Alert"
+    description: "When Remaining Useful Life (RUL) prediction indicates bearing failure within 7 days, auto-schedules maintenance window."
+    trigger:
+      type: monitor
+      monitor_tags: ["bearings:rul"]
+    steps:
+      - name: fetch_rul_prediction
+        type: datadog_query
+        description: "Get RUL prediction for equipment"
+        parameters:
+          query: "avg:manufacturing.predictive.bearing_rul_days{equipment_id:{{equipment_id}}}"
+      - name: fetch_equipment_schedule
+        type: http_request
+        description: "Check equipment availability and production schedule"
+        parameters:
+          method: GET
+          url: "https://production-scheduler.mfg.internal/api/v1/equipment/{{equipment_id}}/schedule"
+      - name: find_maintenance_slot
+        type: condition
+        description: "Identify best maintenance window (prefer off-shift, weekends)"
+        parameters:
+          condition: "{{steps.fetch_rul_prediction.result}} < 7"
+      - name: auto_schedule_maintenance
+        type: http_request
+        description: "Schedule bearing replacement in maintenance system"
+        parameters:
+          method: POST
+          url: "https://cmms.mfg.internal/api/v1/work-orders"
+          body:
+            asset_id: "{{equipment_id}}"
+            work_type: "PREDICTIVE_MAINTENANCE"
+            description: "Bearing replacement — RUL {{steps.fetch_rul_prediction.result}} days remaining"
+            priority: "MEDIUM"
+            preferred_date: "{{steps.fetch_equipment_schedule.result.next_available_slot}}"
+      - name: notify_maintenance_team
+        type: slack_message
+        parameters:
+          channel: "#maintenance-planning"
+          message: "📅 Predictive maintenance scheduled: Equipment {{equipment_id}} bearing RUL {{steps.fetch_rul_prediction.result}} days. Maintenance window auto-scheduled for {{steps.fetch_equipment_schedule.result.next_available_slot}}. Work order created."
+      - name: update_equipment_log
+        type: http_request
+        description: "Log RUL prediction for trend analysis"
+        parameters:
+          method: POST
+          url: "https://equipment-log.mfg.internal/api/v1/entries"
+          body:
+            equipment_id: "{{equipment_id}}"
+            event_type: "RUL_PREDICTION"
+            rul_days: "{{steps.fetch_rul_prediction.result}}"
+            timestamp: "now"
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:predictive-maintenance"

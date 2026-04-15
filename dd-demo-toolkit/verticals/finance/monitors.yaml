@@ -1,0 +1,267 @@
+monitors:
+  - name: "[Finance] Payment Processing Latency SLA Breach"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.payment_gateway.avg_processing_ms{service_name:payment-processing-engine,region:us-east-1} by {environment} > 450"
+    message: "⚠️ Payment processing latency elevated in {{environment}}. Avg: {{value}}ms (SLA: <350ms). Check gateway queue depth and database replication lag."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+      - "sla_critical:true"
+      - "incident_domain:payment-cascade"
+    priority: 1
+
+  - name: "[Finance] Fraud Detection Model Latency Degradation"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.fraud_detection_node.model_latency_ms{service_name:fraud-detection-service} by {region} > 150"
+    message: "📊 Fraud detection model latency spike in {{region}}. Avg: {{value}}ms (SLA: <100ms). ML model may be swapped or compute constrained."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+      - "sla_critical:true"
+    priority: 2
+
+  - name: "[Finance] Trading Engine Order Rejection Rate Spike"
+    type: metric_alert
+    query: "avg(last_5m):sum:finserv.matching_engine.rejected_orders_total{region:us-east-1} by {environment} / sum:finserv.matching_engine.order_throughput_per_sec{region:us-east-1} * 100 > 1.5"
+    message: "📉 Trading engine rejection rate spike in {{environment}}. Rejections: {{value}}%. Check risk engine circuit breakers and order validation."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Capital Markets"
+      - "sla_critical:true"
+      - "signal_chain:order-rejection"
+    priority: 1
+
+  - name: "[Finance] Market Data Feed Gap Detection"
+    type: metric_alert
+    query: "max(last_5m):max:finserv.market_data_feed.gap_count{region:us-east-1} by {device_id,environment} > 0"
+    message: "🔗 Market data feed gap detected on {{device_id}} in {{environment}}. Gaps: {{value}}. Critical for trading operations."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Capital Markets"
+      - "sla_critical:true"
+    priority: 1
+
+  - name: "[Finance] Market Data Feed Staleness"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.market_data_feed.latency_us{region:us-east-1} by {device_id} > 100"
+    message: "🐌 Market data feed latency high on {{device_id}}. Avg: {{value}}µs. May impact pricing and order execution."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Capital Markets"
+    priority: 2
+
+  - name: "[Finance] ATM Fleet Availability Drop"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.atm_controller.uptime_pct{region:us-east-1,environment:production} by {region} < 98.5"
+    message: "💳 ATM uptime degradation in {{region}}. Availability: {{value}}%. Check network connectivity and controller health."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+      - "sla_critical:true"
+    priority: 2
+
+  - name: "[Finance] Database Replication Lag Critical"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.database_cluster.replication_lag_ms{region:us-east-1,environment:production} by {device_id} > 250"
+    message: "🔄 DB replication lag critical on {{device_id}}. Lag: {{value}}ms. May cause payment timeouts and inconsistencies."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+      - "sla_critical:true"
+      - "incident_domain:payment-cascade"
+      - "signal_chain:root-cause"
+    priority: 1
+
+  - name: "[Finance] Wire Transfer Settlement Delay"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.wire_transfer_node.avg_settlement_ms{region:us-east-1,environment:production} by {device_id} > 2000"
+    message: "⏱️ Wire transfer settlement delays on {{device_id}}. Avg: {{value}}ms. Check SWIFT connectivity and compliance holds."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Wealth Management"
+      - "sla_critical:true"
+    priority: 2
+
+  - name: "[Finance] Wire Transfer Compliance Hold Spike"
+    type: metric_alert
+    query: "max(last_5m):max:finserv.wire_transfer_node.compliance_holds{region:us-east-1,environment:production} by {device_id} > 8"
+    message: "⚖️ Compliance holds spike on {{device_id}}. Holds: {{value}}. Investigate AML/KYC triggers."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+    priority: 2
+
+  - name: "[Finance] HSM Crypto Operation Failures"
+    type: metric_alert
+    query: "avg(last_5m):sum:finserv.hsm_module.tamper_alerts{region:us-east-1} by {device_id} > 0"
+    message: "🔐 HSM tamper alert on {{device_id}}. Immediate escalation to SecOps. Disable device and rotate keys."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+      - "security_critical:true"
+    priority: 1
+
+  - name: "[Finance] Online Banking Error Rate Spike"
+    type: metric_alert
+    query: "avg(last_5m):sum:finserv.app.errors_total{service_name:online-banking-portal,region:us-east-1} / sum:finserv.app.requests_total{service_name:online-banking-portal,region:us-east-1} * 100 > 3.0"
+    message: "🌐 Online banking error rate spike. Rate: {{value}}%. Impacts customer experience and SLA compliance."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+      - "sla_critical:true"
+    priority: 2
+
+  - name: "[Finance] Compliance Reporting Pipeline Failures"
+    type: metric_alert
+    query: "avg(last_5m):sum:finserv.app.errors_total{service_name:compliance-reporting-api,operation:generate_sar_report} / sum:finserv.app.requests_total{service_name:compliance-reporting-api,operation:generate_sar_report} * 100 > 1.0"
+    message: "📋 Compliance reporting failures detected. Rate: {{value}}%. Risk of missed regulatory deadlines."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+      - "regulatory_critical:true"
+    priority: 1
+
+  - name: "[Finance] Cache Hit Rate Degradation"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.cache_cluster.hit_rate_pct{region:us-east-1,environment:production} by {device_id} < 88.0"
+    message: "💾 Cache hit rate degradation on {{device_id}}. Rate: {{value}}%. Check eviction policy and memory pressure."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+    priority: 2
+
+  - name: "[Finance] Risk Engine Circuit Breaker Trips"
+    type: metric_alert
+    query: "max(last_5m):max:finserv.risk_engine.circuit_breaker_trips{region:us-east-1,environment:production} by {device_id} > 0"
+    message: "⚡ Risk engine circuit breaker activated on {{device_id}}. Trips: {{value}}. Trading may be halted."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Capital Markets"
+      - "incident_domain:trading-risk"
+    priority: 1
+
+  - name: "[Finance] ACH Processor Return Rate Spike"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.ach_processor.return_rate_pct{region:us-east-1,environment:production} by {device_id} > 0.3"
+    message: "↩️ ACH return rate elevated on {{device_id}}. Rate: {{value}}%. Check account validation and formatting."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+    priority: 2
+
+  - name: "[Finance] FIX Gateway Session Drop"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.fix_gateway.sessions_active{region:us-east-1,environment:production} by {device_id} < 400"
+    message: "📡 FIX gateway active sessions dropped on {{device_id}}. Active: {{value}}. Check heartbeat and network."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Capital Markets"
+    priority: 2
+
+  - name: "[Finance] Payment Gateway Decline Rate Spike"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.payment_gateway.decline_rate_pct{region:us-east-1,environment:production} by {device_id} > 3.5"
+    message: "❌ Payment decline rate spike on {{device_id}}. Rate: {{value}}%. Check fraud detection and fraud_detection_service latency."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+    priority: 2
+
+  - name: "[Finance] Message Broker Consumer Lag Critical"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.message_broker.consumer_lag{region:us-east-1,environment:production} by {device_id} > 500"
+    message: "📬 Kafka consumer lag critical on {{device_id}}. Lag: {{value}} messages. Check consumer processing rate."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+    priority: 2
+
+  - name: "[Finance] Database Connection Pool Exhaustion"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.database_cluster.connection_pool_pct{region:us-east-1,environment:production} by {device_id} > 85.0"
+    message: "🔌 DB connection pool near capacity on {{device_id}}. Usage: {{value}}%. Check for connection leaks and slow queries."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+    priority: 2
+
+  - name: "[Finance] WAF Blocked Request Rate Spike"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.waf_appliance.blocked_rate_pct{region:us-east-1,environment:production} by {device_id} > 2.0"
+    message: "🛡️ WAF blocking elevated on {{device_id}}. Rate: {{value}}%. Check for DDoS or malicious patterns."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+      - "security_critical:true"
+    priority: 1
+
+  - name: "[Finance] Mobile Banking API Error Rate"
+    type: metric_alert
+    query: "avg(last_5m):sum:finserv.app.errors_total{service_name:mobile-banking-api,region:us-east-1} / sum:finserv.app.requests_total{service_name:mobile-banking-api,region:us-east-1} * 100 > 2.5"
+    message: "📱 Mobile banking API error rate elevated. Rate: {{value}}%. Check biometric auth and push notification service."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+    priority: 2
+
+  - name: "[Finance] Trading Order Fill Rate Drop"
+    type: metric_alert
+    query: "avg(last_5m):sum:finserv.app.success_total{service_name:trading-platform,operation:fill_order} / sum:finserv.app.requests_total{service_name:trading-platform,operation:fill_order} * 100 < 98.5"
+    message: "📊 Trading order fill rate dropped. Rate: {{value}}%. Check market data feed and risk engine."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Capital Markets"
+      - "sla_critical:true"
+    priority: 1
+
+  - name: "[Finance] Loan Origination Credit Check Service Degradation"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.app.latency_ms{service_name:loan-origination-system,operation:credit_check_bureau} > 5000"
+    message: "🏦 Credit check bureau latency spike. Avg: {{value}}ms. May be due to bureau API overload."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+    priority: 2
+
+  - name: "[Finance] Customer Data Platform KYC Verification Latency"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.app.latency_ms{service_name:customer-data-platform,operation:kyc_verify_identity} > 5000"
+    message: "👤 KYC verification latency elevated. Avg: {{value}}ms. Check identity verification service."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+    priority: 2
+
+  - name: "[Finance] HSM Key Slot Utilization Critical"
+    type: metric_alert
+    query: "avg(last_5m):avg:finserv.hsm_module.key_slots_used_pct{region:us-east-1,environment:production} > 90"
+    message: "🔑 HSM key slots near capacity on {{device_id}}. Usage: {{value}}%. Key management team should rotate/archive old keys."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+    priority: 2

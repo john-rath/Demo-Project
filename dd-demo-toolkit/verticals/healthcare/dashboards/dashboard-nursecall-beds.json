@@ -1,0 +1,587 @@
+{
+  "title": "Nurse Call & Bed Management \u2014 AdventHealth",
+  "description": "CNO & Nursing Directors: Call response times, bed capacity, turnover efficiency, patient safety alerts.",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# Nurse Call & Bed Management\nCall response performance, bed capacity tracking, and patient safety monitoring.",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "title": "Active Nurse Calls Now",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.nursecall.active_calls{*}",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "title": "Total Calls Today",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.nursecall.calls_total{*}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 2,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "title": "Escalations",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.nursecall.escalations_total{*}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 4,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "title": "Beds Occupied",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.bed.occupied_count{*}",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 6,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "title": "Beds Available",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.bed.available_count{*}",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 8,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "title": "Fall Risk Alerts",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.bed.fall_risk_alerts_total{*}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 10,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 10,
+      "definition": {
+        "type": "note",
+        "content": "## Nurse Call Response",
+        "background_color": "purple",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 4,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "title": "Avg Response Time (sec) by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.nursecall.response_time_sec{*} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 120",
+            "display_type": "warning dashed",
+            "label": "Target: 2 min"
+          },
+          {
+            "value": "y = 180",
+            "display_type": "error dashed",
+            "label": "SLA Breach"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 5,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 12,
+      "definition": {
+        "title": "Calls by Type",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.nursecall.calls_total{*} by {call.type}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 5,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 13,
+      "definition": {
+        "title": "Active Calls by Floor & Wing",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.nursecall.active_calls{*} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 8,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 14,
+      "definition": {
+        "title": "Escalations by Call Type",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.nursecall.escalations_total{*} by {call.type}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 8,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 20,
+      "definition": {
+        "type": "note",
+        "content": "## Bed Management & Safety",
+        "background_color": "pink",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 11,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 21,
+      "definition": {
+        "title": "Bed Occupancy by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              },
+              {
+                "formula": "query2"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.bed.occupied_count{*} by {hospital.floor}"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "sum:hospital.bed.available_count{*} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 12,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 22,
+      "definition": {
+        "title": "Avg Bed Turnover Time (min)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.bed.turnover_time_min{*} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 30",
+            "display_type": "ok dashed",
+            "label": "Target"
+          },
+          {
+            "value": "y = 60",
+            "display_type": "error dashed",
+            "label": "Too Slow"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 12,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 23,
+      "definition": {
+        "title": "Cleaning Queue by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.bed.cleaning_queue{*} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 15,
+        "width": 4,
+        "height": 3
+      }
+    },
+    {
+      "id": 24,
+      "definition": {
+        "title": "Fall Risk Alerts by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.bed.fall_risk_alerts_total{*} by {hospital.floor}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 4,
+        "y": 15,
+        "width": 4,
+        "height": 3
+      }
+    },
+    {
+      "id": 25,
+      "definition": {
+        "title": "Patient Exit Alerts by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.bed.exit_alerts_total{*} by {hospital.floor}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 8,
+        "y": 15,
+        "width": 4,
+        "height": 3
+      }
+    }
+  ],
+  "template_variables": [
+    {
+      "name": "floor",
+      "prefix": "hospital.floor",
+      "default": "*"
+    },
+    {
+      "name": "wing",
+      "prefix": "hospital.wing",
+      "default": "*"
+    }
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

@@ -1,0 +1,74 @@
+incidents:
+  - name: "Robot Arm Servo Temperature Excursion"
+    severity: "SEV-2"
+    description: "Robot arm servo motor exhibiting temperature degradation, indicating bearing wear. Speed reduced to prevent damage."
+    customer_impact: "Production line output reduced to 70% capacity. 30-minute delay to full recovery."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Monitor triggered: Robot ARM-3 servo temperature 68°C (threshold: 65°C)"
+      - timestamp_offset_sec: 120
+        content: "Incident declared: Predictive maintenance alert"
+      - timestamp_offset_sec: 240
+        content: "Auto-response: Arm speed reduced to 70% via robot controller"
+      - timestamp_offset_sec: 360
+        content: "Maintenance notified: Preventive bearing replacement scheduled for next maintenance window"
+      - timestamp_offset_sec: 540
+        content: "Temperature stabilized at 62°C with reduced speed"
+      - timestamp_offset_sec: 1200
+        content: "Monitoring maintained. Production continues at reduced capacity until bearing replacement"
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+
+  - name: "Production Line Quality Control Stop"
+    severity: "SEV-1"
+    description: "Quality defect rate exceeded statistical process control (SPC) limits on Assembly Line 2. Production paused for investigation."
+    customer_impact: "Production line 2 halted for 45 minutes. Customer delivery target at risk if root cause resolution extends."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "SPC monitor triggered: Defect rate 5.2% (upper control limit: 2.5%)"
+      - timestamp_offset_sec: 180
+        content: "Incident declared: SEV-1 quality control intervention"
+      - timestamp_offset_sec: 300
+        content: "Production line automatically paused"
+      - timestamp_offset_sec: 420
+        content: "QC team inspection initiated: Random sample of 100 units selected"
+      - timestamp_offset_sec: 900
+        content: "Root cause identified: Temperature control system drift in oven, running 12°F hot"
+      - timestamp_offset_sec: 1200
+        content: "Remediation: Oven temperature controller calibrated and verified"
+      - timestamp_offset_sec: 1500
+        content: "Production resumed: First 50 units re-inspected with zero defects"
+      - timestamp_offset_sec: 1800
+        content: "Full recovery: Defect rate normalized to 0.8%"
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+
+  - name: "Predictive Maintenance: Bearing Replacement Scheduled"
+    severity: "SEV-3"
+    description: "Machine bearing RUL prediction indicates failure risk within 7 days. Preventive maintenance automatically scheduled."
+    customer_impact: "Minimal impact. Maintenance scheduled during off-shift window."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Predictive model alert: Equipment MILL-4 bearing RUL = 5.2 days remaining"
+      - timestamp_offset_sec: 120
+        content: "Incident created: Preventive maintenance case"
+      - timestamp_offset_sec: 300
+        content: "Production schedule analyzed: Best maintenance window identified for Saturday 2am"
+      - timestamp_offset_sec: 480
+        content: "Work order auto-created in CMMS: Bearing replacement, priority MEDIUM, scheduled Saturday 2am"
+      - timestamp_offset_sec: 600
+        content: "Maintenance team notified: Parts ordered, technician pre-assigned"
+      - timestamp_offset_sec: 86400
+        content: "Saturday 2am: Maintenance window begins"
+      - timestamp_offset_sec: 90000
+        content: "Bearing replacement completed successfully"
+      - timestamp_offset_sec: 90600
+        content: "Equipment returned to service. RUL reset to 365 days"
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"

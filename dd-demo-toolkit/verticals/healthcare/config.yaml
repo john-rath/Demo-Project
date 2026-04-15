@@ -1,0 +1,53 @@
+vertical:
+  name: healthcare
+  display_name: AdventHealth Smart Hospital
+  description: Full hospital IoT fleet with medical devices, network infrastructure,
+    environmental sensors, and clinical application services.
+  env_prefix: hospital
+  emit_interval_sec: 15
+locations:
+  dimensions:
+  - name: floor
+    values:
+    - '1'
+    - '2'
+    - '3'
+    - '4'
+    - '5'
+  - name: wing
+    values:
+    - East
+    - West
+    - North
+    - South
+  - name: department
+    values:
+    - ED
+    - ICU
+    - OR
+    - MedSurg
+    - Radiology
+    - Pharmacy
+    - Lab
+    - Admin
+device_categories:
+  medical_iot:
+    ip_base: '10.100'
+    department_pool:
+    - ED
+    - ICU
+    - OR
+    - MedSurg
+    devices:
+    - type: patient_monitor
+      manufacturer: Philips
+      model: IntelliVue MX800
+      firmware: 4.3.1
+      count: 24
+      battery_powered: true
+    - type: infusion_pump
+      manufacturer: BD
+      model: Alaris 8015
+      firmware: 12.1.3
+      count: 32
+      battery_powered: true

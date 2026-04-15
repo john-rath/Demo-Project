@@ -1,0 +1,68 @@
+incidents:
+  - name: "Payment Processing Latency Spike"
+    severity: "SEV-2"
+    description: "Payment processing service experiencing elevated transaction latency, approaching customer-facing SLA threshold."
+    customer_impact: "Payment transaction confirmation delayed 2-5 seconds beyond SLA. Customers experience slower checkout experience but transactions complete successfully."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Monitor triggered: Payment p99 latency exceeded 800ms threshold"
+      - timestamp_offset_sec: 120
+        content: "Incident declared: SEV-2 payment processing degradation"
+      - timestamp_offset_sec: 240
+        content: "Root cause analysis: Payment processor CPU utilization at 92%, queue depth 6,500 transactions"
+      - timestamp_offset_sec: 360
+        content: "Auto-remediation: Horizontal pod autoscaler triggered, scaling from 8 to 16 replicas"
+      - timestamp_offset_sec: 540
+        content: "Recovery monitoring: Latency trending down as new pods initialize"
+      - timestamp_offset_sec: 900
+        content: "Full recovery: p99 latency normalized to 420ms, queue drained"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+
+  - name: "Fraud Detection Model Performance Degradation"
+    severity: "SEV-2"
+    description: "ML-based fraud detection model accuracy degraded 8%, causing elevated false positive rate and customer friction."
+    customer_impact: "Legitimate transactions flagged as fraud, requiring customer verification. Customer trust impacted. Some legitimate transactions blocked."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Model performance monitor triggered: Accuracy dropped to 89% (baseline: 97%)"
+      - timestamp_offset_sec: 180
+        content: "False positive rate increased to 12% (baseline: 4%)"
+      - timestamp_offset_sec: 300
+        content: "Circuit breaker activated: Switched to rules-based fallback engine"
+      - timestamp_offset_sec: 420
+        content: "Notification: ML team alerted of drift. Fraud operations team monitoring false positive rate"
+      - timestamp_offset_sec: 900
+        content: "Investigation: Identified model training data skew due to holiday spending pattern shift"
+      - timestamp_offset_sec: 1800
+        content: "Remediation: Retrained model with recent transaction data, accuracy restored to 95%"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+
+  - name: "Trading Platform Order Rejection Surge"
+    severity: "SEV-2"
+    description: "Trading platform experiencing unusual order rejection rate spike, impacting trading execution."
+    customer_impact: "Traders experiencing 15% order rejection rate (baseline: 0.5%). Market opportunities missed. Customer revenue impact."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Alert triggered: Order rejection rate 15% vs baseline 0.5%"
+      - timestamp_offset_sec: 120
+        content: "Incident declared: Trading platform degradation"
+      - timestamp_offset_sec: 300
+        content: "Diagnostics: Market data feed latency detected, exchange connectivity unstable"
+      - timestamp_offset_sec: 480
+        content: "Notifications sent to trading desk: Circuit breaker engaged, reducing order volume"
+      - timestamp_offset_sec: 900
+        content: "Investigation complete: Market data provider experiencing intermittent connection issues"
+      - timestamp_offset_sec: 1200
+        content: "Remediation: Switched to backup market data feed provider"
+      - timestamp_offset_sec: 1500
+        content: "Recovery: Order acceptance rate normalized to 99.8%"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"

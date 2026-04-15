@@ -1,0 +1,618 @@
+{
+  "title": "Environmental & Facilities \u2014 AdventHealth",
+  "description": "Facilities & Compliance: HVAC compliance, air quality, power systems, regulatory monitoring.",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# Environmental & Facilities Management\nHVAC compliance, OR air quality, power systems, and regulatory monitoring across the hospital.",
+        "background_color": "vivid_orange",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "title": "Sensors Online",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.online{device.category:environmental}"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "title": "Avg Room Temp (\u00b0F)",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.room_temperature_f{*}",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 1
+      },
+      "layout": {
+        "x": 3,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "title": "Avg AQI",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.air_quality_aqi{*}",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 6,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "title": "Water Leaks Detected",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.env.water_leak_detected{*}",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 9,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 10,
+      "definition": {
+        "type": "note",
+        "content": "## HVAC & Temperature Compliance",
+        "background_color": "orange",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 4,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "title": "Room Temperature by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.room_temperature_f{$floor,$wing} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 68",
+            "display_type": "ok dashed",
+            "label": "Min Comfort"
+          },
+          {
+            "value": "y = 75",
+            "display_type": "ok dashed",
+            "label": "Max Comfort"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 5,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 12,
+      "definition": {
+        "title": "HVAC Setpoint Deviation (\u00b0F) by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.hvac_setpoint_delta_f{$floor,$wing} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 2",
+            "display_type": "warning dashed",
+            "label": "+2\u00b0F"
+          },
+          {
+            "value": "y = -2",
+            "display_type": "warning dashed",
+            "label": "-2\u00b0F"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 5,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 13,
+      "definition": {
+        "title": "Humidity by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.humidity_pct{$floor,$wing} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 30",
+            "display_type": "warning dashed",
+            "label": "Too Dry"
+          },
+          {
+            "value": "y = 60",
+            "display_type": "warning dashed",
+            "label": "Too Humid"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 8,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 14,
+      "definition": {
+        "title": "CO2 Levels (ppm) by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.co2_ppm{$floor,$wing} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 800",
+            "display_type": "warning dashed",
+            "label": "Elevated"
+          },
+          {
+            "value": "y = 1000",
+            "display_type": "error dashed",
+            "label": "Ventilation Required"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 8,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 20,
+      "definition": {
+        "type": "note",
+        "content": "## Air Quality & OR Compliance",
+        "background_color": "blue",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 11,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 21,
+      "definition": {
+        "title": "Air Quality Index by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.air_quality_aqi{$floor,$wing} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 50",
+            "display_type": "warning dashed",
+            "label": "Moderate"
+          },
+          {
+            "value": "y = 100",
+            "display_type": "error dashed",
+            "label": "Unhealthy"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 12,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 22,
+      "definition": {
+        "title": "OR Differential Pressure (Pa)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.differential_pressure_pa{hospital.department:or,$floor,$wing} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 2.5",
+            "display_type": "ok dashed",
+            "label": "Target +2.5 Pa"
+          },
+          {
+            "value": "y = 1.0",
+            "display_type": "error dashed",
+            "label": "Non-Compliant"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 12,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 30,
+      "definition": {
+        "type": "note",
+        "content": "## Power & Backup Systems",
+        "background_color": "red",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 15,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 31,
+      "definition": {
+        "title": "UPS Load (%)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.ups_load_pct{*} by {device.id}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "yaxis": {
+          "min": "0",
+          "max": "100"
+        },
+        "markers": [
+          {
+            "value": "y = 80",
+            "display_type": "warning dashed",
+            "label": "High Load"
+          },
+          {
+            "value": "y = 90",
+            "display_type": "error dashed",
+            "label": "Critical"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 16,
+        "width": 4,
+        "height": 3
+      }
+    },
+    {
+      "id": 32,
+      "definition": {
+        "title": "UPS Runtime Remaining (min)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.ups_runtime_min{*} by {device.id}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 15",
+            "display_type": "error dashed",
+            "label": "Critical"
+          },
+          {
+            "value": "y = 30",
+            "display_type": "warning dashed",
+            "label": "Low"
+          }
+        ]
+      },
+      "layout": {
+        "x": 4,
+        "y": 16,
+        "width": 4,
+        "height": 3
+      }
+    },
+    {
+      "id": 33,
+      "definition": {
+        "title": "Generator Fuel Level (%)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.generator_fuel_pct{*} by {device.id}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "yaxis": {
+          "min": "0",
+          "max": "100"
+        },
+        "markers": [
+          {
+            "value": "y = 30",
+            "display_type": "error dashed",
+            "label": "Refuel"
+          }
+        ]
+      },
+      "layout": {
+        "x": 8,
+        "y": 16,
+        "width": 4,
+        "height": 3
+      }
+    }
+  ],
+  "template_variables": [
+    {
+      "name": "floor",
+      "prefix": "hospital.floor",
+      "default": "*"
+    },
+    {
+      "name": "wing",
+      "prefix": "hospital.wing",
+      "default": "*"
+    }
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

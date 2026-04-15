@@ -1,0 +1,363 @@
+vertical:
+  name: finance
+  display_name: "Global Financial Services Platform"
+  description: "JPMorgan-scale trading firm with retail banking, capital markets, wealth management, and risk infrastructure. Multi-region, high-frequency trading, mission-critical payment systems, fraud detection, and regulatory compliance."
+  env_prefix: finserv
+  emit_interval_sec: 15
+
+locations:
+  dimensions:
+  - name: region
+    values:
+    - us-east-1
+    - us-west-2
+    - eu-west-1
+    - ap-southeast-1
+  - name: environment
+    values:
+    - production
+    - staging
+    - dr-site
+  - name: business_unit
+    values:
+    - Retail Banking
+    - Capital Markets
+    - Wealth Management
+    - Risk & Compliance
+
+device_categories:
+  trading_infrastructure:
+    ip_base: '10.10'
+    devices:
+    - type: matching_engine
+      manufacturer: Custom
+      model: FastMatch-HFT
+      firmware: 3.8.2
+      count: 12
+      metrics:
+        order_throughput_per_sec: { baseline: 450000, jitter: 50000 }
+        latency_us: { baseline: 125, jitter: 35 }
+        queue_depth: { baseline: 5000, jitter: 2000 }
+        rejected_orders_total: { baseline: 0.5, jitter: 0.1 }
+
+    - type: market_data_feed
+      manufacturer: NASDAQ
+      model: DataFeed-6
+      firmware: 5.1.0
+      count: 8
+      metrics:
+        tick_rate_per_sec: { baseline: 850000, jitter: 100000 }
+        gap_count: { baseline: 0, jitter: 0 }
+        latency_us: { baseline: 45, jitter: 15 }
+        stale_feeds: { baseline: 0, jitter: 0 }
+
+    - type: fix_gateway
+      manufacturer: Murex
+      model: GW-FIX4.4
+      firmware: 7.2.1
+      count: 6
+      metrics:
+        sessions_active: { baseline: 450, jitter: 50 }
+        messages_per_sec: { baseline: 180000, jitter: 30000 }
+        reject_rate_pct: { baseline: 0.02, jitter: 0.01 }
+        heartbeat_latency_ms: { baseline: 45, jitter: 15 }
+
+    - type: risk_engine
+      manufacturer: Custom
+      model: RiskCalc-VaR
+      firmware: 2.4.1
+      count: 4
+      metrics:
+        var_calculations_per_sec: { baseline: 85000, jitter: 15000 }
+        margin_calls_pending: { baseline: 8, jitter: 4 }
+        circuit_breaker_trips: { baseline: 0, jitter: 0 }
+
+  payment_systems:
+    ip_base: '10.20'
+    devices:
+    - type: payment_gateway
+      manufacturer: Verifone
+      model: PaymentGW-Pro
+      firmware: 4.5.3
+      count: 10
+      metrics:
+        transactions_per_sec: { baseline: 8500, jitter: 1500 }
+        decline_rate_pct: { baseline: 2.1, jitter: 0.5 }
+        avg_processing_ms: { baseline: 285, jitter: 95 }
+        timeout_rate_pct: { baseline: 0.05, jitter: 0.02 }
+
+    - type: ach_processor
+      manufacturer: FIS
+      model: ACH-Batch-64
+      firmware: 3.2.1
+      count: 4
+      metrics:
+        batch_size: { baseline: 50000, jitter: 10000 }
+        processing_time_sec: { baseline: 180, jitter: 60 }
+        return_rate_pct: { baseline: 0.08, jitter: 0.02 }
+        nacha_errors: { baseline: 0, jitter: 0 }
+
+    - type: wire_transfer_node
+      manufacturer: SWIFT
+      model: HostOne-WireX
+      firmware: 6.1.2
+      count: 6
+      metrics:
+        transfers_pending: { baseline: 3400, jitter: 800 }
+        avg_settlement_ms: { baseline: 1200, jitter: 400 }
+        compliance_holds: { baseline: 2, jitter: 2 }
+
+    - type: atm_controller
+      manufacturer: Diebold
+      model: Opteva-560
+      firmware: 5.8.4
+      count: 200
+      metrics:
+        cash_level_pct: { baseline: 65, jitter: 20 }
+        uptime_pct: { baseline: 99.2, jitter: 0.3 }
+        transactions_per_hour: { baseline: 45, jitter: 15 }
+        card_reader_errors: { baseline: 0, jitter: 0 }
+
+  security_infrastructure:
+    ip_base: '10.30'
+    devices:
+    - type: fraud_detection_node
+      manufacturer: Custom
+      model: FraudML-Ensemble
+      firmware: 1.9.3
+      count: 8
+      metrics:
+        transactions_scored_per_sec: { baseline: 12500, jitter: 2500 }
+        false_positive_rate_pct: { baseline: 1.2, jitter: 0.3 }
+        model_latency_ms: { baseline: 78, jitter: 22 }
+        alerts_generated: { baseline: 18, jitter: 8 }
+
+    - type: hsm_module
+      manufacturer: Thales
+      model: Luna-HSM-7
+      firmware: 7.4.0
+      count: 12
+      metrics:
+        crypto_ops_per_sec: { baseline: 65000, jitter: 12000 }
+        key_slots_used_pct: { baseline: 72, jitter: 8 }
+        temperature_celsius: { baseline: 42, jitter: 3 }
+        tamper_alerts: { baseline: 0, jitter: 0 }
+
+    - type: waf_appliance
+      manufacturer: F5
+      model: BIG-IP-ASM
+      firmware: 16.1.0
+      count: 6
+      metrics:
+        requests_inspected_per_sec: { baseline: 125000, jitter: 25000 }
+        blocked_rate_pct: { baseline: 0.8, jitter: 0.2 }
+        rule_matches: { baseline: 450, jitter: 150 }
+        response_time_ms: { baseline: 35, jitter: 12 }
+
+  data_infrastructure:
+    ip_base: '10.40'
+    devices:
+    - type: database_cluster
+      manufacturer: Oracle
+      model: RAC-19c
+      firmware: 19.13
+      count: 8
+      metrics:
+        queries_per_sec: { baseline: 185000, jitter: 35000 }
+        replication_lag_ms: { baseline: 85, jitter: 25 }
+        connection_pool_pct: { baseline: 68, jitter: 12 }
+        deadlocks_total: { baseline: 0, jitter: 0 }
+
+    - type: cache_cluster
+      manufacturer: Redis
+      model: Enterprise-Cluster
+      firmware: 7.0.8
+      count: 6
+      metrics:
+        hit_rate_pct: { baseline: 92.5, jitter: 2.5 }
+        eviction_rate: { baseline: 45, jitter: 15 }
+        memory_used_pct: { baseline: 78, jitter: 8 }
+        connections_active: { baseline: 8500, jitter: 2000 }
+
+    - type: message_broker
+      manufacturer: Apache
+      model: Kafka-Cluster
+      firmware: 3.2.0
+      count: 4
+      metrics:
+        messages_per_sec: { baseline: 2500000, jitter: 500000 }
+        consumer_lag: { baseline: 125, jitter: 50 }
+        partition_count: { baseline: 320, jitter: 0 }
+        unacked_messages: { baseline: 8500, jitter: 2500 }
+
+services:
+  - name: online-banking-portal
+    display_name: "Online Banking Portal"
+    description: "Customer-facing web/mobile portal for account access, transfers, bill pay. React frontend, Node.js/Express backend."
+    team: "Digital Banking"
+    tier: 1
+    language: javascript
+    dependencies: [payment-processing-engine, customer-data-platform, fraud-detection-service]
+    operations:
+      - login_2fa: { latency_ms: 450, error_rate: 0.01 }
+      - view_account_summary: { latency_ms: 185, error_rate: 0.005 }
+      - initiate_transfer: { latency_ms: 1250, error_rate: 0.02 }
+      - bill_pay_schedule: { latency_ms: 2100, error_rate: 0.015 }
+      - download_statements: { latency_ms: 3500, error_rate: 0.008 }
+
+  - name: mobile-banking-api
+    display_name: "Mobile Banking API"
+    description: "Biometric auth, mobile deposits, push notifications. Kotlin/Spring Boot backend."
+    team: "Digital Banking"
+    tier: 1
+    language: kotlin
+    dependencies: [customer-data-platform, fraud-detection-service, payment-processing-engine]
+    operations:
+      - mobile_login_biometric: { latency_ms: 680, error_rate: 0.008 }
+      - check_deposit: { latency_ms: 2300, error_rate: 0.012 }
+      - send_payment: { latency_ms: 1450, error_rate: 0.018 }
+      - push_notification_dispatch: { latency_ms: 85, error_rate: 0.002 }
+      - transaction_history: { latency_ms: 320, error_rate: 0.004 }
+
+  - name: payment-processing-engine
+    display_name: "Payment Processing Engine"
+    description: "Core payment routing, authorization, settlement. Java with Kafka event streams."
+    team: "Payments"
+    tier: 1
+    language: java
+    dependencies: [fraud-detection-service, compliance-reporting-api, database_cluster]
+    operations:
+      - authorize_payment: { latency_ms: 285, error_rate: 0.025 }
+      - batch_settlement: { latency_ms: 1850, error_rate: 0.008 }
+      - reverse_transaction: { latency_ms: 980, error_rate: 0.005 }
+      - update_balance: { latency_ms: 125, error_rate: 0.002 }
+      - confirm_ach_delivery: { latency_ms: 450, error_rate: 0.003 }
+
+  - name: fraud-detection-service
+    display_name: "Fraud Detection Service"
+    description: "Real-time ML-based fraud scoring, rule engine, SAR case management. Python with scikit-learn/TensorFlow."
+    team: "Risk & Compliance"
+    tier: 1
+    language: python
+    dependencies: [customer-data-platform, compliance-reporting-api]
+    operations:
+      - score_transaction: { latency_ms: 78, error_rate: 0.001 }
+      - rule_engine_match: { latency_ms: 45, error_rate: 0.0005 }
+      - generate_sar_case: { latency_ms: 520, error_rate: 0.002 }
+      - model_inference_batch: { latency_ms: 2500, error_rate: 0.008 }
+      - update_watchlist: { latency_ms: 380, error_rate: 0.001 }
+
+  - name: trading-platform
+    display_name: "Trading Platform"
+    description: "Order entry, execution, position management, P&L tracking. Java/C++ with FIX protocol."
+    team: "Capital Markets"
+    tier: 1
+    language: java
+    dependencies: [risk-calculation-engine, market-data-aggregator, compliance-reporting-api]
+    operations:
+      - submit_order: { latency_ms: 125, error_rate: 0.035 }
+      - fill_order: { latency_ms: 95, error_rate: 0.012 }
+      - position_update: { latency_ms: 55, error_rate: 0.005 }
+      - cancel_order: { latency_ms: 85, error_rate: 0.008 }
+      - calculate_pnl: { latency_ms: 220, error_rate: 0.002 }
+
+  - name: risk-calculation-engine
+    display_name: "Risk Calculation Engine"
+    description: "VaR calculations, stress tests, margin requirements, circuit breaker. Python with NumPy/SciPy."
+    team: "Risk & Compliance"
+    tier: 1
+    language: python
+    dependencies: [market-data-aggregator]
+    operations:
+      - calculate_var_daily: { latency_ms: 8500, error_rate: 0.005 }
+      - calculate_margin_requirement: { latency_ms: 450, error_rate: 0.003 }
+      - run_stress_test: { latency_ms: 12000, error_rate: 0.008 }
+      - evaluate_circuit_breaker: { latency_ms: 85, error_rate: 0.001 }
+      - portfolio_heat_map: { latency_ms: 3200, error_rate: 0.004 }
+
+  - name: loan-origination-system
+    display_name: "Loan Origination System"
+    description: "Mortgage/personal loan applications, credit checks, underwriting workflow. Java Spring Boot."
+    team: "Retail Banking"
+    tier: 2
+    language: java
+    dependencies: [customer-data-platform, fraud-detection-service, compliance-reporting-api]
+    operations:
+      - submit_application: { latency_ms: 1850, error_rate: 0.015 }
+      - credit_check_bureau: { latency_ms: 2800, error_rate: 0.012 }
+      - underwriting_review: { latency_ms: 4500, error_rate: 0.008 }
+      - calculate_approval_odds: { latency_ms: 650, error_rate: 0.005 }
+      - generate_disclosure: { latency_ms: 1200, error_rate: 0.003 }
+
+  - name: compliance-reporting-api
+    display_name: "Compliance Reporting API"
+    description: "Regulatory reporting, audit trails, SAR filing, KYC workflows. .NET/C# with SQL Server."
+    team: "Risk & Compliance"
+    tier: 1
+    language: csharp
+    dependencies: []
+    operations:
+      - generate_sar_report: { latency_ms: 8500, error_rate: 0.002 }
+      - file_ctc_transmission: { latency_ms: 3200, error_rate: 0.001 }
+      - audit_trail_query: { latency_ms: 580, error_rate: 0.003 }
+      - kyc_workflow_update: { latency_ms: 1450, error_rate: 0.004 }
+      - extract_regulatory_snapshot: { latency_ms: 6200, error_rate: 0.005 }
+
+  - name: customer-data-platform
+    display_name: "Customer Data Platform"
+    description: "KYC verification, customer 360 profiles, segmentation, PII management. Python with Spark/Airflow."
+    team: "Digital Banking"
+    tier: 1
+    language: python
+    dependencies: []
+    operations:
+      - kyc_verify_identity: { latency_ms: 3500, error_rate: 0.008 }
+      - customer_360_profile: { latency_ms: 850, error_rate: 0.005 }
+      - update_pii: { latency_ms: 1200, error_rate: 0.003 }
+      - customer_segmentation_batch: { latency_ms: 18000, error_rate: 0.004 }
+      - calculate_customer_lifetime_value: { latency_ms: 2400, error_rate: 0.006 }
+
+  - name: market-data-aggregator
+    display_name: "Market Data Aggregator"
+    description: "Normalize market feeds, tick storage/distribution, quote enrichment. Rust with Kafka."
+    team: "Capital Markets"
+    tier: 1
+    language: rust
+    dependencies: []
+    operations:
+      - normalize_market_feed: { latency_ms: 35, error_rate: 0.0005 }
+      - store_tick: { latency_ms: 12, error_rate: 0.0001 }
+      - distribute_quotes: { latency_ms: 22, error_rate: 0.0002 }
+      - calculate_vwap: { latency_ms: 450, error_rate: 0.002 }
+      - detect_feed_gaps: { latency_ms: 85, error_rate: 0.001 }
+
+pinned_devices:
+  - device_type: atm_controller
+    region: us-east-1
+    environment: production
+    count: 5
+    reason: "Key ATM fleet for demo stories"
+
+  - device_type: matching_engine
+    region: us-east-1
+    environment: production
+    count: 3
+    reason: "Primary trading engines for order flow demo"
+
+  - device_type: fraud_detection_node
+    region: us-east-1
+    environment: production
+    count: 2
+    reason: "Core fraud scoring for incident scenarios"
+
+  - device_type: database_cluster
+    region: us-east-1
+    environment: production
+    count: 2
+    reason: "Primary DB for replication lag cascade story"
+
+  - device_type: payment_gateway
+    region: us-east-1
+    environment: production
+    count: 3
+    reason: "Payment processing for SLA violations"

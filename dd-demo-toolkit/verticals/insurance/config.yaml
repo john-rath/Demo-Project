@@ -1,0 +1,410 @@
+vertical:
+  name: insurance
+  display_name: Multi-State P&C/Life Insurer
+  description: >
+    Realistic large-scale property & casualty + life insurance operations.
+    Multi-region policy, underwriting, claims, and billing infrastructure
+    supporting 50+ million policies. Demonstrates claims surge scenarios,
+    telematics integration, document processing at scale, and regulatory compliance.
+  env_prefix: insurer
+  emit_interval_sec: 15
+
+locations:
+  dimensions:
+    - name: region
+      values:
+        - us-east
+        - us-central
+        - us-west
+        - canada
+    - name: environment
+      values:
+        - production
+        - staging
+        - disaster-recovery
+    - name: line_of_business
+      values:
+        - Auto
+        - Home
+        - Life
+        - Commercial
+        - Health
+
+device_categories:
+  claims_infrastructure:
+    ip_base: "10.200"
+    devices:
+      - type: claims_intake_server
+        manufacturer: Dell
+        model: PowerEdge R750
+        count: 12
+        metrics:
+          - name: claims_received_per_min
+            unit: claims/min
+            baseline: 450
+            fluctuation: 0.15
+          - name: avg_processing_ms
+            unit: ms
+            baseline: 320
+            fluctuation: 0.20
+          - name: validation_errors
+            unit: errors/min
+            baseline: 12
+            fluctuation: 0.30
+          - name: document_queue_depth
+            unit: documents
+            baseline: 850
+            fluctuation: 0.25
+          - name: ocr_confidence_pct
+            unit: "%"
+            baseline: 94.2
+            fluctuation: 0.08
+
+      - type: adjuster_mobile_device
+        manufacturer: Apple
+        model: iPhone 14 Pro
+        firmware: iOS 17.2
+        count: 200
+        battery_powered: true
+        metrics:
+          - name: photo_uploads_per_hour
+            unit: photos/hr
+            baseline: 28
+            fluctuation: 0.35
+          - name: gps_accuracy_m
+            unit: meters
+            baseline: 8.5
+            fluctuation: 0.25
+          - name: app_crash_rate
+            unit: "%"
+            baseline: 0.8
+            fluctuation: 0.40
+          - name: sync_lag_ms
+            unit: ms
+            baseline: 150
+            fluctuation: 0.30
+          - name: battery_pct
+            unit: "%"
+            baseline: 65
+            fluctuation: 0.20
+
+      - type: document_processor
+        manufacturer: Dell
+        model: PowerEdge C6720
+        count: 8
+        metrics:
+          - name: pages_processed_per_min
+            unit: pages/min
+            baseline: 980
+            fluctuation: 0.12
+          - name: ocr_accuracy_pct
+            unit: "%"
+            baseline: 96.8
+            fluctuation: 0.05
+          - name: extraction_confidence
+            unit: "%"
+            baseline: 92.1
+            fluctuation: 0.10
+          - name: classification_errors
+            unit: errors/min
+            baseline: 4
+            fluctuation: 0.40
+          - name: queue_backlog
+            unit: documents
+            baseline: 420
+            fluctuation: 0.22
+
+      - type: payment_disbursement_node
+        manufacturer: Dell
+        model: PowerEdge R750
+        count: 6
+        metrics:
+          - name: payments_per_min
+            unit: payments/min
+            baseline: 185
+            fluctuation: 0.18
+          - name: avg_amount_usd
+            unit: USD
+            baseline: 4250
+            fluctuation: 0.30
+          - name: failed_payments
+            unit: payments/min
+            baseline: 0.3
+            fluctuation: 0.50
+          - name: ach_return_rate_pct
+            unit: "%"
+            baseline: 0.12
+            fluctuation: 0.35
+          - name: check_print_queue
+            unit: checks
+            baseline: 320
+            fluctuation: 0.20
+
+  underwriting_systems:
+    ip_base: "10.201"
+    devices:
+      - type: rating_engine
+        manufacturer: Dell
+        model: PowerEdge R7515
+        count: 8
+        metrics:
+          - name: quotes_per_sec
+            unit: quotes/sec
+            baseline: 145
+            fluctuation: 0.22
+          - name: avg_calculation_ms
+            unit: ms
+            baseline: 280
+            fluctuation: 0.18
+          - name: model_version
+            unit: version
+            baseline: 4.2
+            fluctuation: 0.01
+          - name: rule_exceptions_pct
+            unit: "%"
+            baseline: 2.1
+            fluctuation: 0.25
+          - name: cache_hit_rate_pct
+            unit: "%"
+            baseline: 87.3
+            fluctuation: 0.08
+
+      - type: risk_scoring_node
+        manufacturer: Dell
+        model: PowerEdge R7515
+        count: 6
+        metrics:
+          - name: scores_per_sec
+            unit: scores/sec
+            baseline: 98
+            fluctuation: 0.20
+          - name: model_latency_ms
+            unit: ms
+            baseline: 340
+            fluctuation: 0.16
+          - name: feature_staleness_sec
+            unit: seconds
+            baseline: 45
+            fluctuation: 0.30
+          - name: drift_score
+            unit: score
+            baseline: 0.032
+            fluctuation: 0.25
+          - name: calibration_error
+            unit: "%"
+            baseline: 1.8
+            fluctuation: 0.20
+
+      - type: telematics_gateway
+        manufacturer: Cisco
+        model: ASR 1002-HX
+        count: 10
+        metrics:
+          - name: devices_connected
+            unit: devices
+            baseline: 2850000
+            fluctuation: 0.05
+          - name: events_per_sec
+            unit: events/sec
+            baseline: 42500
+            fluctuation: 0.18
+          - name: data_quality_pct
+            unit: "%"
+            baseline: 98.4
+            fluctuation: 0.06
+          - name: location_fixes_per_min
+            unit: fixes/min
+            baseline: 35600
+            fluctuation: 0.12
+          - name: driving_score_avg
+            unit: score
+            baseline: 72.5
+            fluctuation: 0.08
+
+      - type: third_party_data_connector
+        manufacturer: Dell
+        model: PowerEdge R750
+        count: 8
+        metrics:
+          - name: api_calls_per_min
+            unit: calls/min
+            baseline: 2800
+            fluctuation: 0.20
+          - name: avg_response_ms
+            unit: ms
+            baseline: 580
+            fluctuation: 0.25
+          - name: error_rate_pct
+            unit: "%"
+            baseline: 0.8
+            fluctuation: 0.40
+          - name: cache_hit_rate_pct
+            unit: "%"
+            baseline: 72.1
+            fluctuation: 0.12
+          - name: rate_limit_remaining
+            unit: calls
+            baseline: 8500
+            fluctuation: 0.35
+
+  customer_platforms:
+    ip_base: "10.202"
+    devices:
+      - type: web_portal_server
+        manufacturer: Dell
+        model: PowerEdge R750
+        count: 8
+        metrics:
+          - name: active_sessions
+            unit: sessions
+            baseline: 42000
+            fluctuation: 0.30
+          - name: page_load_ms
+            unit: ms
+            baseline: 1250
+            fluctuation: 0.25
+          - name: error_rate_pct
+            unit: "%"
+            baseline: 0.4
+            fluctuation: 0.50
+          - name: quote_starts_per_min
+            unit: quotes/min
+            baseline: 320
+            fluctuation: 0.35
+          - name: conversion_rate_pct
+            unit: "%"
+            baseline: 12.8
+            fluctuation: 0.15
+
+      - type: chatbot_engine
+        manufacturer: Dell
+        model: PowerEdge R750
+        count: 4
+        metrics:
+          - name: conversations_active
+            unit: conversations
+            baseline: 8500
+            fluctuation: 0.40
+          - name: avg_response_ms
+            unit: ms
+            baseline: 450
+            fluctuation: 0.20
+          - name: intent_accuracy_pct
+            unit: "%"
+            baseline: 91.2
+            fluctuation: 0.08
+          - name: escalation_rate_pct
+            unit: "%"
+            baseline: 14.5
+            fluctuation: 0.25
+          - name: satisfaction_score
+            unit: score
+            baseline: 7.8
+            fluctuation: 0.12
+
+      - type: agent_portal_server
+        manufacturer: Dell
+        model: PowerEdge R750
+        count: 6
+        metrics:
+          - name: active_agents
+            unit: agents
+            baseline: 1850
+            fluctuation: 0.15
+          - name: policy_lookups_per_min
+            unit: lookups/min
+            baseline: 6400
+            fluctuation: 0.25
+          - name: endorsement_processing_ms
+            unit: ms
+            baseline: 580
+            fluctuation: 0.20
+          - name: quote_generation_ms
+            unit: ms
+            baseline: 820
+            fluctuation: 0.22
+
+  data_analytics:
+    ip_base: "10.203"
+    devices:
+      - type: actuarial_compute_cluster
+        manufacturer: Dell
+        model: PowerEdge R7515
+        count: 4
+        metrics:
+          - name: jobs_running
+            unit: jobs
+            baseline: 12
+            fluctuation: 0.40
+          - name: avg_runtime_min
+            unit: minutes
+            baseline: 45
+            fluctuation: 0.25
+          - name: memory_used_pct
+            unit: "%"
+            baseline: 78.2
+            fluctuation: 0.15
+          - name: model_iterations
+            unit: iterations
+            baseline: 850
+            fluctuation: 0.30
+          - name: convergence_rate_pct
+            unit: "%"
+            baseline: 94.5
+            fluctuation: 0.10
+
+      - type: data_lake_node
+        manufacturer: Dell
+        model: PowerEdge C6720
+        count: 6
+        metrics:
+          - name: ingestion_rate_gb_hr
+            unit: GB/hr
+            baseline: 2800
+            fluctuation: 0.22
+          - name: query_latency_ms
+            unit: ms
+            baseline: 3200
+            fluctuation: 0.25
+          - name: storage_used_tb
+            unit: TB
+            baseline: 8420
+            fluctuation: 0.05
+          - name: etl_lag_min
+            unit: minutes
+            baseline: 18
+            fluctuation: 0.30
+          - name: data_quality_score_pct
+            unit: "%"
+            baseline: 97.8
+            fluctuation: 0.06
+
+      - type: reporting_server
+        manufacturer: Dell
+        model: PowerEdge R750
+        count: 4
+        metrics:
+          - name: reports_generated_per_hour
+            unit: reports/hr
+            baseline: 850
+            fluctuation: 0.20
+          - name: avg_render_ms
+            unit: ms
+            baseline: 4200
+            fluctuation: 0.30
+          - name: scheduled_jobs_pending
+            unit: jobs
+            baseline: 28
+            fluctuation: 0.35
+          - name: export_failures
+            unit: failures/hr
+            baseline: 2
+            fluctuation: 0.50
+
+pinned_devices:
+  - device_type: claims_intake_server
+    region: us-east
+    environment: production
+  - device_type: rating_engine
+    region: us-east
+    environment: production

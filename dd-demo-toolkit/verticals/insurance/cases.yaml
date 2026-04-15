@@ -1,0 +1,24 @@
+cases:
+  - title: "Claims Processing Infrastructure Burst Capacity Planning"
+    description: "Recent hurricane-season claim surge pushed document processing infrastructure to limits, triggering auto-scale. While auto-remediation succeeded, the incident revealed capacity ceiling. Evaluate: (1) Peak capacity utilization patterns by season, (2) Cost of maintaining reserved capacity vs dynamic scaling latency, (3) Queue depth acceptable thresholds. Design permanent capacity strategy for predictable seasonal surges."
+    priority: "P2"
+    type: "STANDARD"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+
+  - title: "Underwriting Model MLOps & Governance Framework"
+    description: "ML model degradation incident exposed lack of governance and monitoring for production ML systems. Current state: models deployed without continuous performance tracking or automated retraining. Establish: (1) Model performance SLO dashboard (accuracy, calibration, fairness metrics), (2) Automated retraining pipeline triggered on drift detection, (3) Model versioning and rollback procedure, (4) Data quality monitoring for training data shift."
+    priority: "P1"
+    type: "STANDARD"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+
+  - title: "Payment Gateway Resilience & Retry Logic Hardening"
+    description: "Disbursement system failures indicate payment gateway reliability issues. Recent incident required manual case intervention for 2 payments despite auto-retry. Analyze: (1) Payment gateway SLA and historical failure rates, (2) Optimal retry strategy (exponential backoff parameters), (3) Failure classification (retriable vs permanent). Design: enhanced retry logic, multi-provider gateway redundancy, improved failure diagnostics."
+    priority: "P1"
+    type: "STANDARD"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"

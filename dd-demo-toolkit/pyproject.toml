@@ -1,0 +1,87 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dd-demo-toolkit"
+version = "0.1.0"
+description = "Modular Datadog demo framework for sales engineers - build realistic demo environments with simulated metrics, traces, and services"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Datadog Sales Engineering", email = "sales-eng@datadoghq.com"}
+]
+license = {text = "Apache-2.0"}
+keywords = ["datadog", "demo", "simulator", "observability"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Monitoring",
+]
+
+dependencies = [
+    "requests>=2.28.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=0.41b0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "flake8>=6.0",
+    "isort>=5.0",
+    "mypy>=1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/DataDog/dd-demo-toolkit"
+Documentation = "https://github.com/DataDog/dd-demo-toolkit/blob/main/README.md"
+Repository = "https://github.com/DataDog/dd-demo-toolkit"
+Issues = "https://github.com/DataDog/dd-demo-toolkit/issues"
+
+[project.scripts]
+dd-demo = "dd_demo_toolkit.cli:main"
+
+[tool.setuptools]
+packages = ["dd_demo_toolkit"]
+
+[tool.setuptools.package-data]
+dd_demo_toolkit = ["py.typed"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_mode = 3
+include_trailing_comma = true
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-v --cov=dd_demo_toolkit --cov-report=term-missing"
+testpaths = ["tests"]

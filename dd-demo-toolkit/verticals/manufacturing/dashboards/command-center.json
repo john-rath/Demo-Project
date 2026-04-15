@@ -1,0 +1,512 @@
+{
+  "title": "Manufacturing Plant Command Center",
+  "description": "Real-time observability across all production equipment, quality systems, environmental controls, and supply chain logistics. Multi-plant view with OEE metrics, equipment health, energy usage, and predictive maintenance alerts.",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# Manufacturing Command Center\n### Real-time Production Observability\n\nMonitoring **Production Equipment** · **Quality Systems** · **Environmental Controls** · **Supply Chain Logistics**\n\nAll telemetry streamed via OpenTelemetry → Datadog",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "tick_pos": "50%",
+        "tick_edge": "bottom",
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "title": "Overall Equipment Effectiveness (OEE)",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:mfg.production.oee_pct{}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 1,
+        "custom_links": [],
+        "thresholds": {
+          "critical": 75,
+          "warning": 85
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "title": "Quality Defect Rate (PPM)",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:mfg.device.defect_rate_ppm{device_type:vision_inspector}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0,
+        "custom_links": [],
+        "thresholds": {
+          "critical": 150,
+          "warning": 75
+        }
+      },
+      "layout": {
+        "x": 3,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "title": "Planned Downtime Incidents (24h)",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:mfg.production.unplanned_downtime_events_total{}",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0,
+        "custom_links": []
+      },
+      "layout": {
+        "x": 6,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "title": "Total Devices Online",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:mfg.device.heartbeats_total{}.as_count()",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0,
+        "custom_links": []
+      },
+      "layout": {
+        "x": 9,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "title": "Production Equipment Status",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "style": {
+                  "palette": "green"
+                }
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:mfg.device.heartbeats_total{device_category:production_equipment}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "timeseries"
+          }
+        ],
+        "yaxis": {
+          "label": "Heartbeats/15s"
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 4,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "title": "Robot Arm Metrics by Plant",
+        "type": "query_table",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "alias": "Servo Errors"
+              },
+              {
+                "formula": "query2",
+                "alias": "Cycle Time (ms)"
+              },
+              {
+                "formula": "query3",
+                "alias": "Joint Temp (°C)"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:mfg.device.servo_error_count{device_type:robot_arm} by {plant,device_id}",
+                "aggregator": "avg"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "avg:mfg.device.cycle_time_ms{device_type:robot_arm} by {plant,device_id}",
+                "aggregator": "avg"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query3",
+                "query": "avg:mfg.device.joint_temperature_c{device_type:robot_arm} by {plant,device_id}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 4,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 8,
+      "definition": {
+        "title": "Equipment Cycle Time Trends",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "style": {
+                  "palette": "blue"
+                }
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:mfg.device.cycle_time_ms{device_type:robot_arm} by {plant}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "timeseries"
+          }
+        ],
+        "yaxis": {
+          "label": "Cycle Time (ms)"
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 7,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 9,
+      "definition": {
+        "title": "Quality Metrics: Defect Rate Trend",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "style": {
+                  "palette": "warm"
+                }
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:mfg.device.defect_rate_ppm{device_type:vision_inspector} by {plant,line}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "timeseries"
+          }
+        ],
+        "yaxis": {
+          "label": "Defect Rate (PPM)"
+        }
+      },
+      "layout": {
+        "x": 6,
+        "y": 7,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 10,
+      "definition": {
+        "title": "Conveyor System Health",
+        "type": "query_table",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "alias": "Jam Events"
+              },
+              {
+                "formula": "query2",
+                "alias": "Motor Current (A)"
+              },
+              {
+                "formula": "query3",
+                "alias": "Belt Speed (m/min)"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:mfg.device.jam_events{device_type:conveyor_system} by {plant,line,device_id}",
+                "aggregator": "sum"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "avg:mfg.device.motor_current_a{device_type:conveyor_system} by {plant,line,device_id}",
+                "aggregator": "avg"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query3",
+                "query": "avg:mfg.device.belt_speed_m_min{device_type:conveyor_system} by {plant,line,device_id}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 10,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "title": "Environmental Controls: Temperature & Humidity",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "style": {
+                  "palette": "cool"
+                }
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:mfg.device.temperature_c{device_type:cleanroom_controller} by {plant}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "timeseries"
+          }
+        ],
+        "yaxis": {
+          "label": "Temperature (°C)"
+        }
+      },
+      "layout": {
+        "x": 6,
+        "y": 10,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 12,
+      "definition": {
+        "title": "AGV Fleet Status",
+        "type": "query_table",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "alias": "Avg Battery %"
+              },
+              {
+                "formula": "query2",
+                "alias": "Trips Today"
+              },
+              {
+                "formula": "query3",
+                "alias": "Avg Load (kg)"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:mfg.device.battery_pct{device_type:agv} by {plant}",
+                "aggregator": "avg"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "sum:mfg.device.trips_completed{device_type:agv} by {plant}",
+                "aggregator": "sum"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query3",
+                "query": "avg:mfg.device.load_weight_kg{device_type:agv} by {plant}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 13,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 13,
+      "definition": {
+        "title": "Energy Consumption by Plant",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "style": {
+                  "palette": "orange"
+                }
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:mfg.device.energy_kwh{device_type:hvac_unit} by {plant}",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "timeseries"
+          }
+        ],
+        "yaxis": {
+          "label": "Energy (kWh)"
+        }
+      },
+      "layout": {
+        "x": 6,
+        "y": 13,
+        "width": 6,
+        "height": 3
+      }
+    }
+  ]
+}

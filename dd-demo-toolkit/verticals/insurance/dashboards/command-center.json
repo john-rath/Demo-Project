@@ -1,0 +1,577 @@
+{
+  "title": "Insurance Operations Command Center",
+  "description": "Multi-region claims, underwriting, and payments operations dashboard",
+  "layout_type": "ordered",
+  "is_read_only": false,
+  "tags": [
+    "vertical:insurance",
+    "dd-demo-toolkit:true"
+  ],
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Claims Intake Volume",
+                "data_source": "metrics",
+                "query": "sum:insurer.claims.received_total{service:claims-intake} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "dog_classic",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Claims Received (per min by region)",
+        "yaxis": {
+          "label": "Claims/min",
+          "scale": "linear"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "gauge",
+        "requests": [
+          {
+            "response_format": "scalar",
+            "queries": [
+              {
+                "name": "FNOL SLA Compliance",
+                "data_source": "metrics",
+                "query": "100 * (count:insurer.claims.fnol_to_assignment_sec{service:claims-management-platform} where fnol_to_assignment_sec <= 14400 / count:insurer.claims.fnol_to_assignment_sec{service:claims-management-platform})"
+              }
+            ]
+          }
+        ],
+        "title": "Claims Processing SLA (FNOL-to-Assignment <4h)",
+        "gauge": {
+          "type": "gauge",
+          "min": 0,
+          "max": 100
+        },
+        "thresholds": {
+          "critical": 90,
+          "warning": 95
+        }
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Processing Latency P95",
+                "data_source": "metrics",
+                "query": "p95:insurer.claims.processing_ms{device_type:claims_intake_server} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Claims Processing Latency (P95 by region)",
+        "yaxis": {
+          "label": "ms",
+          "scale": "linear"
+        },
+        "markers": [
+          {
+            "value": 1200,
+            "label": "SLA Threshold"
+          }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Document Queue Depth",
+                "data_source": "metrics",
+                "query": "max:insurer.claims.document_queue_depth{device_type:document_processor} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Document Processor Queue Depth (by region)",
+        "yaxis": {
+          "label": "Documents",
+          "scale": "linear"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "type": "gauge",
+        "requests": [
+          {
+            "response_format": "scalar",
+            "queries": [
+              {
+                "name": "OCR Accuracy",
+                "data_source": "metrics",
+                "query": "avg:insurer.claims.ocr_confidence_pct{device_type:document_processor}"
+              }
+            ]
+          }
+        ],
+        "title": "Document OCR Accuracy (%)",
+        "gauge": {
+          "type": "gauge",
+          "min": 80,
+          "max": 100
+        },
+        "thresholds": {
+          "critical": 92,
+          "warning": 94
+        }
+      }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Quote Volume",
+                "data_source": "metrics",
+                "query": "sum:insurer.quoting.requests_total{service:digital-quoting-engine} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "cool",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Digital Quoting Volume (per min by region)",
+        "yaxis": {
+          "label": "Quotes/min",
+          "scale": "linear"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Quoting Latency P99",
+                "data_source": "metrics",
+                "query": "p99:insurer.quoting.response_ms{service:digital-quoting-engine} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Quoting Engine Latency (P99 by region)",
+        "yaxis": {
+          "label": "ms",
+          "scale": "linear"
+        },
+        "markers": [
+          {
+            "value": 3500,
+            "label": "Alert Threshold"
+          }
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "definition": {
+        "type": "gauge",
+        "requests": [
+          {
+            "response_format": "scalar",
+            "queries": [
+              {
+                "name": "Quoting Availability",
+                "data_source": "metrics",
+                "query": "100 * (sum:insurer.quoting.requests_total{service:digital-quoting-engine} - sum:insurer.quoting.errors_total{service:digital-quoting-engine}) / sum:insurer.quoting.requests_total{service:digital-quoting-engine}"
+              }
+            ]
+          }
+        ],
+        "title": "Digital Quoting Availability (SLA: 99.95%)",
+        "gauge": {
+          "type": "gauge",
+          "min": 99,
+          "max": 100
+        },
+        "thresholds": {
+          "critical": 99.9,
+          "warning": 99.95
+        }
+      }
+    },
+    {
+      "id": 9,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Payment Volume",
+                "data_source": "metrics",
+                "query": "sum:insurer.payments.attempted_total{service:billing-payments-service} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "cool",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Payment Disbursement Volume (per min by region)",
+        "yaxis": {
+          "label": "Payments/min",
+          "scale": "linear"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "definition": {
+        "type": "gauge",
+        "requests": [
+          {
+            "response_format": "scalar",
+            "queries": [
+              {
+                "name": "Payment Success Rate",
+                "data_source": "metrics",
+                "query": "100 * sum:insurer.payments.successful_total{service:billing-payments-service} / sum:insurer.payments.attempted_total{service:billing-payments-service}"
+              }
+            ]
+          }
+        ],
+        "title": "Payment Success Rate (SLA: 99.9%)",
+        "gauge": {
+          "type": "gauge",
+          "min": 99,
+          "max": 100
+        },
+        "thresholds": {
+          "critical": 99.85,
+          "warning": 99.9
+        }
+      }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Underwriting Drift Score",
+                "data_source": "metrics",
+                "query": "avg:insurer.underwriting.drift_score{device_type:risk_scoring_node} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Risk Scoring Model Drift (by region)",
+        "yaxis": {
+          "label": "Drift Score",
+          "scale": "linear"
+        },
+        "markers": [
+          {
+            "value": 0.08,
+            "label": "Retraining Trigger"
+          }
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "definition": {
+        "type": "gauge",
+        "requests": [
+          {
+            "response_format": "scalar",
+            "queries": [
+              {
+                "name": "Telematics Data Quality",
+                "data_source": "metrics",
+                "query": "avg:insurer.telematics.data_quality_pct{device_type:telematics_gateway}"
+              }
+            ]
+          }
+        ],
+        "title": "Telematics Data Quality (%)",
+        "gauge": {
+          "type": "gauge",
+          "min": 90,
+          "max": 100
+        },
+        "thresholds": {
+          "critical": 95,
+          "warning": 97
+        }
+      }
+    },
+    {
+      "id": 13,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Connected Telematics Devices",
+                "data_source": "metrics",
+                "query": "sum:insurer.telematics.devices_connected{device_type:telematics_gateway} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "cool",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Connected Telematics Vehicles (by region)",
+        "yaxis": {
+          "label": "Devices",
+          "scale": "linear"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Agent Portal Errors",
+                "data_source": "metrics",
+                "query": "sum:insurer.agent_portal.errors_total{service:agent-portal-server} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Agent Portal Error Rate (by region)",
+        "yaxis": {
+          "label": "Errors/min",
+          "scale": "linear"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "definition": {
+        "type": "gauge",
+        "requests": [
+          {
+            "response_format": "scalar",
+            "queries": [
+              {
+                "name": "Active Agents",
+                "data_source": "metrics",
+                "query": "sum:insurer.agent_portal.active_agents{service:agent-portal-server}"
+              }
+            ]
+          }
+        ],
+        "title": "Active Agent Sessions",
+        "gauge": {
+          "type": "gauge",
+          "min": 0,
+          "max": 2500
+        }
+      }
+    },
+    {
+      "id": 16,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Web Portal Sessions",
+                "data_source": "metrics",
+                "query": "avg:insurer.web_portal.active_sessions{service:web-portal-server} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "cool",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Web Portal Active Sessions (by region)",
+        "yaxis": {
+          "label": "Sessions",
+          "scale": "linear"
+        },
+        "markers": [
+          {
+            "value": 100000,
+            "label": "Capacity Alert"
+          }
+        ]
+      }
+    },
+    {
+      "id": 17,
+      "definition": {
+        "type": "gauge",
+        "requests": [
+          {
+            "response_format": "scalar",
+            "queries": [
+              {
+                "name": "Chatbot Satisfaction",
+                "data_source": "metrics",
+                "query": "avg:insurer.chatbot.satisfaction_score{service:chatbot-engine}"
+              }
+            ]
+          }
+        ],
+        "title": "Chatbot Customer Satisfaction (NPS)",
+        "gauge": {
+          "type": "gauge",
+          "min": 0,
+          "max": 10
+        }
+      }
+    },
+    {
+      "id": 18,
+      "definition": {
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {
+                "name": "Data Lake ETL Lag",
+                "data_source": "metrics",
+                "query": "max:insurer.data_lake.etl_lag_min{device_type:data_lake_node} by {region}"
+              }
+            ],
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "line"
+          }
+        ],
+        "title": "Data Lake ETL Pipeline Lag (by region)",
+        "yaxis": {
+          "label": "Minutes",
+          "scale": "linear"
+        },
+        "markers": [
+          {
+            "value": 45,
+            "label": "Alert Threshold"
+          }
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "definition": {
+        "type": "gauge",
+        "requests": [
+          {
+            "response_format": "scalar",
+            "queries": [
+              {
+                "name": "Policy Admin Uptime",
+                "data_source": "metrics",
+                "query": "100 * (sum:insurer.policy_admin.requests_total{service:policy-admin-system} - sum:insurer.policy_admin.errors_total{service:policy-admin-system}) / sum:insurer.policy_admin.requests_total{service:policy-admin-system}"
+              }
+            ]
+          }
+        ],
+        "title": "Policy Admin System Availability (SLA: 99.99%)",
+        "gauge": {
+          "type": "gauge",
+          "min": 99.9,
+          "max": 100
+        },
+        "thresholds": {
+          "critical": 99.98,
+          "warning": 99.99
+        }
+      }
+    }
+  ]
+}

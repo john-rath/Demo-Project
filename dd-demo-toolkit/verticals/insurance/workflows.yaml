@@ -1,0 +1,174 @@
+workflows:
+  - name: "[Insurance] Claims Surge Auto-Scale Processing"
+    description: "Automatically scales document processing infrastructure when claim volume spikes, maintaining SLA response times."
+    trigger:
+      type: monitor
+      monitor_tags: ["claims:processing-surge"]
+    steps:
+      - name: measure_claims_queue
+        type: datadog_query
+        description: "Check pending claims in processing queue"
+        parameters:
+          query: "avg(last_5m):avg:insurance.claims.pending_count{status:awaiting_processing}"
+      - name: measure_processing_latency
+        type: datadog_query
+        description: "Check document processing latency"
+        parameters:
+          query: "avg(last_5m):avg:insurance.claims.processing_latency_sec{percentile:p95}"
+      - name: evaluate_surge
+        type: condition
+        description: "Trigger scale if queue > 500 claims AND p95 latency > 300sec"
+        parameters:
+          condition: "{{steps.measure_claims_queue.result}} > 500 AND {{steps.measure_processing_latency.result}} > 300"
+      - name: scale_processing_workers
+        type: http_request
+        description: "Scale up document processing worker pool"
+        parameters:
+          method: PATCH
+          url: "https://k8s-api.insurance.internal/api/v1/namespaces/claims/deployments/document-processor"
+          headers:
+            Authorization: "Bearer {{vault.k8s_token}}"
+          body:
+            spec:
+              replicas: 25
+      - name: wait_for_readiness
+        type: sleep
+        description: "Wait for new workers to initialize"
+        parameters:
+          duration_seconds: 45
+      - name: verify_queue_drain
+        type: datadog_query
+        description: "Confirm queue is draining and latency improving"
+        parameters:
+          query: "avg(last_2m):avg:insurance.claims.pending_count{status:awaiting_processing}"
+      - name: notify_claims_team
+        type: slack_message
+        parameters:
+          channel: "#claims-operations"
+          message: "✅ Claims processing auto-scaled. Queue size: {{steps.verify_queue_drain.result}} (was {{steps.measure_claims_queue.result}}). Processing latency: {{steps.measure_processing_latency.result}}sec. SLA maintained."
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:auto-remediation"
+
+  - name: "[Insurance] Underwriting Model Drift Detection & Rollback"
+    description: "Detects model performance degradation and automatically rolls back to previous production model version."
+    trigger:
+      type: monitor
+      monitor_tags: ["underwriting:model-performance"]
+    steps:
+      - name: measure_model_calibration
+        type: datadog_query
+        description: "Check underwriting model calibration score"
+        parameters:
+          query: "avg(last_1h):avg:insurance.underwriting.model_calibration{model:ml_v4}"
+      - name: measure_approval_rate
+        type: datadog_query
+        description: "Check if approval rate has drifted significantly"
+        parameters:
+          query: "avg(last_1h):avg:insurance.underwriting.approval_rate_pct{model:ml_v4}"
+      - name: check_baseline_calibration
+        type: condition
+        description: "Evaluate if calibration degraded > 5% from baseline"
+        parameters:
+          condition: "{{steps.measure_model_calibration.result}} < 0.85"
+      - name: trigger_model_rollback
+        type: http_request
+        description: "Rollback underwriting model to previous stable version"
+        parameters:
+          method: POST
+          url: "https://underwriting-api.insurance.internal/v1/models/switch-version"
+          headers:
+            Authorization: "Bearer {{vault.api_token}}"
+          body:
+            target_version: "ml_v3"
+            reason: "Calibration drift detected"
+            previous_version: "ml_v4"
+      - name: notify_underwriting_team
+        type: slack_message
+        parameters:
+          channel: "#underwriting-ops"
+          message: "⚠️ Underwriting model degradation detected. Calibration: {{steps.measure_model_calibration.result}} (baseline: 0.90). Approval rate: {{steps.measure_approval_rate.result}}%. ROLLED BACK to ml_v3. Investigate ml_v4 drift."
+      - name: create_model_investigation
+        type: datadog_case
+        description: "Create case for ML team to investigate v4 degradation"
+        parameters:
+          title: "Underwriting Model ml_v4 Calibration Drift Investigation"
+          priority: "P1"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:circuit-breaker"
+
+  - name: "[Insurance] Payment Disbursement Failure Recovery"
+    description: "Automatically retries failed disbursements with exponential backoff, escalates to manual review after retries exhausted."
+    trigger:
+      type: monitor
+      monitor_tags: ["payments:disbursement-failure"]
+    steps:
+      - name: identify_failed_batch
+        type: datadog_query
+        description: "Identify failed disbursement batch"
+        parameters:
+          query: "avg(last_5m):avg:insurance.payments.disbursement_failure_count{batch_id:{{batch_id}}}"
+      - name: check_payment_gateway
+        type: http_request
+        description: "Check payment gateway health and availability"
+        parameters:
+          method: GET
+          url: "https://gateway-status.insurance.internal/api/v1/health"
+      - name: attempt_retry_1
+        type: http_request
+        description: "First retry attempt (exponential backoff: 30 seconds)"
+        parameters:
+          method: POST
+          url: "https://payments-api.insurance.internal/v1/disbursements/retry"
+          body:
+            batch_id: "{{batch_id}}"
+            retry_count: 1
+      - name: wait_retry_1
+        type: sleep
+        parameters:
+          duration_seconds: 30
+      - name: attempt_retry_2
+        type: http_request
+        description: "Second retry attempt (exponential backoff: 120 seconds)"
+        parameters:
+          method: POST
+          url: "https://payments-api.insurance.internal/v1/disbursements/retry"
+          body:
+            batch_id: "{{batch_id}}"
+            retry_count: 2
+      - name: wait_retry_2
+        type: sleep
+        parameters:
+          duration_seconds: 120
+      - name: attempt_retry_3
+        type: http_request
+        description: "Third retry attempt (exponential backoff: 300 seconds)"
+        parameters:
+          method: POST
+          url: "https://payments-api.insurance.internal/v1/disbursements/retry"
+          body:
+            batch_id: "{{batch_id}}"
+            retry_count: 3
+      - name: check_retry_success
+        type: datadog_query
+        description: "Check if retries succeeded"
+        parameters:
+          query: "avg:insurance.payments.disbursement_success_count{batch_id:{{batch_id}}}"
+      - name: escalate_to_manual
+        type: datadog_case
+        description: "Create case for manual review if all retries exhausted"
+        parameters:
+          title: "Payment Disbursement Failure — Manual Review Required (Batch {{batch_id}})"
+          priority: "P1"
+      - name: notify_payments_team
+        type: slack_message
+        parameters:
+          channel: "#payments-operations"
+          message: "💳 Disbursement batch {{batch_id}} failed after 3 retry attempts. Gateway status: {{steps.check_payment_gateway.result.status}}. Case created for manual intervention. {{steps.check_retry_success.result}} succeeded via retries."
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:recovery"

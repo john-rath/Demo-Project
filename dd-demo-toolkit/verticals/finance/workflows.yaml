@@ -1,0 +1,139 @@
+workflows:
+  - name: "[Finance] Payment Processing Auto-Scale"
+    description: "Automatically scales payment processing infrastructure when transaction latency exceeds threshold, preventing customer-facing degradation."
+    trigger:
+      type: monitor
+      monitor_tags: ["payment-latency:critical"]
+    steps:
+      - name: measure_queue_depth
+        type: datadog_query
+        description: "Check current payment processing queue depth"
+        parameters:
+          query: "avg(last_5m):avg:finance.payment.queue_depth{service:payment-processor}"
+      - name: evaluate_scale_need
+        type: condition
+        description: "Determine if scale-out is needed based on queue depth and latency"
+        parameters:
+          condition: "{{steps.measure_queue_depth.result}} > 5000"
+      - name: trigger_autoscale
+        type: http_request
+        description: "Trigger horizontal pod autoscaling in Kubernetes"
+        parameters:
+          method: PATCH
+          url: "https://k8s-api.finance.internal/api/v1/namespaces/payments/horizontalpodautoscalers/payment-processor"
+          headers:
+            Authorization: "Bearer {{vault.k8s_token}}"
+          body:
+            spec:
+              minReplicas: 5
+              maxReplicas: 25
+              targetCPUUtilizationPercentage: 70
+      - name: wait_for_scaling
+        type: sleep
+        description: "Wait for pods to initialize"
+        parameters:
+          duration_seconds: 30
+      - name: verify_recovery
+        type: datadog_query
+        description: "Confirm latency has returned to normal"
+        parameters:
+          query: "avg(last_2m):avg:finance.payment.p99_latency_ms{service:payment-processor} < 500"
+      - name: notify_devops
+        type: slack_message
+        parameters:
+          channel: "#devops-finance"
+          message: "✅ Payment processing auto-scale triggered. Queue normalized. System handling {{steps.measure_queue_depth.result}} requests at {{steps.verify_recovery.result}}ms p99 latency."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:auto-remediation"
+
+  - name: "[Finance] Fraud Detection Model Circuit Breaker"
+    description: "Detects model drift in fraud detection engine and automatically falls back to rules-based engine to prevent false positives."
+    trigger:
+      type: monitor
+      monitor_tags: ["model-performance:fraud"]
+    steps:
+      - name: measure_model_accuracy
+        type: datadog_query
+        description: "Check real-time fraud detection model accuracy"
+        parameters:
+          query: "avg(last_1h):avg:finance.fraud.model_accuracy_pct{model:ml_v3}"
+      - name: measure_false_positive_rate
+        type: datadog_query
+        description: "Check false positive rate against historical baseline"
+        parameters:
+          query: "avg(last_1h):avg:finance.fraud.false_positive_rate{model:ml_v3}"
+      - name: check_circuit_breaker
+        type: condition
+        description: "Evaluate if circuit breaker threshold exceeded (accuracy < 92% OR FPR > 8%)"
+        parameters:
+          condition: "{{steps.measure_model_accuracy.result}} < 92 OR {{steps.measure_false_positive_rate.result}} > 8"
+      - name: activate_fallback
+        type: http_request
+        description: "Switch fraud detection to rules-based engine"
+        parameters:
+          method: POST
+          url: "https://fraud-api.finance.internal/v1/detection/set-engine"
+          body:
+            engine: "rules_based_v2"
+            reason: "ML model drift detected"
+            notification_email: "fraud-ops@finance.com"
+      - name: notify_ml_team
+        type: slack_message
+        parameters:
+          channel: "#ml-engineering"
+          message: "⚠️ Fraud detection model circuit breaker activated. ML accuracy {{steps.measure_model_accuracy.result}}% (threshold: 92%). Switched to rules-based engine. Investigate model drift."
+      - name: create_ml_case
+        type: datadog_case
+        description: "Create case for ML team to investigate and retrain model"
+        parameters:
+          title: "Fraud Detection Model Drift — ml_v3 accuracy drop"
+          priority: "P1"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:circuit-breaker"
+
+  - name: "[Finance] Trading Platform Order Rejection Investigation"
+    description: "When order rejection rate spikes, collects diagnostics, notifies trading desk, and creates investigation ticket."
+    trigger:
+      type: monitor
+      monitor_tags: ["trading:order-rejection"]
+    steps:
+      - name: capture_order_metrics
+        type: datadog_query
+        description: "Capture order rejection breakdown by reason"
+        parameters:
+          query: "avg(last_10m):avg:finance.trading.order_rejection_rate{*}"
+      - name: check_exchange_status
+        type: http_request
+        description: "Check market data feed and exchange connectivity status"
+        parameters:
+          method: GET
+          url: "https://trading-ops.finance.internal/api/v1/exchange-status"
+      - name: check_market_volatility
+        type: datadog_query
+        description: "Check if volatility spike correlates with rejections"
+        parameters:
+          query: "avg(last_5m):avg:finance.market.vix_index"
+      - name: notify_trading_desk
+        type: slack_message
+        parameters:
+          channel: "#trading-desk"
+          message: "🚨 Order rejection rate elevated. Reasons: {{steps.capture_order_metrics.result}}. Exchange status: {{steps.check_exchange_status.result.status}}. VIX: {{steps.check_market_volatility.result}}"
+      - name: create_investigation_ticket
+        type: http_request
+        description: "Create ticket in trading operations system"
+        parameters:
+          method: POST
+          url: "https://trading-ops.finance.internal/api/v1/tickets"
+          body:
+            title: "Order Rejection Spike Investigation"
+            severity: "P1"
+            team: "trading-platform"
+            tags: ["order-flow", "incident"]
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "workflow-type:investigation"

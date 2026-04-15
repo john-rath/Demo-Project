@@ -1,0 +1,210 @@
+vertical:
+  name: manufacturing
+  display_name: Automotive Manufacturing Plant
+  description: Multi-plant automotive production facility with industrial equipment, quality systems, environmental controls, and supply chain management. Simulates Tesla/Toyota-scale manufacturing with SCADA, MES, and predictive maintenance.
+  env_prefix: mfg
+  emit_interval_sec: 15
+
+locations:
+  dimensions:
+  - name: plant
+    values:
+    - Plant-A-Detroit
+    - Plant-B-Austin
+    - Plant-C-Munich
+  - name: line
+    values:
+    - Assembly-1
+    - Assembly-2
+    - Painting
+    - Welding
+    - Quality-Control
+    - Packaging
+  - name: zone
+    values:
+    - Zone-A
+    - Zone-B
+    - Zone-C
+
+device_categories:
+  production_equipment:
+    ip_base: '10.200'
+    line_pool:
+    - Assembly-1
+    - Assembly-2
+    - Painting
+    - Welding
+    - Quality-Control
+    - Packaging
+    devices:
+    - type: plc_controller
+      manufacturer: Siemens
+      model: S7-1500
+      firmware: 2.9.1
+      count: 45
+      metrics:
+      - cycle_time_ms
+      - cpu_load_pct
+      - program_errors
+      - io_module_status
+      - scan_time_ms
+    - type: cnc_machine
+      manufacturer: Fanuc
+      model: RoboDrill
+      firmware: 34.26.21
+      count: 20
+      metrics:
+      - spindle_speed_rpm
+      - feed_rate_mm_min
+      - tool_wear_pct
+      - vibration_mm_s
+      - coolant_temp_c
+      - part_count
+    - type: robot_arm
+      manufacturer: ABB
+      model: IRB 6700
+      firmware: 6.10.02
+      count: 30
+      metrics:
+      - joint_temperature_c
+      - servo_error_count
+      - cycle_time_ms
+      - payload_kg
+      - axis_position_deg
+      - collision_events
+    - type: conveyor_system
+      manufacturer: Bosch Rexroth
+      model: TCI-4-Series
+      firmware: 4.7.2
+      count: 15
+      metrics:
+      - belt_speed_m_min
+      - motor_current_a
+      - belt_tension_n
+      - jam_events
+      - items_per_min
+    - type: press_machine
+      manufacturer: Schuler
+      model: SERVO Press 4000
+      firmware: 8.2.1
+      count: 8
+      metrics:
+      - tonnage_kn
+      - stroke_count
+      - die_temperature_c
+      - hydraulic_pressure_bar
+      - alignment_offset_mm
+
+  quality_systems:
+    ip_base: '10.201'
+    line_pool:
+    - Quality-Control
+    - Assembly-1
+    - Assembly-2
+    devices:
+    - type: vision_inspector
+      manufacturer: Cognex
+      model: Insight 2800
+      firmware: 9.4.2
+      count: 12
+      metrics:
+      - inspection_rate_per_min
+      - defect_rate_ppm
+      - false_reject_pct
+      - image_capture_ms
+      - model_confidence_pct
+    - type: cmm_station
+      manufacturer: Zeiss
+      model: CONTURA
+      firmware: 7.5.0
+      count: 6
+      metrics:
+      - measurement_cycle_sec
+      - deviation_um
+      - probe_wear_pct
+      - calibration_drift_um
+    - type: laser_scanner
+      manufacturer: Keyence
+      model: LJ-X8300
+      firmware: 3.11.3
+      count: 10
+      metrics:
+      - scan_rate_hz
+      - point_cloud_density
+      - surface_roughness_um
+      - measurement_accuracy_um
+
+  environmental_systems:
+    ip_base: '10.202'
+    devices:
+    - type: cleanroom_controller
+      manufacturer: Honeywell
+      model: ACM-3000
+      firmware: 5.1.2
+      count: 8
+      metrics:
+      - particle_count_per_m3
+      - temperature_c
+      - humidity_pct
+      - differential_pressure_pa
+      - air_changes_per_hour
+    - type: hvac_unit
+      manufacturer: Trane
+      model: Sintesis
+      firmware: 2.8.4
+      count: 12
+      metrics:
+      - supply_temp_c
+      - return_temp_c
+      - flow_rate_cfm
+      - filter_dp_pa
+      - energy_kwh
+    - type: safety_sensor
+      manufacturer: Sick
+      model: SafetyLiDAR
+      firmware: 1.4.0
+      count: 40
+      metrics:
+      - light_curtain_status
+      - emergency_stop_events
+      - gas_level_ppm
+      - noise_level_db
+
+  logistics:
+    ip_base: '10.203'
+    devices:
+    - type: agv
+      manufacturer: MiR
+      model: 250 Hook
+      firmware: 4.14.1
+      count: 25
+      battery_powered: true
+      metrics:
+      - battery_pct
+      - speed_m_s
+      - position_accuracy_cm
+      - obstacle_events
+      - trips_completed
+      - load_weight_kg
+    - type: warehouse_scanner
+      manufacturer: Zebra
+      model: DS3680
+      firmware: 2.21.4
+      count: 15
+      metrics:
+      - scans_per_min
+      - read_rate_pct
+      - queue_depth
+      - wms_sync_lag_ms
+
+pinned_devices:
+  # Primary demo story devices on Assembly-1, Plant-A-Detroit
+  - device_type: plc_controller
+    plant: Plant-A-Detroit
+    line: Assembly-1
+  - device_type: robot_arm
+    plant: Plant-A-Detroit
+    line: Assembly-1
+  - device_type: conveyor_system
+    plant: Plant-A-Detroit
+    line: Assembly-1

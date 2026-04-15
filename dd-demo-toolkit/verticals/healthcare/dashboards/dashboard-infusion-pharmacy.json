@@ -1,0 +1,573 @@
+{
+  "title": "Infusion Pumps & Pharmacy \u2014 AdventHealth",
+  "description": "Pharmacy Director & Nursing Ops: Pump fleet health, medication dispensing, occlusion alerts, flow monitoring.",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# Infusion Pump & Pharmacy Operations\nReal-time monitoring of pump fleet health, medication dispensing, and safety alerts.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "title": "Pumps Online",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.online{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer}"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "title": "Infusions Completed (24h)",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pump.infusions_completed_total{*}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 2,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "title": "Occlusion Alerts",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pump.occlusion_alerts_total{*}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 4,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "title": "Air-in-Line Alerts",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pump.air_in_line_alerts_total{*}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 6,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "title": "Medication Dispenses",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pharmacy.dispense_events_total{*}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 8,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "title": "Override Dispenses",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pharmacy.override_events_total{*}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 10,
+        "y": 2,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 10,
+      "definition": {
+        "type": "note",
+        "content": "## Pump Flow Monitoring",
+        "background_color": "blue",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 4,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "title": "Average Flow Rate by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.pump.flow_rate_ml_hr{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 5,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 12,
+      "definition": {
+        "title": "Time to Empty (min) by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.pump.time_to_empty_min{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 15",
+            "display_type": "error dashed",
+            "label": "Refill Soon"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 5,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 13,
+      "definition": {
+        "title": "Active Pump Channels by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pump.channels_active{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 8,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 14,
+      "definition": {
+        "title": "Occlusion & Air-in-Line Alerts Over Time",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              },
+              {
+                "formula": "query2"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pump.occlusion_alerts_total{*}.as_count()"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "sum:hospital.pump.air_in_line_alerts_total{*}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 8,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 20,
+      "definition": {
+        "type": "note",
+        "content": "## Medication Dispensing",
+        "background_color": "purple",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 11,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 21,
+      "definition": {
+        "title": "Dispense Events by Medication Class",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pharmacy.dispense_events_total{*} by {medication.class}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 12,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 22,
+      "definition": {
+        "title": "Override Dispenses by Medication Class",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pharmacy.override_events_total{*} by {medication.class}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 12,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 23,
+      "definition": {
+        "title": "Cabinets Needing Restock by Floor",
+        "type": "toplist",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "limit": {
+                  "count": 20,
+                  "order": "desc"
+                }
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.pharmacy.restock_needed{*} by {device.id,hospital.floor}",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 15,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 24,
+      "definition": {
+        "title": "Pump Battery Levels",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.device.battery_pct{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "yaxis": {
+          "min": "0",
+          "max": "100"
+        },
+        "markers": [
+          {
+            "value": "y = 20",
+            "display_type": "error dashed",
+            "label": "Critical"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 15,
+        "width": 6,
+        "height": 3
+      }
+    }
+  ],
+  "template_variables": [
+    {
+      "name": "floor",
+      "prefix": "hospital.floor",
+      "default": "*"
+    },
+    {
+      "name": "wing",
+      "prefix": "hospital.wing",
+      "default": "*"
+    },
+    {
+      "name": "department",
+      "prefix": "hospital.department",
+      "default": "*"
+    },
+    {
+      "name": "device_type",
+      "prefix": "device.type",
+      "default": "infusion_pump"
+    },
+    {
+      "name": "device_category",
+      "prefix": "device.category",
+      "default": "*"
+    },
+    {
+      "name": "manufacturer",
+      "prefix": "device.manufacturer",
+      "default": "*"
+    }
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

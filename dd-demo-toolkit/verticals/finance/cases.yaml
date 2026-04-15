@@ -1,0 +1,24 @@
+cases:
+  - title: "Payment Processing Architecture Capacity Planning"
+    description: "Recent latency spike incidents reveal payment processor scaling capacity is insufficient during peak transaction load (weekend/holiday spikes). Current peak capacity 10k TPS, observed peaks approaching 12k TPS. Evaluate architecture scalability: assess container resource limits, database connection pooling, cache sizing. Recommend permanent capacity upgrades or circuit breaker thresholds."
+    priority: "P2"
+    type: "STANDARD"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+
+  - title: "Fraud Detection Model Monitoring & Retraining Pipeline"
+    description: "ML fraud detection model accuracy degradation indicates lack of continuous monitoring and retraining workflow. Model trained on historical data not reflecting current spending patterns. Implement: (1) Real-time model performance SLO dashboard, (2) Automated model retraining pipeline triggered on calibration drift, (3) A/B testing framework for new model versions."
+    priority: "P1"
+    type: "STANDARD"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+
+  - title: "Trading Platform Market Data Feed Reliability Hardening"
+    description: "Order rejection surge correlated with market data feed latency and exchange connectivity issues. Current architecture has single market data provider with no backup. Design: (1) Multi-provider market data redundancy, (2) Automatic failover to backup feed, (3) Trading halt logic when feed quality metrics degrade."
+    priority: "P1"
+    type: "STANDARD"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"

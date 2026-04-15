@@ -1,0 +1,147 @@
+services:
+  - name: online-banking-portal
+    display_name: "Online Banking Portal"
+    description: "Customer-facing web and mobile portal for account access, transfers, bill pay, and statements. React frontend with Node.js/Express backend."
+    team: "Digital Banking"
+    tier: "Tier 1"
+    languages: ["javascript", "nodejs"]
+    on_call_contact: "digital-banking-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:PCI-DSS"
+      - "compliance:GDPR"
+      - "business_unit:Retail Banking"
+      - "sla:99.99"
+
+  - name: mobile-banking-api
+    display_name: "Mobile Banking API"
+    description: "Native iOS/Android app backend with biometric authentication, mobile check deposit (via ML image recognition), push notifications, and real-time account alerts. Kotlin/Spring Boot."
+    team: "Digital Banking"
+    tier: "Tier 1"
+    languages: ["kotlin", "java"]
+    on_call_contact: "digital-banking-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:PCI-DSS"
+      - "compliance:GDPR"
+      - "business_unit:Retail Banking"
+
+  - name: payment-processing-engine
+    display_name: "Payment Processing Engine"
+    description: "Core payment routing, authorization, settlement, and reconciliation. Handles ACH, wire, card, and real-time payments. Java with Kafka event streams for async processing."
+    team: "Payments"
+    tier: "Tier 1"
+    languages: ["java"]
+    on_call_contact: "payments-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:PCI-DSS"
+      - "compliance:SOX"
+      - "business_unit:Retail Banking"
+      - "sla:99.5"
+
+  - name: fraud-detection-service
+    display_name: "Fraud Detection Service"
+    description: "Real-time ML-based fraud scoring engine with ensemble models, rule-based detection, SAR case management, and watchlist monitoring. Python with scikit-learn/TensorFlow backend."
+    team: "Risk & Compliance"
+    tier: "Tier 1"
+    languages: ["python"]
+    on_call_contact: "risk-compliance-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:PCI-DSS"
+      - "compliance:FINRA"
+      - "business_unit:Risk & Compliance"
+      - "sla:99.0"
+
+  - name: trading-platform
+    display_name: "Trading Platform"
+    description: "Order entry, execution, position management, and P&L tracking for equities, derivatives, and FX. Java/C++ with FIX protocol integration for broker connectivity."
+    team: "Capital Markets"
+    tier: "Tier 1"
+    languages: ["java", "cpp"]
+    on_call_contact: "capital-markets-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:FINRA"
+      - "compliance:MiFID2"
+      - "business_unit:Capital Markets"
+      - "sla:99.9"
+
+  - name: risk-calculation-engine
+    display_name: "Risk Calculation Engine"
+    description: "VaR calculations, stress tests, margin requirements, and circuit breaker logic. Python with NumPy/SciPy for numerical computing. Real-time portfolio risk assessment."
+    team: "Risk & Compliance"
+    tier: "Tier 1"
+    languages: ["python"]
+    on_call_contact: "risk-compliance-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:SOX"
+      - "compliance:FINRA"
+      - "business_unit:Risk & Compliance"
+
+  - name: loan-origination-system
+    display_name: "Loan Origination System"
+    description: "Mortgage and personal loan application workflow, credit bureau integration, automatic underwriting, and approval decision engine. Java Spring Boot with legacy mainframe integration."
+    team: "Retail Banking"
+    tier: "Tier 2"
+    languages: ["java"]
+    on_call_contact: "retail-banking-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:RESPA"
+      - "compliance:TILA"
+      - "compliance:ECOA"
+      - "business_unit:Retail Banking"
+
+  - name: compliance-reporting-api
+    display_name: "Compliance Reporting API"
+    description: "Regulatory reporting (SAR, CTR, AML), audit trail management, and KYC workflow orchestration. .NET/C# with SQL Server backend for regulatory-grade data integrity."
+    team: "Risk & Compliance"
+    tier: "Tier 1"
+    languages: ["csharp"]
+    on_call_contact: "risk-compliance-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:AML"
+      - "compliance:KYC"
+      - "compliance:SOX"
+      - "business_unit:Risk & Compliance"
+      - "regulatory_critical:true"
+
+  - name: customer-data-platform
+    display_name: "Customer Data Platform"
+    description: "KYC verification, customer 360 profiles, PII management, and behavioral segmentation. Python with Spark for distributed computing and Airflow for data pipelines."
+    team: "Digital Banking"
+    tier: "Tier 1"
+    languages: ["python"]
+    on_call_contact: "digital-banking-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:GDPR"
+      - "compliance:KYC"
+      - "business_unit:Retail Banking"
+
+  - name: market-data-aggregator
+    display_name: "Market Data Aggregator"
+    description: "High-performance market data feed normalization, tick storage, and real-time quote distribution. Rust with Kafka for ultra-low latency (<50µs) processing."
+    team: "Capital Markets"
+    tier: "Tier 1"
+    languages: ["rust"]
+    on_call_contact: "capital-markets-sre@jpm.example.com"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "compliance:MiFID2"
+      - "business_unit:Capital Markets"
+      - "low_latency:true"

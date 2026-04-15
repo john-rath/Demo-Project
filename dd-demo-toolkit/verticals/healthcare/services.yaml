@@ -1,0 +1,72 @@
+services:
+  - name: patient-portal
+    display_name: "Patient Portal (MyAdventHealth)"
+    description: "Patient-facing portal for appointments, messaging, pre-visit checkin, health records. Java Spring Boot."
+    team: "Digital Health"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]
+
+  - name: clinical-workflow-engine
+    display_name: "Clinical Workflow Engine"
+    description: "Central orchestrator for orders, task routing, workflow state. .NET on Azure."
+    team: "Clinical Systems"
+    tier: "Tier 1"
+    languages: ["dotnet"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]
+
+  - name: nurse-call-integration
+    display_name: "Nurse Call Integration Service"
+    description: "Real-time nurse call routing and escalation. Python FastAPI, Hill-Rom integration."
+    team: "Biomedical Engineering"
+    tier: "Tier 1"
+    languages: ["python"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa", "sla:120s-response"]
+
+  - name: pharmacy-dispensing-api
+    display_name: "Pharmacy Dispensing System"
+    description: "Medication dispensing, pharmacist authorization, inventory. Java Spring Boot."
+    team: "Pharmacy Systems"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]
+
+  - name: asset-management-platform
+    display_name: "Asset Management Platform (RTLS Backend)"
+    description: "Real-time location services for equipment tracking. Golang."
+    team: "IT Infrastructure"
+    tier: "Tier 2"
+    languages: ["go"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true"]
+
+  - name: bed-management-service
+    display_name: "Bed Management & Capacity Service"
+    description: "Bed availability, assignment, capacity planning, housekeeping. Python Django."
+    team: "Clinical Systems"
+    tier: "Tier 2"
+    languages: ["python"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true"]
+
+  - name: medical-device-gateway
+    display_name: "Medical Device Integration Gateway"
+    description: "Telemetry ingestion from 430+ medical devices. Java Spring Boot + Kafka."
+    team: "Biomedical Engineering"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:fda-510k"]
+
+  - name: hl7-fhir-broker
+    display_name: "HL7/FHIR Interoperability Broker"
+    description: "HL7v2/FHIR translation, validation, routing. .NET on Azure."
+    team: "Integration Services"
+    tier: "Tier 1"
+    languages: ["dotnet"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]
+
+  - name: physician-mobile-app
+    display_name: "Physician Mobile App (Epic Haiku)"
+    description: "Physician iOS app for bedside orders, results, notes. Swift iOS backend API."
+    team: "Digital Health"
+    tier: "Tier 1"
+    languages: ["swift"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]

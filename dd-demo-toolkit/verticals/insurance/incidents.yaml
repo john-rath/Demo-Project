@@ -1,0 +1,80 @@
+incidents:
+  - name: "Claims Processing Surge — High Volume Event"
+    severity: "SEV-2"
+    description: "Sudden surge in claim submissions (hurricane season event) exceeded processing capacity. Auto-scale initiated."
+    customer_impact: "Claims processing queue grew to 8,500 pending items. Processing latency increased from 45 seconds to 320 seconds. Customers experience slower claim acknowledgment."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Alert triggered: Claims queue depth 8,500 (normal: <500)"
+      - timestamp_offset_sec: 120
+        content: "Processing latency p95: 320 seconds (SLA: 60 seconds)"
+      - timestamp_offset_sec: 240
+        content: "Incident declared: SEV-2 claims surge"
+      - timestamp_offset_sec: 360
+        content: "Auto-remediation: Document processing workers scaled from 8 to 25 pods"
+      - timestamp_offset_sec: 540
+        content: "New workers initializing: Pod startup latency 45 seconds"
+      - timestamp_offset_sec: 900
+        content: "Queue drain in progress: 3,200 claims processed, queue depth 5,300"
+      - timestamp_offset_sec: 1800
+        content: "Processing latency trending down: p95 now 180 seconds"
+      - timestamp_offset_sec: 3600
+        content: "Full recovery: Queue depth < 500, latency < 60 seconds"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+
+  - name: "Underwriting Model Performance Drift"
+    severity: "SEV-1"
+    description: "ML-based underwriting model accuracy degraded below threshold. Auto-rollback to previous stable version."
+    customer_impact: "Model was incorrectly approving 18% of high-risk applicants (baseline: 2%). Loss exposure risk. Rolled back to ml_v3 to prevent further exposure."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Model performance monitor: Calibration score 0.78 (threshold: 0.85)"
+      - timestamp_offset_sec: 180
+        content: "Approval rate spike detected: 78% vs baseline 45%"
+      - timestamp_offset_sec: 300
+        content: "Circuit breaker triggered: Automatic rollback to ml_v3 initiated"
+      - timestamp_offset_sec: 420
+        content: "Model switched: ml_v4 -> ml_v3"
+      - timestamp_offset_sec: 540
+        content: "Calibration score restored: 0.92"
+      - timestamp_offset_sec: 600
+        content: "Approval rate normalized: 44% (within baseline)"
+      - timestamp_offset_sec: 1200
+        content: "ML team investigation begins: Data drift analysis in progress"
+      - timestamp_offset_sec: 7200
+        content: "Root cause identified: Holiday spending pattern shift not reflected in training data"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+
+  - name: "Payment Disbursement System Failure — Retry Recovery"
+    severity: "SEV-2"
+    description: "Claims payment gateway experiencing intermittent failures. Auto-retry mechanism with exponential backoff activated."
+    customer_impact: "23 claim payments initially failed to disburse. Retries succeeded after 300 seconds. Customer payout delayed 5+ minutes."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Alert: Disbursement batch 2024-03-14-001 failure detected (23 claims)"
+      - timestamp_offset_sec: 120
+        content: "Payment gateway health check: Status degraded but recovering"
+      - timestamp_offset_sec: 150
+        content: "Incident declared: SEV-2 disbursement failure"
+      - timestamp_offset_sec: 180
+        content: "First auto-retry attempt: 21 of 23 claims succeeded"
+      - timestamp_offset_sec: 210
+        content: "Remaining 2 claims queued for second retry (30-second backoff)"
+      - timestamp_offset_sec: 240
+        content: "Second retry attempt: Both remaining claims succeeded"
+      - timestamp_offset_sec: 300
+        content: "All 23 disbursements confirmed: 21 via first retry, 2 via second retry"
+      - timestamp_offset_sec: 420
+        content: "Case created: Investigate gateway intermittent failure pattern"
+      - timestamp_offset_sec: 900
+        content: "Root cause: Network switch near payment gateway experiencing packet loss"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"

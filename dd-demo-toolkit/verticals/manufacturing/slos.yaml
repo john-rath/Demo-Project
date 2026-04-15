@@ -1,0 +1,40 @@
+slos:
+  - name: "Overall Equipment Effectiveness (OEE) > 85%"
+    description: "OEE measures the combined impact of availability, performance, and quality. Target 85% over rolling 7-day window. Industry benchmark for automotive manufacturing."
+    type: metric
+    target: 85.0
+    timeframe: "7d"
+    query:
+      numerator: "(sum:mfg.production.planned_production_time_sec{} - sum:mfg.production.downtime_sec{}) * sum:mfg.production.cycle_time_sec{} * (1 - sum:mfg.production.defect_count{} / sum:mfg.production.total_parts_produced{})"
+      denominator: "sum:mfg.production.planned_production_time_sec{}"
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "team:production-engineering"]
+
+  - name: "Quality Defect Rate < 50 PPM"
+    description: "Parts Per Million defect rate. Target <50 PPM over rolling 30-day window. Critical for supply chain and customer satisfaction."
+    type: metric
+    target: 50.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:mfg.device.defect_rate_ppm{device_type:vision_inspector}"
+      denominator: "count:mfg.device.defect_rate_ppm{device_type:vision_inspector}"
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "team:quality", "compliance:iatf-16949"]
+
+  - name: "SCADA Data Collection Uptime: 99.9%"
+    description: "SCADA gateway must reliably collect and transmit data from all production equipment. Target 99.9% uptime over rolling 30-day window."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:mfg.scada_gateway.messages_collected_total{} - sum:mfg.scada_gateway.collection_errors_total{}"
+      denominator: "sum:mfg.scada_gateway.messages_collected_total{}"
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "service:scada-gateway", "team:it-ot-convergence"]
+
+  - name: "Predictive Maintenance Model Accuracy: 95%"
+    description: "RUL (Remaining Useful Life) prediction accuracy. Target 95% precision on maintenance recommendations over rolling 30-day window."
+    type: metric
+    target: 95.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:mfg.predictive_maintenance.accurate_predictions_total{}"
+      denominator: "sum:mfg.predictive_maintenance.total_predictions{}"
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "service:predictive-maintenance-api", "team:maintenance"]

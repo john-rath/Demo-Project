@@ -1,0 +1,1210 @@
+{
+  "title": "\ud83c\udfe5 Patient Experience & Clinical Operations",
+  "description": "Executive dashboard correlating patient satisfaction, staffing levels, physician engagement, and IT infrastructure health.",
+  "layout_type": "ordered",
+  "template_variables": [
+    {
+      "name": "hospital_floor",
+      "prefix": "hospital.floor",
+      "default": "*"
+    },
+    {
+      "name": "hospital_wing",
+      "prefix": "hospital.wing",
+      "default": "*"
+    },
+    {
+      "name": "shift",
+      "prefix": "shift",
+      "default": "*"
+    }
+  ],
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# Patient Experience & Clinical Operations\nExecutive dashboard: Patient satisfaction, staffing, physician engagement, and IT infrastructure health.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 100,
+      "definition": {
+        "type": "note",
+        "content": "## Patient Satisfaction (HCAHPS)",
+        "background_color": "blue",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 101,
+      "definition": {
+        "title": "Overall HCAHPS Score",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.satisfaction_score{hospital.floor:$hospital_floor,hospital.wing:$hospital_wing,shift:$shift}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar",
+            "conditional_formats": [
+              {
+                "comparator": ">=",
+                "value": 4.0,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": ">=",
+                "value": 3.5,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": "<",
+                "value": 3.5,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {
+        "x": 0,
+        "y": 3,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 102,
+      "definition": {
+        "title": "Patient Satisfaction by Floor/Wing",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.satisfaction_score{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 4.0",
+            "display_type": "ok dashed",
+            "label": "Target"
+          }
+        ]
+      },
+      "layout": {
+        "x": 2,
+        "y": 3,
+        "width": 10,
+        "height": 3
+      }
+    },
+    {
+      "id": 103,
+      "definition": {
+        "title": "Nurse Communication",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.satisfaction_nurse_communication{hospital.floor:$hospital_floor,hospital.wing:$hospital_wing,shift:$shift}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar",
+            "conditional_formats": [
+              {
+                "comparator": ">=",
+                "value": 4.0,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": ">=",
+                "value": 3.5,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": "<",
+                "value": 3.5,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {
+        "x": 0,
+        "y": 6,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 104,
+      "definition": {
+        "title": "Staff Responsiveness",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.satisfaction_responsiveness{hospital.floor:$hospital_floor,hospital.wing:$hospital_wing,shift:$shift}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar",
+            "conditional_formats": [
+              {
+                "comparator": ">=",
+                "value": 4.0,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": ">=",
+                "value": 3.5,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": "<",
+                "value": 3.5,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {
+        "x": 3,
+        "y": 6,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 105,
+      "definition": {
+        "title": "Pain Management",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.satisfaction_pain_management{hospital.floor:$hospital_floor,hospital.wing:$hospital_wing,shift:$shift}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar",
+            "conditional_formats": [
+              {
+                "comparator": ">=",
+                "value": 4.0,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": ">=",
+                "value": 3.5,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": "<",
+                "value": 3.5,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {
+        "x": 6,
+        "y": 6,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 106,
+      "definition": {
+        "title": "Discharge Info",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.satisfaction_discharge_info{hospital.floor:$hospital_floor,hospital.wing:$hospital_wing,shift:$shift}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar",
+            "conditional_formats": [
+              {
+                "comparator": ">=",
+                "value": 4.0,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": ">=",
+                "value": 3.5,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": "<",
+                "value": 3.5,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {
+        "x": 9,
+        "y": 6,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 200,
+      "definition": {
+        "type": "note",
+        "content": "## Staffing & Workforce",
+        "background_color": "green",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 8,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 201,
+      "definition": {
+        "title": "Nurses on Duty by Floor/Wing",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.staffing.nurses_on_duty{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 9,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 202,
+      "definition": {
+        "title": "Nurse-to-Patient Ratio",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.staffing.nurse_to_patient_ratio{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 0.25",
+            "display_type": "ok dashed",
+            "label": "Target (1:4)"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 9,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 203,
+      "definition": {
+        "title": "Open Nursing Positions",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.staffing.open_positions{hospital.floor:$hospital_floor,hospital.wing:$hospital_wing,shift:$shift}",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar",
+            "conditional_formats": [
+              {
+                "comparator": "<=",
+                "value": 1,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": "<=",
+                "value": 3,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": ">",
+                "value": 3,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 0,
+        "y": 12,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 204,
+      "definition": {
+        "title": "Nursing Overtime Hours",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.staffing.overtime_hours{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 2,
+        "y": 12,
+        "width": 5,
+        "height": 3
+      }
+    },
+    {
+      "id": 205,
+      "definition": {
+        "title": "Staff Turnover Rate (%)",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.staffing.turnover_rate_pct{hospital.floor:$hospital_floor,hospital.wing:$hospital_wing,shift:$shift}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar",
+            "conditional_formats": [
+              {
+                "comparator": "<=",
+                "value": 15,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": "<=",
+                "value": 25,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": ">",
+                "value": 25,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 1
+      },
+      "layout": {
+        "x": 7,
+        "y": 12,
+        "width": 5,
+        "height": 3
+      }
+    },
+    {
+      "id": 300,
+      "definition": {
+        "type": "note",
+        "content": "## Patient Flow & Response Times",
+        "background_color": "orange",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 15,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 301,
+      "definition": {
+        "title": "Patient Wait Time (Admission \u2192 Physician)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.wait_time_min{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 16,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 302,
+      "definition": {
+        "title": "Pain Response Time (Minutes)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.pain_response_time_min{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 16,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 303,
+      "definition": {
+        "title": "Discharge Process Time (Hours)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.discharge_process_hours{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 19,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 304,
+      "definition": {
+        "title": "F3E Avg Wait Time",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.wait_time_min{hospital.floor:3,hospital.wing:east,shift:$shift}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar",
+            "conditional_formats": [
+              {
+                "comparator": "<=",
+                "value": 20,
+                "palette": "white_on_green"
+              },
+              {
+                "comparator": "<=",
+                "value": 35,
+                "palette": "white_on_yellow"
+              },
+              {
+                "comparator": ">",
+                "value": 35,
+                "palette": "white_on_red"
+              }
+            ]
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 6,
+        "y": 19,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 400,
+      "definition": {
+        "type": "note",
+        "content": "## Physician Engagement & Mobile App",
+        "background_color": "red",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 22,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 401,
+      "definition": {
+        "title": "Mobile Orders Placed (Epic Haiku)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.physician.mobile_orders_placed{shift:$shift} by {hospital.floor}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 23,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 402,
+      "definition": {
+        "title": "Lab/Imaging Results Viewed on Mobile",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.physician.mobile_results_viewed{shift:$shift} by {hospital.floor}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 23,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 403,
+      "definition": {
+        "title": "Order-to-Administration Time (Min)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.physician.order_to_admin_min{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 30",
+            "display_type": "ok dashed",
+            "label": "Target"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 26,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 404,
+      "definition": {
+        "title": "Physician Time with Patient (Min)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.physician.patient_interaction_min{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 26,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 405,
+      "definition": {
+        "title": "Rounds Completed",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.physician.rounds_completed{hospital.floor:$hospital_floor,hospital.wing:$hospital_wing,shift:$shift}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 0,
+        "y": 29,
+        "width": 2,
+        "height": 2
+      }
+    },
+    {
+      "id": 500,
+      "definition": {
+        "type": "note",
+        "content": "## Telemetry & Clinical Device Health",
+        "background_color": "purple",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 31,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 501,
+      "definition": {
+        "title": "Active Telemetry Alarms",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.telemetry.active_alarms{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 32,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 502,
+      "definition": {
+        "title": "Telemetry False Alarm Rate (%)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.telemetry.false_alarm_rate_pct{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 80",
+            "display_type": "ok dashed",
+            "label": "Best Practice Target"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 32,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 503,
+      "definition": {
+        "title": "F3E: Telemetry Gaps vs WiFi Utilization",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              },
+              {
+                "formula": "query2"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.telemetry.monitoring_gap_events{hospital.floor:3,hospital.wing:east,shift:$shift}.as_count()"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "avg:hospital.network.channel_utilization_pct{hospital.floor:3,hospital.wing:east,device.type:wireless_ap}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 35,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 504,
+      "definition": {
+        "title": "Telemetry Alarm Response Time (Sec)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.telemetry.alarm_response_time_sec{shift:$shift} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 35,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 600,
+      "definition": {
+        "type": "note",
+        "content": "## Floor 3 East \u2014 Correlation Analysis\n**Floor 3 East shows the lowest patient satisfaction scores in the hospital.** This group correlates the root causes: chronic understaffing, recurring WiFi infrastructure issues, and their downstream impact on clinical workflows and patient care.",
+        "background_color": "yellow",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 38,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 601,
+      "definition": {
+        "title": "F3E: Satisfaction Score vs Staffing Ratio",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              },
+              {
+                "formula": "query2"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.patient.satisfaction_score{hospital.floor:3,hospital.wing:east,shift:$shift}"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "avg:hospital.staffing.nurse_to_patient_ratio{hospital.floor:3,hospital.wing:east,shift:$shift}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 40,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 602,
+      "definition": {
+        "title": "F3E: WiFi Utilization vs Device Signal Strength",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              },
+              {
+                "formula": "query2"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.network.channel_utilization_pct{hospital.floor:3,hospital.wing:east,device.type:wireless_ap}"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "avg:hospital.device.signal_strength_dbm{hospital.floor:3,hospital.wing:east,device.type:infusion_pump}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 40,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 603,
+      "definition": {
+        "title": "F3E: Telemetry Gaps & Order-to-Admin Delays",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              },
+              {
+                "formula": "query2"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.telemetry.monitoring_gap_events{hospital.floor:3,hospital.wing:east,shift:$shift}.as_count()"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "avg:hospital.physician.order_to_admin_min{hospital.floor:3,hospital.wing:east,shift:$shift}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 43,
+        "width": 12,
+        "height": 3
+      }
+    }
+  ],
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

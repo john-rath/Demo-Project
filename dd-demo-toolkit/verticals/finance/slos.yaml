@@ -1,0 +1,60 @@
+slos:
+  - name: "Online Banking Availability"
+    description: "Customer-facing online/mobile banking portal must be available 99.99% of the time. Critical for retail customer experience and regulatory compliance."
+    type: metric
+    target: 99.99
+    timeframe: "30d"
+    query:
+      numerator: "sum:finserv.app.requests_total{service_name:online-banking-portal} - sum:finserv.app.errors_total{service_name:online-banking-portal}"
+      denominator: "sum:finserv.app.requests_total{service_name:online-banking-portal}"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+      - "tier:Tier 1"
+      - "sla_critical:true"
+
+  - name: "Payment Processing Latency (p99 < 500ms)"
+    description: "99.5% of payment transactions must complete authorization within 500ms (p99 latency). Impacts customer experience and reduces payment gateway timeouts."
+    type: metric
+    target: 99.5
+    timeframe: "30d"
+    query:
+      numerator: "count:finserv.app.latency_ms{service_name:payment-processing-engine,operation:authorize_payment} where latency_ms < 500"
+      denominator: "count:finserv.app.latency_ms{service_name:payment-processing-engine,operation:authorize_payment}"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+      - "tier:Tier 1"
+      - "sla_critical:true"
+
+  - name: "Fraud Detection Model Latency (p95 < 100ms)"
+    description: "Fraud detection ML model must score 95% of transactions within 100ms (p95 latency). Higher latency increases false negatives and operational delays."
+    type: metric
+    target: 99.0
+    timeframe: "30d"
+    query:
+      numerator: "count:finserv.fraud_detection_node.model_latency_ms where model_latency_ms < 100"
+      denominator: "count:finserv.fraud_detection_node.model_latency_ms"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+      - "tier:Tier 1"
+      - "sla_critical:true"
+
+  - name: "Trading Platform Order Fill Rate"
+    description: "Trading platform must successfully fill 99.9% of submitted orders. Lower rates indicate risk engine, matching engine, or market data issues impacting revenue."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:finserv.app.success_total{service_name:trading-platform,operation:fill_order}"
+      denominator: "sum:finserv.app.requests_total{service_name:trading-platform,operation:fill_order}"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Capital Markets"
+      - "tier:Tier 1"
+      - "sla_critical:true"

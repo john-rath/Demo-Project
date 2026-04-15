@@ -1,0 +1,1303 @@
+{
+  "title": "Sensing Hospital \u2014 AdventHealth Device Command Center",
+  "description": "Real-time observability across all hospital IoT devices, network infrastructure, environmental sensors, and asset tracking systems.",
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# AdventHealth Sensing Hospital\n### Real-time Device Observability Command Center\n\nMonitoring **Medical IoT** \u00b7 **Network Infrastructure** \u00b7 **Environmental Sensors** \u00b7 **Asset Tracking**\n\nAll telemetry streamed via OpenTelemetry \u2192 Datadog",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "tick_pos": "50%",
+        "tick_edge": "bottom",
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "title": "Total Devices Online",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.heartbeats_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0,
+        "custom_links": []
+      },
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "title": "Medical IoT Devices",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.heartbeats_total{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0,
+        "custom_links": []
+      },
+      "layout": {
+        "x": 3,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "title": "Network Devices",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.heartbeats_total{device.category:network_infra,$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 6,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "title": "Environmental + RTLS",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1 + query2"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.heartbeats_total{device.category:environmental,$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "aggregator": "last"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "sum:hospital.device.heartbeats_total{device.category:asset_tracking,$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "aggregator": "last"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {
+        "x": 9,
+        "y": 2,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "title": "Active Alerts",
+        "type": "query_value",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.alerts_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ],
+        "autoscale": true,
+        "precision": 0,
+        "custom_unit": " alerts"
+      },
+      "layout": {
+        "x": 0,
+        "y": 4,
+        "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "title": "Alerts by Severity",
+        "type": "sunburst",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.alerts_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {alert.severity,alert.type}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 4,
+        "width": 3,
+        "height": 3
+      }
+    },
+    {
+      "id": 8,
+      "definition": {
+        "title": "Devices with Active Alerts",
+        "type": "toplist",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "limit": {
+                  "count": 25,
+                  "order": "desc"
+                }
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.device.alerts_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.id,device.type,alert.type,alert.severity,hospital.floor,hospital.wing}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 3,
+        "y": 4,
+        "width": 9,
+        "height": 3
+      }
+    },
+    {
+      "id": 10,
+      "definition": {
+        "type": "note",
+        "content": "## \ud83d\udce1 Medical IoT Fleet",
+        "background_color": "blue",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 6,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "title": "Medical Device CPU Usage by Type",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.device.cpu_usage_pct{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "yaxis": {
+          "min": "0",
+          "max": "100"
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 7,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 12,
+      "definition": {
+        "title": "Medical Device Battery Levels",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.device.battery_pct{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "yaxis": {
+          "min": "0",
+          "max": "100"
+        },
+        "markers": [
+          {
+            "value": "y = 15",
+            "display_type": "error dashed",
+            "label": "Critical"
+          },
+          {
+            "value": "y = 30",
+            "display_type": "warning dashed",
+            "label": "Low"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 7,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 13,
+      "definition": {
+        "title": "Medical Device Temperature",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.device.temperature_celsius{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 50",
+            "display_type": "error dashed",
+            "label": "Overheating"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 10,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 14,
+      "definition": {
+        "title": "Medical Device Memory Usage",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.device.memory_usage_pct{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "yaxis": {
+          "min": "0",
+          "max": "100"
+        }
+      },
+      "layout": {
+        "x": 6,
+        "y": 10,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 20,
+      "definition": {
+        "type": "note",
+        "content": "## \ud83c\udf10 Network Infrastructure",
+        "background_color": "green",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 13,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 21,
+      "definition": {
+        "title": "Network Throughput (Mbps) by Device",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.network.throughput_mbps{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "area"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 14,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 22,
+      "definition": {
+        "title": "Connected Clients per AP/Switch",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.network.connected_clients{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor,device.type}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 14,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 23,
+      "definition": {
+        "title": "Network Latency (ms)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.network.latency_ms{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 20",
+            "display_type": "warning dashed",
+            "label": "High Latency"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 17,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 24,
+      "definition": {
+        "title": "Packet Loss (%)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.network.packet_loss_pct{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 1",
+            "display_type": "error dashed",
+            "label": "Critical Loss"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 17,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 30,
+      "definition": {
+        "type": "note",
+        "content": "## \ud83c\udf21\ufe0f Environmental Monitoring",
+        "background_color": "orange",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 20,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 31,
+      "definition": {
+        "title": "Room Temperature (\u00b0F) by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.room_temperature_f{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 68",
+            "display_type": "ok dashed"
+          },
+          {
+            "value": "y = 75",
+            "display_type": "ok dashed"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 21,
+        "width": 4,
+        "height": 3
+      }
+    },
+    {
+      "id": 32,
+      "definition": {
+        "title": "Humidity (%) by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.humidity_pct{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 4,
+        "y": 21,
+        "width": 4,
+        "height": 3
+      }
+    },
+    {
+      "id": 33,
+      "definition": {
+        "title": "Air Quality Index by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.env.air_quality_aqi{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          {
+            "value": "y = 50",
+            "display_type": "warning dashed",
+            "label": "Moderate"
+          },
+          {
+            "value": "y = 100",
+            "display_type": "error dashed",
+            "label": "Unhealthy"
+          }
+        ]
+      },
+      "layout": {
+        "x": 8,
+        "y": 21,
+        "width": 4,
+        "height": 3
+      }
+    },
+    {
+      "id": 34,
+      "definition": {
+        "title": "Total Room Occupancy by Floor & Wing",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.env.occupancy_count{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor,hospital.wing}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ],
+        "yaxis": {
+          "min": "0"
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 24,
+        "width": 12,
+        "height": 3
+      }
+    },
+    {
+      "id": 40,
+      "definition": {
+        "type": "note",
+        "content": "## \ud83d\udccd Asset Tracking (RTLS)",
+        "background_color": "purple",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 27,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 41,
+      "definition": {
+        "title": "RTLS Tag Signal Strength by Floor",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.rtls.tag_rssi{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 28,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 42,
+      "definition": {
+        "title": "RTLS / Beacon Battery Levels",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.device.battery_pct{device.category:asset_tracking,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "yaxis": {
+          "min": "0",
+          "max": "100"
+        },
+        "markers": [
+          {
+            "value": "y = 15",
+            "display_type": "error dashed",
+            "label": "Replace Battery"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 28,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 50,
+      "definition": {
+        "type": "note",
+        "content": "## \ud83d\udd0d Device Fleet Inventory",
+        "background_color": "gray",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 31,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 51,
+      "definition": {
+        "title": "Devices by Category",
+        "type": "sunburst",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "count:hospital.device.heartbeats_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.category,device.type}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 32,
+        "width": 6,
+        "height": 4
+      }
+    },
+    {
+      "id": 52,
+      "definition": {
+        "title": "Devices by Floor & Wing",
+        "type": "treemap",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "count:hospital.device.heartbeats_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor,hospital.wing}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 32,
+        "width": 6,
+        "height": 4
+      }
+    },
+    {
+      "id": 53,
+      "definition": {
+        "title": "Device Uptime Distribution by Manufacturer",
+        "type": "toplist",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "limit": {
+                  "count": 15,
+                  "order": "desc"
+                }
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.device.uptime_hours{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.manufacturer}",
+                "aggregator": "avg"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 36,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 54,
+      "definition": {
+        "title": "Firmware Version Distribution",
+        "type": "toplist",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "limit": {
+                  "count": 20,
+                  "order": "desc"
+                }
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "count:hospital.device.heartbeats_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.manufacturer,device.firmware}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 36,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 60,
+      "definition": {
+        "type": "note",
+        "content": "## Hospital Application Services (Traced)\n\nThese services have full Datadog agents installed. View the live **Service Map** at **APM \u2192 Service Map** to see dependencies between these systems.",
+        "background_color": "yellow",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 39,
+        "width": 12,
+        "height": 1
+      }
+    },
+    {
+      "id": 61,
+      "definition": {
+        "title": "Request Rate by Service",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.app.requests_total{$service} by {service.name}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "bars"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 40,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 62,
+      "definition": {
+        "title": "Error Rate by Service",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:hospital.app.errors_total{$service} by {service.name}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 40,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 63,
+      "definition": {
+        "title": "Request Latency by Service (avg / max)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1",
+                "alias": "avg latency"
+              },
+              {
+                "formula": "query2",
+                "alias": "max latency"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.app.request_duration_ms{$service} by {service.name}"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "max:hospital.app.request_duration_ms{$service} by {service.name}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 43,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 64,
+      "definition": {
+        "title": "Active Connections by Service",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.app.active_connections{$service} by {service.name}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "area"
+          }
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 43,
+        "width": 6,
+        "height": 3
+      }
+    },
+    {
+      "id": 65,
+      "definition": {
+        "title": "App Host CPU by Service",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.app.host_cpu_pct{$service} by {service.name}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "yaxis": {
+          "min": "0",
+          "max": "100"
+        }
+      },
+      "layout": {
+        "x": 0,
+        "y": 46,
+        "width": 4,
+        "height": 3
+      }
+    },
+    {
+      "id": 66,
+      "definition": {
+        "title": "App Host Memory by Service",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.app.host_memory_pct{$service} by {service.name}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "yaxis": {
+          "min": "0",
+          "max": "100"
+        }
+      },
+      "layout": {
+        "x": 4,
+        "y": 46,
+        "width": 4,
+        "height": 3
+      }
+    },
+    {
+      "id": 67,
+      "definition": {
+        "title": "Message Queue Depth by Service",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              {
+                "formula": "query1"
+              }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "avg:hospital.app.queue_depth{$service} by {service.name}"
+              }
+            ],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {
+        "x": 8,
+        "y": 46,
+        "width": 4,
+        "height": 3
+      }
+    }
+  ],
+  "template_variables": [
+    {
+      "name": "floor",
+      "prefix": "hospital.floor",
+      "default": "*"
+    },
+    {
+      "name": "wing",
+      "prefix": "hospital.wing",
+      "default": "*"
+    },
+    {
+      "name": "department",
+      "prefix": "hospital.department",
+      "default": "*"
+    },
+    {
+      "name": "device_type",
+      "prefix": "device.type",
+      "default": "*"
+    },
+    {
+      "name": "device_category",
+      "prefix": "device.category",
+      "default": "*"
+    },
+    {
+      "name": "manufacturer",
+      "prefix": "device.manufacturer",
+      "default": "*"
+    },
+    {
+      "name": "service",
+      "prefix": "service.name",
+      "default": "*"
+    }
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

@@ -1,0 +1,21 @@
+notebooks:
+  - id: "incident-investigation-assembly-line-halt"
+    name: "🏭 Incident Investigation: Assembly Line Stoppage — Root Cause Analysis"
+    type: investigation
+    description: "Cross-domain RCA: Robot arm servo degradation → cycle time increase → conveyor jam → line halted. Demonstrates causality chain from equipment failure to production impact using metrics, logs, and predictive maintenance signals."
+    time_range: "2h"
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "incident_domain:equipment-degradation", "team:production-engineering"]
+
+  - id: "executive-report-plant-operations"
+    name: "📊 Executive Report: Plant Operations & OEE"
+    type: executive_report
+    description: "30-day KPI summary for manufacturing leadership. OEE metrics, production targets (units/day), quality (PPM), equipment uptime, maintenance costs, supply chain health, energy consumption, carbon footprint."
+    time_range: "30d"
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "audience:executive", "team:production-engineering"]
+
+  - id: "predictive-maintenance-triage"
+    name: "⚙️ Predictive Maintenance Alert Triage"
+    type: workflow
+    description: "ML model analysis for RUL-based maintenance scheduling. Triage logic for critical vs. routine maintenance, parts procurement, technician dispatch, work order creation, historical performance comparison."
+    time_range: "7d"
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "workflow:maintenance", "service:predictive-maintenance-api", "team:maintenance"]

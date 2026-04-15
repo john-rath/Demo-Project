@@ -1,0 +1,24 @@
+cases:
+  - title: "Robot Arm Servo Bearing Lifecycle Management Program"
+    description: "Series of servo temperature excursions indicate need for proactive bearing maintenance program. Current approach: reactive repair after failure. Design: (1) Implement bearing RUL (Remaining Useful Life) predictive models, (2) Establish bearing replacement intervals based on temperature profiles, (3) Create preventive maintenance schedule integrated with production planning."
+    priority: "P2"
+    type: "STANDARD"
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+
+  - title: "Statistical Process Control (SPC) Temperature Control Root Cause"
+    description: "Production line quality control stop revealed temperature control system drift as root cause of defect spike. Perform failure analysis of temperature controller: (1) Calibration drift analysis, (2) Sensor accuracy verification, (3) Controller response time characterization. Recommend: hardware replacement schedule, calibration intervals, alarm thresholds."
+    priority: "P1"
+    type: "STANDARD"
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+
+  - title: "Predictive Maintenance Model Validation & Deployment"
+    description: "Current bearing RUL prediction model accuracy and generalization performance needs validation across equipment fleet. Assessment: (1) Compare predicted RUL vs actual bearing lifespan, (2) Quantify false positive rate (false failure predictions), (3) Identify model blind spots by equipment type/age. Expand deployment to full equipment fleet once validation complete."
+    priority: "P2"
+    type: "STANDARD"
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"

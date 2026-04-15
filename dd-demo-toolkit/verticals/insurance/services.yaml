@@ -1,0 +1,340 @@
+services:
+  - name: policy-admin-system
+    display_name: "Policy Administration System"
+    description: >
+      Core policy lifecycle management: issuance, endorsements, renewals, cancellations, transfers.
+      Handles 50M+ policies. All customer/agent transactions depend on this system.
+      Java Spring Boot, Oracle backend, replicated across regions.
+    team: "Policy Operations"
+    tier: "Tier 1"
+    languages: ["java"]
+    dependencies:
+      - document-management-api
+      - billing-payments-service
+      - regulatory-compliance-api
+    operations:
+      - name: issue_policy
+        description: "New policy issuance after underwriting approval"
+        avg_latency_ms: 520
+        error_rate_pct: 0.3
+      - name: process_endorsement
+        description: "Add/remove coverage, update insured info, change deductible"
+        avg_latency_ms: 580
+        error_rate_pct: 0.4
+      - name: renew_policy
+        description: "Annual renewal with rate change and updated underwriting"
+        avg_latency_ms: 620
+        error_rate_pct: 0.35
+      - name: cancel_policy
+        description: "Cancellation with refund processing"
+        avg_latency_ms: 450
+        error_rate_pct: 0.2
+      - name: lookup_policy
+        description: "Agent/customer retrieves policy details"
+        avg_latency_ms: 180
+        error_rate_pct: 0.15
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "compliance:state-filings"
+      - "compliance:naic-reporting"
+      - "compliance:soc2"
+      - "sla:core-system"
+
+  - name: claims-management-platform
+    display_name: "Claims Management Platform"
+    description: >
+      End-to-end claims lifecycle: First Notice of Loss (FNOL), assignment, investigation,
+      reserve setting, subrogation, settlement, recovery. Handles auto, home, commercial claims.
+      .NET/Azure, document-centric workflow engine, 100K+ claims/day at peak.
+    team: "Claims Operations"
+    tier: "Tier 1"
+    languages: ["dotnet"]
+    dependencies:
+      - document-management-api
+      - billing-payments-service
+      - telematics-analytics-service
+      - regulatory-compliance-api
+    operations:
+      - name: submit_fnol
+        description: "First notice of loss intake (web, mobile, phone)"
+        avg_latency_ms: 420
+        error_rate_pct: 0.5
+      - name: assign_adjuster
+        description: "Route claim to available adjuster with expertise"
+        avg_latency_ms: 310
+        error_rate_pct: 0.2
+      - name: set_reserve
+        description: "Actuarial reserve calculation based on claim type/severity"
+        avg_latency_ms: 280
+        error_rate_pct: 0.25
+      - name: process_payment
+        description: "Settlement payment to claimant"
+        avg_latency_ms: 180
+        error_rate_pct: 0.1
+      - name: close_claim
+        description: "Final claim closure with recovery accounting"
+        avg_latency_ms: 320
+        error_rate_pct: 0.3
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "compliance:state-regulations"
+      - "compliance:fnol-timeliness"
+      - "sla:claims-processing-4h"
+
+  - name: digital-quoting-engine
+    display_name: "Digital Quoting Engine"
+    description: >
+      Real-time insurance quote generation for web portal, mobile app, and chatbot.
+      Integrates rating engine, risk scoring, telematics integration, third-party data lookups.
+      Node.js, Redis caching, sub-second response requirement.
+    team: "Digital Sales"
+    tier: "Tier 1"
+    languages: ["javascript"]
+    dependencies:
+      - underwriting-workbench
+      - telematics-analytics-service
+      - policy-admin-system
+    operations:
+      - name: get_quote
+        description: "Generate competitive quote based on risk factors"
+        avg_latency_ms: 850
+        error_rate_pct: 0.8
+      - name: compare_coverage
+        description: "Side-by-side comparison of coverage options"
+        avg_latency_ms: 350
+        error_rate_pct: 0.3
+      - name: bind_policy
+        description: "Convert quote to active policy (immediate coverage)"
+        avg_latency_ms: 1200
+        error_rate_pct: 0.5
+      - name: validate_address
+        description: "Verify address with USPS for rating accuracy"
+        avg_latency_ms: 420
+        error_rate_pct: 0.2
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:digital-sales"
+      - "sla:quoting-availability-99.95"
+
+  - name: underwriting-workbench
+    display_name: "Underwriting Workbench"
+    description: >
+      Risk assessment, automated decisioning, referral routing, exception handling.
+      Integrates rating engine, risk scoring, third-party data, chatbot escalations.
+      Java Spring Boot, stateful workflow orchestration.
+    team: "Underwriting"
+    tier: "Tier 1"
+    languages: ["java"]
+    dependencies:
+      - rating_engine
+      - risk_scoring_node
+      - third_party_data_connector
+      - document-management-api
+    operations:
+      - name: assess_risk
+        description: "Comprehensive risk profile generation"
+        avg_latency_ms: 1100
+        error_rate_pct: 0.6
+      - name: apply_underwriting_rules
+        description: "Rule engine evaluation against underwriting guidelines"
+        avg_latency_ms: 280
+        error_rate_pct: 0.2
+      - name: refer_to_underwriter
+        description: "Exception routing to human underwriter"
+        avg_latency_ms: 150
+        error_rate_pct: 0.1
+      - name: approve_quote
+        description: "Final approval with rate and terms"
+        avg_latency_ms: 320
+        error_rate_pct: 0.25
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:underwriting"
+      - "compliance:underwriting-standards"
+
+  - name: billing-payments-service
+    display_name: "Billing & Payments Service"
+    description: >
+      Premium billing (monthly/annual), payment processing (credit card, ACH, check),
+      collections, dunning, refunds. Multi-currency, PCI compliance.
+      Java Spring Boot, integrated with Stripe/Adyen and ACH processors.
+    team: "Billing Operations"
+    tier: "Tier 1"
+    languages: ["java"]
+    dependencies:
+      - policy-admin-system
+      - regulatory-compliance-api
+    operations:
+      - name: generate_invoice
+        description: "Create premium invoice with due date and payment terms"
+        avg_latency_ms: 280
+        error_rate_pct: 0.2
+      - name: process_payment
+        description: "Charge payment method (card, ACH, check)"
+        avg_latency_ms: 2200
+        error_rate_pct: 1.2
+      - name: apply_payment
+        description: "Post payment to account, reconcile with billing"
+        avg_latency_ms: 320
+        error_rate_pct: 0.25
+      - name: process_refund
+        description: "Refund overpayment or cancellation"
+        avg_latency_ms: 1800
+        error_rate_pct: 0.8
+      - name: retry_failed_payment
+        description: "Automated retry of failed charges (dunning)"
+        avg_latency_ms: 350
+        error_rate_pct: 0.3
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "compliance:pci-dss"
+      - "compliance:payment-accuracy"
+      - "sla:payment-success-99.9"
+
+  - name: agent-commission-engine
+    display_name: "Agent Commission Engine"
+    description: >
+      Real-time commission calculation, statement generation, hierarchy management,
+      performance tracking. Handles 10K+ agents with varying commission structures.
+      .NET, complex calculation rules, daily settlement.
+    team: "Agent Services"
+    tier: "Tier 2"
+    languages: ["dotnet"]
+    dependencies:
+      - policy-admin-system
+      - billing-payments-service
+    operations:
+      - name: calculate_commissions
+        description: "Calculate daily commissions based on policies issued/renewed"
+        avg_latency_ms: 8500
+        error_rate_pct: 0.8
+      - name: generate_statement
+        description: "Monthly commission statement for agent"
+        avg_latency_ms: 2200
+        error_rate_pct: 0.3
+      - name: apply_hierarchy
+        description: "Distribute upline commissions through agent hierarchy"
+        avg_latency_ms: 3100
+        error_rate_pct: 0.4
+      - name: settle_commission
+        description: "Deposit commission payment to agent bank account"
+        avg_latency_ms: 350
+        error_rate_pct: 0.2
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:agent-services"
+
+  - name: document-management-api
+    display_name: "Document Management API"
+    description: >
+      Document lifecycle: policy documents, correspondence, claim documents,
+      e-signatures, archival, retrieval, compliance holds.
+      Python FastAPI, S3 backend, OCR-driven searchability, 100M+ documents.
+    team: "Operations"
+    tier: "Tier 2"
+    languages: ["python"]
+    dependencies: []
+    operations:
+      - name: upload_document
+        description: "Ingest document (PDF, image, email)"
+        avg_latency_ms: 580
+        error_rate_pct: 0.4
+      - name: extract_text
+        description: "OCR-based text extraction for searchability"
+        avg_latency_ms: 4200
+        error_rate_pct: 0.6
+      - name: sign_document
+        description: "e-signature workflow (DocuSign integration)"
+        avg_latency_ms: 1800
+        error_rate_pct: 0.3
+      - name: retrieve_document
+        description: "Fetch document by policy/claim ID"
+        avg_latency_ms: 320
+        error_rate_pct: 0.1
+      - name: archive_document
+        description: "Move to long-term archive (Glacier)"
+        avg_latency_ms: 350
+        error_rate_pct: 0.2
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "compliance:document-retention"
+      - "compliance:e-signature-legal"
+
+  - name: telematics-analytics-service
+    display_name: "Telematics & Analytics Service"
+    description: >
+      Driving behavior analysis, real-time risk scoring, usage-based insurance (UBI) pricing.
+      Ingests GPS, accelerometer, braking data from 2.8M+ connected vehicles.
+      Python/PySpark, streaming analytics, Kafka integration.
+    team: "Actuarial"
+    tier: "Tier 1"
+    languages: ["python"]
+    dependencies:
+      - underwriting-workbench
+      - digital-quoting-engine
+    operations:
+      - name: ingest_telematics_event
+        description: "Receive GPS/sensor event from vehicle"
+        avg_latency_ms: 45
+        error_rate_pct: 0.3
+      - name: calculate_driving_score
+        description: "Real-time driving behavior risk score"
+        avg_latency_ms: 280
+        error_rate_pct: 0.2
+      - name: detect_anomaly
+        description: "Identify risky driving patterns (speeding, harsh braking)"
+        avg_latency_ms: 150
+        error_rate_pct: 0.1
+      - name: update_ubi_rate
+        description: "Adjust policy premium based on 6-month driving history"
+        avg_latency_ms: 620
+        error_rate_pct: 0.25
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:actuarial"
+      - "compliance:data-privacy"
+
+  - name: regulatory-compliance-api
+    display_name: "Regulatory Compliance API"
+    description: >
+      State filings (rate approvals, form filings), market conduct monitoring,
+      NAIC reporting, complaint tracking, compliance audits.
+      .NET, audit logging, complex state-specific rules.
+    team: "Compliance"
+    tier: "Tier 2"
+    languages: ["dotnet"]
+    dependencies:
+      - policy-admin-system
+      - claims-management-platform
+      - billing-payments-service
+    operations:
+      - name: file_rate_approval
+        description: "Submit rate filing to state insurance commissioner"
+        avg_latency_ms: 3200
+        error_rate_pct: 0.5
+      - name: track_complaint
+        description: "Log customer complaint for NAIC ratio tracking"
+        avg_latency_ms: 280
+        error_rate_pct: 0.2
+      - name: generate_naic_report
+        description: "Quarterly NAIC annual statement filing"
+        avg_latency_ms: 12000
+        error_rate_pct: 1.0
+      - name: audit_underwriting
+        description: "Compliance audit of underwriting decisions"
+        avg_latency_ms: 8500
+        error_rate_pct: 0.6
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:compliance"
+      - "compliance:state-insurance-laws"
+      - "compliance:naic-reporting"

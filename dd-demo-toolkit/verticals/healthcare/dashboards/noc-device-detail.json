@@ -1,0 +1,1465 @@
+{
+  "title": "🔍 Healthcare NOC — Device Detail Drill-Down",
+  "description": "Device-level detailed monitoring dashboard. Drill down from NOC Overview to inspect specific device metrics including health, network, medical device specifics, environmental data, and alert history.",
+  "layout_type": "ordered",
+  "tags": [
+    "vertical:healthcare",
+    "dd-demo-toolkit:true",
+    "dashboard-type:noc-detail"
+  ],
+  "template_variables": [
+    {
+      "name": "device_id",
+      "prefix": "device_id",
+      "available_values": []
+    },
+    {
+      "name": "device_type",
+      "prefix": "device_type",
+      "available_values": []
+    },
+    {
+      "name": "floor",
+      "prefix": "floor",
+      "available_values": []
+    },
+    {
+      "name": "wing",
+      "prefix": "wing",
+      "available_values": []
+    },
+    {
+      "name": "department",
+      "prefix": "department",
+      "available_values": []
+    },
+    {
+      "name": "manufacturer",
+      "prefix": "manufacturer",
+      "available_values": []
+    }
+  ],
+  "widgets": [
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# 🔍 Device Detail Drill-Down\n\n**Select a device using the template variables above** (`device_id`, `device_type`, `floor`, `wing`, `department`, `manufacturer`), or **click through from the NOC Overview dashboard**.\n\nThis dashboard shows real-time health, network performance, medical device specifics, environmental context, and alert history for the selected device(s).",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 2
+      }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "📋 Device Identity Header",
+        "widgets": [
+          {
+            "id": 3,
+            "definition": {
+              "title": "Online Status",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.online{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 0,
+              "conditional_formats": [
+                {
+                  "comparator": "==",
+                  "value": 1,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": "!=",
+                  "value": 1,
+                  "color": "vivid_red"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 2,
+              "height": 3
+            }
+          },
+          {
+            "id": 4,
+            "definition": {
+              "title": "Battery %",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.battery_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 1,
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": 40,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": ">",
+                  "value": 20,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": "<=",
+                  "value": 20,
+                  "color": "vivid_red"
+                }
+              ]
+            },
+            "layout": {
+              "x": 2,
+              "y": 0,
+              "width": 2,
+              "height": 3
+            }
+          },
+          {
+            "id": 5,
+            "definition": {
+              "title": "CPU %",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.cpu_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 1,
+              "conditional_formats": [
+                {
+                  "comparator": "<",
+                  "value": 70,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": "<",
+                  "value": 85,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": ">=",
+                  "value": 85,
+                  "color": "vivid_red"
+                }
+              ]
+            },
+            "layout": {
+              "x": 4,
+              "y": 0,
+              "width": 2,
+              "height": 3
+            }
+          },
+          {
+            "id": 6,
+            "definition": {
+              "title": "Memory %",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.memory_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 1,
+              "conditional_formats": [
+                {
+                  "comparator": "<",
+                  "value": 70,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": "<",
+                  "value": 85,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": ">=",
+                  "value": 85,
+                  "color": "vivid_red"
+                }
+              ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 2,
+              "height": 3
+            }
+          },
+          {
+            "id": 7,
+            "definition": {
+              "title": "Signal Strength dBm",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.signal_dbm{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 1,
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": -70,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": ">",
+                  "value": -80,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": "<=",
+                  "value": -80,
+                  "color": "vivid_red"
+                }
+              ]
+            },
+            "layout": {
+              "x": 8,
+              "y": 0,
+              "width": 2,
+              "height": 3
+            }
+          },
+          {
+            "id": 8,
+            "definition": {
+              "title": "Temperature °C",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.temperature_celsius{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 1,
+              "conditional_formats": [
+                {
+                  "comparator": "<",
+                  "value": 45,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": "<",
+                  "value": 50,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": ">=",
+                  "value": 50,
+                  "color": "vivid_red"
+                }
+              ]
+            },
+            "layout": {
+              "x": 10,
+              "y": 0,
+              "width": 2,
+              "height": 3
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 2,
+        "width": 12,
+        "height": 4
+      }
+    },
+    {
+      "id": 9,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "📈 Device Health Timeline",
+        "widgets": [
+          {
+            "id": 10,
+            "definition": {
+              "title": "Battery % Over Time",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.battery_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Critical",
+                  "value": "20",
+                  "display_type": "critical"
+                },
+                {
+                  "label": "Warning",
+                  "value": "40",
+                  "display_type": "warning"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 11,
+            "definition": {
+              "title": "CPU & Memory Usage",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1",
+                      "alias": "CPU %"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.cpu_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "cool",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                },
+                {
+                  "formulas": [
+                    {
+                      "formula": "query2",
+                      "alias": "Memory %"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query2",
+                      "query": "avg:hospital.device.memory_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "warm",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Warning",
+                  "value": "85",
+                  "display_type": "warning"
+                },
+                {
+                  "label": "Critical",
+                  "value": "95",
+                  "display_type": "critical"
+                }
+              ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 12,
+            "definition": {
+              "title": "Signal Strength dBm",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.signal_dbm{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "-70 dBm",
+                  "value": "-70",
+                  "display_type": "ok"
+                },
+                {
+                  "label": "-80 dBm",
+                  "value": "-80",
+                  "display_type": "warning"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 3,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 13,
+            "definition": {
+              "title": "Temperature °C",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.temperature_celsius{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Operating Range",
+                  "value": "45",
+                  "display_type": "ok"
+                },
+                {
+                  "label": "Warning",
+                  "value": "50",
+                  "display_type": "warning"
+                }
+              ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 3,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 14,
+            "definition": {
+              "title": "Heartbeat / Keep-Alive",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:hospital.device.heartbeat_total{$device_id,$device_type,$floor,$wing,$department,$manufacturer}.as_count()"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 0,
+              "conditional_formats": [
+                {
+                  "comparator": ">",
+                  "value": 0,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": "==",
+                  "value": 0,
+                  "color": "vivid_red"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 2
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 6,
+        "width": 12,
+        "height": 9
+      }
+    },
+    {
+      "id": 15,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "🌐 Network Metrics",
+        "widgets": [
+          {
+            "id": 16,
+            "definition": {
+              "title": "Channel Utilization %",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.network.channel_utilization_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Threshold",
+                  "value": "80",
+                  "display_type": "warning"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 17,
+            "definition": {
+              "title": "Connected Clients",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.network.connected_clients{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 18,
+            "definition": {
+              "title": "Packet Loss & Retransmission %",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1",
+                      "alias": "Packet Loss %"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.network.packet_loss_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "cool",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                },
+                {
+                  "formulas": [
+                    {
+                      "formula": "query2",
+                      "alias": "Retransmission %"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query2",
+                      "query": "avg:hospital.network.retransmission_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "warm",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Warning",
+                  "value": "5",
+                  "display_type": "warning"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 3,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 19,
+            "definition": {
+              "title": "Throughput Mbps",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.network.throughput_mbps{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 3,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 20,
+            "definition": {
+              "title": "Latency ms",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.network.latency_ms{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Threshold",
+                  "value": "100",
+                  "display_type": "warning"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 3
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 15,
+        "width": 12,
+        "height": 10
+      }
+    },
+    {
+      "id": 21,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "💊 Medical Device Specific Metrics",
+        "widgets": [
+          {
+            "id": 22,
+            "definition": {
+              "title": "Infusion Pump Flow Rate (mL/hr)",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.pump.flow_rate_ml_hr{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 23,
+            "definition": {
+              "title": "Occlusion & Air-in-Line Alerts",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1",
+                      "alias": "Occlusion"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:hospital.pump.occlusion_alerts_total{$device_id,$device_type,$floor,$wing,$department,$manufacturer}.as_count()"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "cool",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                },
+                {
+                  "formulas": [
+                    {
+                      "formula": "query2",
+                      "alias": "Air-in-Line"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query2",
+                      "query": "sum:hospital.pump.air_in_line_alerts_total{$device_id,$device_type,$floor,$wing,$department,$manufacturer}.as_count()"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "warm",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 24,
+            "definition": {
+              "title": "Volume Infused (mL)",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.pump.volume_infused_ml{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 3,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 25,
+            "definition": {
+              "title": "Nurse Call Active Calls",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.nurse_call.active_calls{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 0,
+              "conditional_formats": [
+                {
+                  "comparator": "==",
+                  "value": 0,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": ">",
+                  "value": 0,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": ">",
+                  "value": 5,
+                  "color": "vivid_red"
+                }
+              ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 3,
+              "width": 3,
+              "height": 3
+            }
+          },
+          {
+            "id": 26,
+            "definition": {
+              "title": "Nurse Call Response Time (sec)",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.nurse_call.response_time_sec{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ],
+              "autoscale": true,
+              "precision": 1,
+              "conditional_formats": [
+                {
+                  "comparator": "<",
+                  "value": 60,
+                  "color": "vivid_green"
+                },
+                {
+                  "comparator": "<",
+                  "value": 120,
+                  "color": "vivid_yellow"
+                },
+                {
+                  "comparator": ">=",
+                  "value": 120,
+                  "color": "vivid_red"
+                }
+              ]
+            },
+            "layout": {
+              "x": 9,
+              "y": 3,
+              "width": 3,
+              "height": 3
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 25,
+        "width": 12,
+        "height": 7
+      }
+    },
+    {
+      "id": 27,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "🌡️ Environmental Metrics",
+        "widgets": [
+          {
+            "id": 28,
+            "definition": {
+              "title": "Room Temperature °F",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.environment.room_temperature_f{$floor,$wing,$department}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Target Range",
+                  "value": "68",
+                  "display_type": "ok"
+                },
+                {
+                  "label": "Upper Limit",
+                  "value": "75",
+                  "display_type": "warning"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 29,
+            "definition": {
+              "title": "Humidity %",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.environment.humidity_pct{$floor,$wing,$department}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Target",
+                  "value": "50",
+                  "display_type": "ok"
+                }
+              ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 30,
+            "definition": {
+              "title": "Air Quality AQI / CO2 PPM",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1",
+                      "alias": "AQI"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.environment.air_quality_aqi{$floor,$wing,$department}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "cool",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                },
+                {
+                  "formulas": [
+                    {
+                      "formula": "query2",
+                      "alias": "CO2 PPM"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query2",
+                      "query": "avg:hospital.environment.co2_ppm{$floor,$wing,$department}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "warm",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Warning",
+                  "value": "100",
+                  "display_type": "warning"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 3,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 31,
+            "definition": {
+              "title": "Differential Pressure Pa",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.environment.differential_pressure_pa{$floor,$wing,$department}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "dog_classic",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 3,
+              "width": 6,
+              "height": 3
+            }
+          },
+          {
+            "id": 32,
+            "definition": {
+              "title": "UPS Load % & Runtime min",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1",
+                      "alias": "UPS Load %"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.environment.ups_load_pct{$floor,$wing,$department}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "cool",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                },
+                {
+                  "formulas": [
+                    {
+                      "formula": "query2",
+                      "alias": "Runtime min"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query2",
+                      "query": "avg:hospital.environment.ups_runtime_min{$floor,$wing,$department}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "style": {
+                    "palette": "warm",
+                    "line_type": "solid",
+                    "line_width": "normal"
+                  }
+                }
+              ],
+              "markers": [
+                {
+                  "label": "Load Threshold",
+                  "value": "80",
+                  "display_type": "warning"
+                }
+              ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 3
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 32,
+        "width": 12,
+        "height": 10
+      }
+    },
+    {
+      "id": 33,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "🚨 Alert History",
+        "widgets": [
+          {
+            "id": 34,
+            "definition": {
+              "title": "Recent Alerts for Selected Device",
+              "type": "query_table",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1",
+                      "alias": "Count"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "sum:hospital.device.alerts_total{$device_id,$device_type,$floor,$wing,$department,$manufacturer} by {device_id,device_type,floor,wing,severity}.as_count()"
+                    }
+                  ],
+                  "response_format": "table"
+                }
+              ],
+              "has_search_bar": "auto"
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 42,
+        "width": 12,
+        "height": 5
+      }
+    },
+    {
+      "id": 35,
+      "definition": {
+        "type": "group",
+        "layout_type": "ordered",
+        "title": "🔗 Related Devices on Same Floor/Wing",
+        "widgets": [
+          {
+            "id": 36,
+            "definition": {
+              "title": "Devices on Same Floor & Wing",
+              "type": "query_table",
+              "requests": [
+                {
+                  "formulas": [
+                    {
+                      "formula": "query1",
+                      "alias": "Online Status"
+                    }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "query1",
+                      "query": "avg:hospital.device.online{$floor,$wing} by {device_id,device_type,manufacturer}"
+                    }
+                  ],
+                  "response_format": "table"
+                }
+              ],
+              "has_search_bar": "auto"
+            }
+          }
+        ]
+      },
+      "layout": {
+        "x": 0,
+        "y": 47,
+        "width": 12,
+        "height": 5
+      }
+    }
+  ]
+}

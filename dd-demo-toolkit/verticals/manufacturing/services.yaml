@@ -1,0 +1,64 @@
+services:
+  - name: mes-platform
+    display_name: "Manufacturing Execution System (MES)"
+    description: "Central production orchestrator. Work order creation, line scheduling, dispatching, real-time production tracking. Java Spring Boot microservices."
+    team: "Production Engineering"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "compliance:iso-9001", "sla:99.5-uptime"]
+
+  - name: scada-gateway
+    display_name: "SCADA Data Gateway"
+    description: "Real-time SCADA data acquisition from 118 production devices. Alarm management, historian write, OPC-UA integration. C++ with Python adapters."
+    team: "IT/OT Convergence"
+    tier: "Tier 1"
+    languages: ["cpp", "python"]
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "compliance:iatf-16949", "sla:99.9-uptime"]
+
+  - name: quality-management-system
+    display_name: "Quality Management System (QMS)"
+    description: "Statistical Process Control (SPC), Non-Conformance Report (NCR) tracking, Corrective/Preventive Action (CAPA) management, vision system integration. Java/Spring."
+    team: "Quality"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "compliance:iso-9001", "compliance:iatf-16949"]
+
+  - name: predictive-maintenance-api
+    display_name: "Predictive Maintenance & ML Engine"
+    description: "ML-driven failure prediction, RUL (Remaining Useful Life) estimation, maintenance scheduling. Python with scikit-learn, TensorFlow."
+    team: "Maintenance"
+    tier: "Tier 2"
+    languages: ["python"]
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "ml-model:rul-estimator"]
+
+  - name: supply-chain-tracker
+    display_name: "Supply Chain & Logistics Platform"
+    description: "Inventory management, supplier integration, JIT (Just-In-Time) delivery tracking, AGV fleet management. .NET on Azure."
+    team: "Supply Chain"
+    tier: "Tier 2"
+    languages: ["dotnet"]
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "compliance:iso-14001"]
+
+  - name: erp-integration-bridge
+    display_name: "ERP Integration Bridge (SAP)"
+    description: "SAP RFC calls for production orders, BOM (Bill of Materials) sync, financial data export. Java/SAP Connector."
+    team: "IT Infrastructure"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "sap-integration:true"]
+
+  - name: energy-management-system
+    display_name: "Energy & Sustainability Management"
+    description: "Power grid monitoring, demand response, carbon footprint tracking, HVAC optimization. Python with sensor integration."
+    team: "Facilities"
+    tier: "Tier 2"
+    languages: ["python"]
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "compliance:iso-14001", "esg:carbon-tracking"]
+
+  - name: digital-twin-engine
+    display_name: "Digital Twin & Simulation Engine"
+    description: "Real-time production simulation, process optimization, what-if analysis, product design verification. Python/C++ hybrid."
+    team: "Production Engineering"
+    tier: "Tier 2"
+    languages: ["python", "cpp"]
+    tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "ml-model:process-optimizer"]

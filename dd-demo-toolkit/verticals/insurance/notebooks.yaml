@@ -1,0 +1,271 @@
+notebooks:
+  - name: "Claims Processing Degradation Investigation"
+    description: "Root cause analysis for slow claims processing during catastrophe event"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:claims-operations"
+      - "incident_domain:claims-surge"
+    queries:
+      - name: "Claims Intake Volume Timeline"
+        description: "Claims received per minute over 72-hour incident window"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "claims_volume",
+                "query": "sum:insurer.claims.received_total{service:claims-management-platform} by {time} over last_3d"
+              }
+            ]
+          }
+
+      - name: "Processing Latency by Phase"
+        description: "P50/P95/P99 processing latency through incident phases"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "processing_latency",
+                "query": "avg:insurer.claims.processing_ms{service:claims-intake},p50:insurer.claims.processing_ms{service:claims-intake},p95:insurer.claims.processing_ms{service:claims-intake},p99:insurer.claims.processing_ms{service:claims-intake} by {time} over last_3d"
+              }
+            ]
+          }
+
+      - name: "Document Queue Depth Evolution"
+        description: "Document processor queue backlog during incident"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "doc_queue",
+                "query": "max:insurer.claims.document_queue_depth{device_type:document_processor} by {region,time} over last_3d"
+              }
+            ]
+          }
+
+      - name: "OCR Accuracy & Classification Errors"
+        description: "Document OCR confidence and classification error spike correlation"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "ocr_accuracy",
+                "query": "avg:insurer.claims.ocr_confidence_pct{device_type:document_processor},sum:insurer.claims.classification_errors{device_type:document_processor} by {region,time} over last_3d"
+              }
+            ]
+          }
+
+      - name: "Adjuster Assignment Delays"
+        description: "Time from FNOL to assignment; availability of adjuster pool"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "adjuster_assignment",
+                "query": "p95:insurer.claims.fnol_to_assignment_sec{service:claims-management-platform},count:insurer.adjuster.available{device_type:adjuster_mobile_device} by {region,time} over last_3d"
+              }
+            ]
+          }
+
+      - name: "Service Dependencies Graph"
+        description: "Error rate propagation from intake → processor → adjuster → payment"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "service_errors",
+                "query": "sum:insurer.claims.errors_total{service:claims-intake},sum:insurer.claims.errors_total{service:claims-management-platform},sum:insurer.payments.failed_total{service:billing-payments-service} by {service,time} over last_3d"
+              }
+            ]
+          }
+
+  - name: "Executive Report: Insurance Operations Dashboard"
+    description: "High-level KPIs, loss ratios, customer satisfaction, financial impact analysis"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:executive"
+      - "audience:c-suite"
+    queries:
+      - name: "Policy Count & Premium Volume"
+        description: "Active policies and annualized premium revenue trend"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "policy_volume",
+                "query": "count:insurer.policies.active{service:policy-admin-system},sum:insurer.policies.premium_usd{service:policy-admin-system} by {line_of_business,time} over last_30d"
+              }
+            ]
+          }
+
+      - name: "Claims Ratio & Loss Development"
+        description: "Claims paid / premiums earned; ultimate loss estimate"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "claims_ratio",
+                "query": "sum:insurer.claims.paid_total{service:claims-management-platform} / sum:insurer.policies.premium_usd{service:policy-admin-system},avg:insurer.claims.reserve_estimate{service:claims-management-platform} by {line_of_business,time} over last_90d"
+              }
+            ]
+          }
+
+      - name: "Digital Quoting Conversion Funnel"
+        description: "Quote starts → conversions → new policies; conversion rate % by channel"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "quote_funnel",
+                "query": "count:insurer.quoting.started_total{service:digital-quoting-engine},count:insurer.policies.issued_total{channel:web},count:insurer.policies.issued_total{channel:chatbot} by {channel,time} over last_30d"
+              }
+            ]
+          }
+
+      - name: "Claims SLA Performance"
+        description: "% of claims meeting FNOL-to-assignment 4-hour SLA"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "sla_compliance",
+                "query": "count:insurer.claims.fnol_to_assignment_sec{service:claims-management-platform} where fnol_to_assignment_sec <= 14400 / count:insurer.claims.fnol_to_assignment_sec{service:claims-management-platform} * 100 by {region,time} over last_30d"
+              }
+            ]
+          }
+
+      - name: "Payment Processing Performance"
+        description: "Payment success rate, ACH return rate, average payment time"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "payment_perf",
+                "query": "sum:insurer.payments.successful_total{service:billing-payments-service} / sum:insurer.payments.attempted_total{service:billing-payments-service} * 100,avg:insurer.payments.ach_return_rate_pct{service:billing-payments-service} by {time} over last_30d"
+              }
+            ]
+          }
+
+      - name: "Agent Productivity & Commission"
+        description: "Policies per agent, commission paid, top performers"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "agent_perf",
+                "query": "avg:insurer.agents.policies_issued{service:agent-commission-engine},avg:insurer.agents.commission_usd{service:agent-commission-engine} by {agent_tier,time} over last_30d"
+              }
+            ]
+          }
+
+      - name: "Customer Satisfaction & NPS"
+        description: "ChatBot satisfaction, web portal conversion, complaint ratio"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "customer_sat",
+                "query": "avg:insurer.chatbot.satisfaction_score{service:chatbot-engine},sum:insurer.complaints_total{service:regulatory-compliance-api} / count:insurer.policies.issued_total{service:policy-admin-system} * 1000 by {time} over last_30d"
+              }
+            ]
+          }
+
+  - name: "Underwriting Model Performance Review"
+    description: "ML model drift analysis, calibration, feature importance, backtesting results"
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:actuarial"
+      - "domain:ml-ops"
+    queries:
+      - name: "Model Drift Score Trend"
+        description: "Statistical drift detection over time; trigger retraining if > 0.08"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "model_drift",
+                "query": "avg:insurer.underwriting.drift_score{device_type:risk_scoring_node},avg:insurer.underwriting.drift_score{device_type:rating_engine} by {region,model_version,time} over last_90d"
+              }
+            ]
+          }
+
+      - name: "Model Calibration Error"
+        description: "Expected vs actual loss ratio; indicates over/under-pricing"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "calibration",
+                "query": "avg:insurer.underwriting.calibration_error{device_type:risk_scoring_node} by {line_of_business,model_version,time} over last_90d"
+              }
+            ]
+          }
+
+      - name: "Feature Staleness"
+        description: "Age of features used in real-time scoring (e.g., telematics, credit data)"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "feature_staleness",
+                "query": "avg:insurer.underwriting.feature_staleness_sec{device_type:risk_scoring_node} by {feature_type,time} over last_30d"
+              }
+            ]
+          }
+
+      - name: "Quote Approval Rate by Model Version"
+        description: "% of quotes approved by automated underwriting rules"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "approval_rate",
+                "query": "count:insurer.underwriting.approved_total{service:underwriting-workbench} / count:insurer.underwriting.submitted_total{service:underwriting-workbench} * 100 by {model_version,line_of_business,time} over last_30d"
+              }
+            ]
+          }
+
+      - name: "Model Performance Backtest"
+        description: "Predicted loss ratio vs actual loss ratio; ROC curve, AUC"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "backtest_perf",
+                "query": "sum:insurer.underwriting.predicted_loss_usd{model_version:4.2} / sum:insurer.underwriting.premium_usd{model_version:4.2},sum:insurer.claims.paid_total{cohort:model_4_2} / sum:insurer.policies.premium_usd{cohort:model_4_2} by {line_of_business,cohort_month} over last_6M"
+              }
+            ]
+          }
+
+      - name: "Telematics Feature Importance"
+        description: "Driving score contribution to overall risk assessment"
+        query: |
+          {
+            "requests": [
+              {
+                "data_source": "metrics",
+                "name": "feature_importance",
+                "query": "avg:insurer.underwriting.telematics_weight{device_type:risk_scoring_node},avg:insurer.underwriting.credit_weight{device_type:risk_scoring_node},avg:insurer.underwriting.claims_history_weight{device_type:risk_scoring_node} by {time} over last_30d"
+              }
+            ]
+          }

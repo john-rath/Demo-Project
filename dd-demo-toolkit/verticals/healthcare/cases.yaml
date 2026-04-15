@@ -1,0 +1,24 @@
+cases:
+  - title: "Investigate: Recurring WiFi Interference on Floor 3"
+    description: "Multiple incidents of WiFi AP saturation on Floor 3 East suggest a recurring infrastructure issue. Investigate root cause (rogue client storms, channel congestion) and recommend permanent fix (channel optimization, client isolation policy)."
+    priority: "P2"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+
+  - title: "Biomedical Device Network Resilience Assessment"
+    description: "Series of infusion pump disconnection events indicates fragility in medical device network connectivity. Conduct full assessment of device redundancy, network failover capability, and device-to-hospital network integration. Recommend architecture improvements."
+    priority: "P1"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+
+  - title: "Nurse Staffing Model Optimization"
+    description: "Nurse call SLA breaches correlate with specific time-of-day patterns and census levels. Analyze nurse scheduling against historical call volume data. Recommend dynamic staffing model adjustments to maintain SLA compliance during peak demand periods."
+    priority: "P3"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"

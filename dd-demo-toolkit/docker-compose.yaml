@@ -1,0 +1,51 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: dd-demo-otel-collector
+    command:
+      - "--config=/etc/otel-collector-config.yaml"
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "13133:13133"
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    env_file:
+      - .env
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - GOGC=80
+
+  simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dd-demo-simulator
+    depends_on:
+      otel-collector:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-healthcare}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - EMIT_INTERVAL=${EMIT_INTERVAL:-15}
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  setup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dd-demo-setup
+    command: ["dd-demo", "setup", "--vertical", "${DD_DEMO_VERTICAL:-healthcare}"]
+    env_file:
+      - .env
+    environment:
+      - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-healthcare}
+      - PYTHONUNBUFFERED=1
+    restart: "no"
+    profiles:
+      - setup

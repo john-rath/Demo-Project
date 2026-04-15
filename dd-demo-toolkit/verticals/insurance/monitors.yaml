@@ -1,0 +1,175 @@
+# Insurance vertical monitors - 12+ alert rules
+# Covers claims, underwriting, payments, telematics, and operational scenarios
+# Designed to fire cohesively during catastrophe surge incidents
+
+monitors:
+  - name: "[Insurance] Claims Intake Processing Latency SLA Breach"
+    type: metric_alert
+    query: "avg(last_5m):p95:insurer.claims.processing_ms{service:claims-intake} by {region,environment} > 1200"
+    message: |
+      🚨 Claims intake processing latency exceeding SLA in {{region}} {{environment}}.
+      P95 latency: {{value}}ms (threshold: 1200ms).
+      Check claim volume spike, document processor queue depth, OCR accuracy.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:claims-surge"
+      - "sla:fnol-assignment"
+    priority: 1
+
+  - name: "[Insurance] Document OCR Accuracy Degradation"
+    type: metric_alert
+    query: "avg(last_5m):avg:insurer.claims.ocr_confidence_pct{device_type:document_processor} by {region} < 92"
+    message: |
+      ⚠️ Document OCR confidence dropped below threshold in {{region}}.
+      Current: {{value}}% (threshold: 92%).
+      High volume or poor image quality may be causing misclassification.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:claims-surge"
+    priority: 2
+
+  - name: "[Insurance] Digital Quoting Engine Response Time Spike"
+    type: metric_alert
+    query: "avg(last_5m):p99:insurer.quoting.response_ms{service:digital-quoting-engine} by {region,environment} > 3500"
+    message: |
+      ⚠️ Quoting engine p99 response time spiking in {{region}} {{environment}}.
+      P99: {{value}}ms. Impacts customer quote conversion.
+      Check rating engine cache hit rate, third-party API latency, database performance.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:digital-sales"
+    priority: 2
+
+  - name: "[Insurance] Underwriting Model Drift Detected"
+    type: metric_alert
+    query: "avg(last_1h):avg:insurer.underwriting.drift_score{device_type:risk_scoring_node} by {region} > 0.08"
+    message: |
+      🔍 Risk scoring model drift detected in {{region}}.
+      Drift score: {{value}} (threshold: 0.08).
+      Model calibration may be off. Review recent loss experience vs predictions.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:actuarial"
+    priority: 2
+
+  - name: "[Insurance] Telematics Data Quality Drop"
+    type: metric_alert
+    query: "avg(last_5m):avg:insurer.telematics.data_quality_pct{device_type:telematics_gateway} by {region} < 95"
+    message: |
+      📡 Telematics data quality degraded in {{region}}.
+      Quality score: {{value}}% (threshold: 95%).
+      GPS signal loss, device sync issues, or network connectivity problems likely.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:claims-surge"
+    priority: 2
+
+  - name: "[Insurance] Payment Disbursement Failures"
+    type: metric_alert
+    query: "avg(last_5m):sum:insurer.payments.failed_total{service:billing-payments-service} by {region,environment} > 15"
+    message: |
+      💳 Payment disbursement failures elevated in {{region}} {{environment}}.
+      Failures/min: {{value}} (threshold: 15).
+      Check ACH gateway status, bank connectivity, account validation errors.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:payments"
+      - "sla:payment-success-99.9"
+    priority: 1
+
+  - name: "[Insurance] Agent Portal Availability Degradation"
+    type: metric_alert
+    query: "avg(last_5m):sum:insurer.agent_portal.errors_total{service:agent-portal-server} / sum:insurer.agent_portal.requests_total{service:agent-portal-server} * 100 by {region,environment} > 2"
+    message: |
+      🖥️ Agent portal error rate spiking in {{region}} {{environment}}.
+      Error rate: {{value}}% (threshold: 2%).
+      Impacts agent productivity. Check database connection pool, policy lookup latency.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:agent-services"
+    priority: 2
+
+  - name: "[Insurance] Actuarial Job Runtime Exceeded"
+    type: metric_alert
+    query: "avg(last_5m):avg:insurer.actuarial.job_runtime_min{device_type:actuarial_compute_cluster} by {region} > 120"
+    message: |
+      ⏱️ Actuarial compute jobs running longer than expected in {{region}}.
+      Avg runtime: {{value}}min (threshold: 120min).
+      Check cluster CPU utilization, memory pressure, data lake query latency.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:actuarial"
+    priority: 2
+
+  - name: "[Insurance] Third-Party Data API Failures (DMV/Credit/Weather)"
+    type: metric_alert
+    query: "avg(last_5m):sum:insurer.third_party.error_total{device_type:third_party_data_connector} by {region,provider} > 5"
+    message: |
+      🌐 Third-party data connector failures in {{region}} from {{provider}}.
+      Errors/min: {{value}}.
+      DMV, credit bureau, or weather data delays impact underwriting speed and quote quality.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:external-dependencies"
+    priority: 2
+
+  - name: "[Insurance] Policy Admin Endorsement Processing Backlog"
+    type: metric_alert
+    query: "avg(last_5m):max:insurer.policy_admin.endorsement_queue_depth{service:policy-admin-system} by {region,environment} > 2500"
+    message: |
+      📋 Policy endorsement processing backlog in {{region}} {{environment}}.
+      Queue depth: {{value}} (threshold: 2500).
+      Agent productivity impacted. Check service latency and concurrent processing capacity.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:underwriting"
+    priority: 2
+
+  - name: "[Insurance] Chatbot Escalation Rate Spike"
+    type: metric_alert
+    query: "avg(last_5m):sum:insurer.chatbot.escalations_total{service:chatbot-engine} / sum:insurer.chatbot.conversations_total{service:chatbot-engine} * 100 by {region} > 20"
+    message: |
+      🤖 Chatbot escalation rate elevated in {{region}}.
+      Escalation %: {{value}} (threshold: 20%).
+      Intent recognition accuracy may be degraded. Review recent conversation logs.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:digital-sales"
+    priority: 2
+
+  - name: "[Insurance] Data Lake ETL Pipeline Lag Exceeded"
+    type: metric_alert
+    query: "avg(last_5m):max:insurer.data_lake.etl_lag_min{device_type:data_lake_node} by {region} > 45"
+    message: |
+      🔄 Data lake ETL pipeline lag in {{region}}.
+      Current lag: {{value}}min (threshold: 45min).
+      Reporting, analytics, and claims investigation may operate on stale data.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "team:analytics"
+    priority: 2
+
+  - name: "[Insurance] Web Portal Session Spike / Resource Exhaustion"
+    type: metric_alert
+    query: "avg(last_5m):max:insurer.web_portal.active_sessions{service:web-portal-server} by {region,environment} > 100000"
+    message: |
+      🌐 Web portal active session count spiking in {{region}} {{environment}}.
+      Active sessions: {{value}} (threshold: 100k).
+      DDoS, coordinated marketing event, or natural disaster driving quote volume.
+    tags:
+      - "vertical:insurance"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:capacity"
+    priority: 2

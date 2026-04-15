@@ -1,0 +1,56 @@
+notebooks:
+  - id: "incident-investigation-payment-cascade"
+    name: "💳 Incident Investigation: Payment Processing Cascade"
+    type: investigation
+    description: "Root cause analysis of the database replication lag cascade that triggered payment processing timeouts, fraud detection backlog, and online banking errors. Demonstrates how infrastructure issues cascade through the stack."
+    time_range: "1h"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:payment-cascade"
+      - "business_unit:Retail Banking"
+      - "audience:sre"
+
+  - id: "executive-report-digital-banking"
+    name: "📊 Executive Report: Digital Banking Operations (30-Day Summary)"
+    type: executive_report
+    description: "30-day health dashboard for bank leadership. Transaction volumes, payment success rates, fraud detection effectiveness, ATM fleet availability, SLO compliance, customer experience metrics, and key incidents/resolutions."
+    time_range: "30d"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Retail Banking"
+      - "audience:executive"
+
+  - id: "fraud-model-performance-review"
+    name: "🤖 Fraud Detection Model Performance Review"
+    type: investigation
+    description: "ML model performance metrics including latency distribution (p50/p95/p99), false positive rate trends, model inference accuracy by transaction type, and recommendations for model retraining/versioning."
+    time_range: "7d"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+      - "audience:ml-engineering"
+
+  - id: "trading-platform-performance"
+    name: "📈 Trading Platform Daily Performance Review"
+    type: investigation
+    description: "Trading metrics dashboard: order flow volume, execution latency (p50/p95/p99), fill rates by venue, risk engine margin requirements, and circuit breaker event tracking."
+    time_range: "1d"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Capital Markets"
+      - "audience:trading-ops"
+
+  - id: "compliance-audit-trail"
+    name: "⚖️ Compliance Audit Trail & Regulatory Reporting"
+    type: investigation
+    description: "Audit log analysis for regulatory exams: transaction flow tracking, KYC verification status, SAR/CTR filing status, AML alert disposition, and regulatory data quality metrics."
+    time_range: "90d"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "business_unit:Risk & Compliance"
+      - "audience:compliance"

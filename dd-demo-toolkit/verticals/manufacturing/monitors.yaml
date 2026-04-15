@@ -1,0 +1,137 @@
+# Manufacturing Vertical Monitors — 12 Alert Rules
+# Simulates production equipment issues, quality failures, and supply chain delays
+# These monitors fire together during the Robot Arm Servo Degradation incident:
+#   1. Robot Arm Servo Error Spike (root cause)
+#   2. Robot Arm Joint Temperature High (leading indicator)
+#   3. Robot Arm Cycle Time Degradation (symptom)
+#   4. Conveyor Jam Events (cascade)
+#   5-8. Production equipment and quality degradation
+#   9-12. Environmental, supply chain, and predictive maintenance alerts
+
+monitors:
+  - name: "[Manufacturing] Robot Arm Servo Error Spike"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.device.servo_error_count{device_type:robot_arm} by {device_id,plant,line} > 15"
+    message: "Robot arm servo errors spiking on {{line}} at {{plant}}. Check joint temperatures and motor winding."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:equipment-degradation"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  - name: "[Manufacturing] Robot Arm Joint Temperature High"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.device.joint_temperature_c{device_type:robot_arm} by {device_id,plant,line} > 75"
+    message: "Robot arm joint temperature critical ({{value}}°C) on {{line}} at {{plant}}. Thermal shutdown imminent."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:equipment-degradation"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  - name: "[Manufacturing] Robot Arm Cycle Time Degradation"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.device.cycle_time_ms{device_type:robot_arm} by {device_id,plant,line} > 5500"
+    message: "Robot arm cycle time increased ({{value}}ms, baseline 5000ms) on {{line}} at {{plant}}. Impacts OEE."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:equipment-degradation"
+      - "signal_chain:3-symptom"
+    priority: 2
+
+  - name: "[Manufacturing] PLC Cycle Time Deviation"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.device.cycle_time_ms{device_type:plc_controller} by {device_id,plant,line} > 350"
+    message: "PLC cycle time deviation on {{line}} at {{plant}}. Indicates synchronization issues with downstream equipment."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "team:production-engineering"
+    priority: 2
+
+  - name: "[Manufacturing] CNC Tool Wear Critical"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.device.tool_wear_pct{device_type:cnc_machine} by {device_id,plant,line} > 85"
+    message: "CNC tool wear critical ({{value}}%) on {{line}} at {{plant}}. Preventive maintenance required."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "team:maintenance"
+    priority: 2
+
+  - name: "[Manufacturing] Conveyor Jam Events"
+    type: metric_alert
+    query: "sum(last_5m):sum:mfg.device.jam_events{device_type:conveyor_system} by {device_id,plant,line} > 3"
+    message: "🚨 Conveyor jam detected on {{line}} at {{plant}}. Check part accumulation and belt tension."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "incident_domain:equipment-degradation"
+      - "signal_chain:4-cascade"
+    priority: 1
+
+  - name: "[Manufacturing] Quality Defect Rate Above Threshold"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.device.defect_rate_ppm{device_type:vision_inspector} by {device_id,plant,line} > 100"
+    message: "❌ Defect rate elevated ({{value}} PPM) on {{line}} at {{plant}}. SLA target: <50 PPM. Investigate root cause."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "team:quality"
+      - "slo:quality-defects"
+    priority: 1
+
+  - name: "[Manufacturing] Cleanroom Particle Count Violation"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.device.particle_count_per_m3{device_type:cleanroom_controller} > 3500"
+    message: "🧬 Cleanroom particle count above Class 7 limit ({{value}}/m³). Check HEPA filters and differential pressure."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "team:quality"
+      - "compliance:iso-14644"
+    priority: 1
+
+  - name: "[Manufacturing] AGV Fleet Battery Critical"
+    type: metric_alert
+    query: "min(last_5m):min:mfg.device.battery_pct{device_type:agv} by {device_id,plant} < 15"
+    message: "🔋 AGV battery critical ({{value}}%) on {{plant}}. Dispatch to charging station."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "team:logistics"
+    priority: 2
+
+  - name: "[Manufacturing] Press Machine Alignment Drift"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.device.alignment_offset_mm{device_type:press_machine} by {device_id,plant,line} > 0.5"
+    message: "📐 Press machine alignment drift exceeds tolerance on {{line}} at {{plant}}. Calibration required."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "team:maintenance"
+    priority: 2
+
+  - name: "[Manufacturing] Energy Consumption Anomaly"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.device.energy_kwh{device_type:hvac_unit} by {device_id,plant} > 150"
+    message: "⚡ HVAC energy consumption anomaly ({{value}} kWh) on {{plant}}. Check filter clogging and ductwork."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "team:facilities"
+    priority: 2
+
+  - name: "[Manufacturing] Predictive Maintenance RUL Alert"
+    type: metric_alert
+    query: "avg(last_5m):avg:mfg.predictive_maintenance.estimated_rul_hours{device_type:cnc_machine} by {device_id,plant,line} < 72"
+    message: "🔮 CNC machine estimated RUL <72 hours on {{line}} at {{plant}}. Schedule preventive maintenance."
+    tags:
+      - "vertical:manufacturing"
+      - "dd-demo-toolkit:true"
+      - "team:maintenance"
+      - "service:predictive-maintenance-api"
+    priority: 2
