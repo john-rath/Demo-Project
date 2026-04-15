@@ -78,7 +78,7 @@ dd-demo simulate --vertical healthcare
 | **Manufacturing** | 246+ | 8 | Robot servo degradation → assembly line halt |
 | **Insurance** | 290+ | 9 | Catastrophe event triggers claims processing surge |
 
-### Healthcare: AdventHealth Smart Hospital
+### Healthcare: Smart Hospital Demo
 
 Multi-floor hospital with medical IoT (patient monitors, infusion pumps, ventilators), network infrastructure, environmental sensors, and clinical application services. The demo includes a phased WiFi outage that cascades to device failures—perfect for showing how Datadog correlates infrastructure and application metrics.
 
@@ -116,7 +116,7 @@ dd-demo list
 Output:
 ```
 Available Verticals:
-  healthcare      AdventHealth Smart Hospital (56 devices, 9 services)
+  healthcare      Smart Hospital Demo (56 devices, 9 services)
   finance         Global Financial Services Platform (309 devices, 10 services)
   manufacturing   Automotive Manufacturing Plant (246 devices, 8 services)
   insurance       Multi-State P&C/Life Insurer (290 devices, 9 services)

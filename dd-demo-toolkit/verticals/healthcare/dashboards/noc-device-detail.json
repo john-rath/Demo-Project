@@ -1223,7 +1223,7 @@
                       "query": "sum:hospital.device.alerts_total{$device_id,$device_type,$floor,$wing,$department,$manufacturer} by {device_id,device_type,floor,wing,severity}.as_count()"
                     }
                   ],
-                  "response_format": "table"
+                  "response_format": "tabular"
                 }
               ],
               "has_search_bar": "auto"
@@ -1263,7 +1263,7 @@
                       "query": "avg:hospital.device.online{$floor,$wing} by {device_id,device_type,manufacturer}"
                     }
                   ],
-                  "response_format": "table"
+                  "response_format": "tabular"
                 }
               ],
               "has_search_bar": "auto"

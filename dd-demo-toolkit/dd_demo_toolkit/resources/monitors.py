@@ -128,10 +128,23 @@ class MonitorManager:
                 result["total_errors"] += 1
                 logger.error(error_msg)
             except RuntimeError as e:
-                error_msg = f"API error deploying monitor {idx}: {str(e)}"
-                result["errors"].append(error_msg)
-                result["total_errors"] += 1
-                logger.error(error_msg)
+                error_str = str(e)
+                monitor_name = monitor_config.get("name", f"monitor-{idx}")
+                if "query" in error_str and "invalid" in error_str.lower():
+                    # Metrics likely don't exist in Datadog yet — not a config bug,
+                    # just means the simulator needs to run first.
+                    warn_msg = (
+                        f"Skipped monitor '{monitor_name}': metric not yet in Datadog. "
+                        f"Start the simulator and re-run setup."
+                    )
+                    result["errors"].append(warn_msg)
+                    result["total_errors"] += 1
+                    logger.warning(warn_msg)
+                else:
+                    error_msg = f"API error deploying monitor {idx} '{monitor_name}': {error_str}"
+                    result["errors"].append(error_msg)
+                    result["total_errors"] += 1
+                    logger.error(error_msg)
             except Exception as e:
                 error_msg = f"Unexpected error deploying monitor {idx}: {str(e)}"
                 result["errors"].append(error_msg)

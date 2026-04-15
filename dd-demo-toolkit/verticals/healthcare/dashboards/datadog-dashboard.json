@@ -1,11 +1,11 @@
 {
-  "title": "Sensing Hospital — AdventHealth Device Command Center",
+  "title": "Sensing Hospital — Device Command Center",
   "description": "Real-time observability across all hospital IoT devices, network infrastructure, environmental sensors, and asset tracking systems.",
   "widgets": [
     {
       "definition": {
         "type": "note",
-        "content": "# AdventHealth Sensing Hospital\n### Real-time Device Observability Command Center\n\nMonitoring **Medical IoT** · **Network Infrastructure** · **Environmental Sensors** · **Asset Tracking**\n\nAll telemetry streamed via OpenTelemetry → Datadog",
+        "content": "# Smart Hospital Demo\n### Real-time Device Observability Command Center\n\nMonitoring **Medical IoT** · **Network Infrastructure** · **Environmental Sensors** · **Asset Tracking**\n\nAll telemetry streamed via OpenTelemetry → Datadog",
         "background_color": "vivid_blue",
         "font_size": "14",
         "text_align": "center",

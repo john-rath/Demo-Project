@@ -285,11 +285,11 @@ class NotebookManager:
             logger.error(error_msg)
             return result
 
-        # Filter by vertical tag
+        # Filter by vertical tag (tags can be None on some notebooks)
         target_tag = f"vertical:{vertical_name}"
         notebooks_to_delete = [
             n for n in notebook_list
-            if target_tag in n.get("attributes", {}).get("tags", [])
+            if target_tag in (n.get("attributes", {}).get("tags") or [])
         ]
 
         logger.info(

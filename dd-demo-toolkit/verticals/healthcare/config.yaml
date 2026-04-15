@@ -1,6 +1,6 @@
 vertical:
   name: healthcare
-  display_name: AdventHealth Smart Hospital
+  display_name: Smart Hospital Demo
   description: Full hospital IoT fleet with medical devices, network infrastructure,
     environmental sensors, and clinical application services.
   env_prefix: hospital

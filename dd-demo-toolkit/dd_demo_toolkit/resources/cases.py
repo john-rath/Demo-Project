@@ -21,7 +21,74 @@ class CaseManager:
 
     def __init__(self) -> None:
         """Initialize the case manager."""
-        pass
+        self._project_id: Optional[str] = None
+
+    def _ensure_project(self, api_client: DatadogAPIClient, vertical_name: str) -> Optional[str]:
+        """
+        Ensure a Case Management project exists for the demo toolkit.
+
+        Looks for an existing project named 'dd-demo-toolkit' or creates one.
+        Caches the project ID for subsequent calls within the same session.
+
+        Args:
+            api_client: Datadog API client instance.
+            vertical_name: Vertical name (used in project key).
+
+        Returns:
+            Project ID string, or None if project could not be found/created.
+        """
+        if self._project_id:
+            return self._project_id
+
+        # Try to find an existing project
+        try:
+            response = api_client.list_case_projects()
+            projects = response.get("data", [])
+            for project in projects:
+                attrs = project.get("attributes", {})
+                name = attrs.get("name", "")
+                if name == "dd-demo-toolkit" or name == f"dd-demo-{vertical_name}":
+                    self._project_id = project.get("id")
+                    logger.info(f"Found existing Case Management project '{name}' (ID: {self._project_id})")
+                    return self._project_id
+
+            # If we have any projects at all, use the first one as fallback
+            if projects:
+                fallback = projects[0]
+                self._project_id = fallback.get("id")
+                fallback_name = fallback.get("attributes", {}).get("name", "unknown")
+                logger.info(
+                    f"No dd-demo-toolkit project found. Using existing project "
+                    f"'{fallback_name}' (ID: {self._project_id})"
+                )
+                return self._project_id
+
+        except RuntimeError as e:
+            logger.warning(f"Failed to list Case Management projects: {e}")
+
+        # No projects exist — try to create one
+        try:
+            payload = {
+                "data": {
+                    "type": "project",
+                    "attributes": {
+                        "name": "dd-demo-toolkit",
+                        "key": "DEMO",
+                    }
+                }
+            }
+            response = api_client.create_case_project(payload)
+            project_data = response.get("data", {})
+            self._project_id = project_data.get("id")
+            if self._project_id:
+                logger.info(f"Created Case Management project 'dd-demo-toolkit' (ID: {self._project_id})")
+                return self._project_id
+            else:
+                logger.error("Created project but no ID in response")
+                return None
+        except RuntimeError as e:
+            logger.error(f"Failed to create Case Management project: {e}")
+            return None
 
     def create_case(
         self,
@@ -177,10 +244,16 @@ class CaseManager:
         }
 
         try:
-            # Filter for cases with vertical tag
-            filter_query = f"tag:vertical:{vertical_name}"
-            response = api_client.list_cases(filter_query=filter_query)
-            cases = response.get("data", [])
+            # List all cases and filter client-side by title prefix
+            # (Cases API filter syntax doesn't support tag-based queries)
+            response = api_client.list_cases()
+            all_cases = response.get("data", [])
+            # Filter to cases that belong to our demo vertical
+            cases = [
+                c for c in all_cases
+                if f"[{vertical_name.title()}]" in c.get("attributes", {}).get("title", "")
+                or f"dd-demo-{vertical_name}" in str(c.get("attributes", {}).get("title", ""))
+            ]
             result["total"] = len(cases)
             result["cases"] = cases
             logger.info(f"Found {len(cases)} case(s) for vertical '{vertical_name}'")
@@ -336,6 +409,18 @@ class CaseManager:
 
         logger.info(f"Deploying {len(cases)} case(s) for vertical '{vertical_name}'")
 
+        # Cases require a project — ensure one exists before creating any cases
+        project_id = self._ensure_project(api_client, vertical_name)
+        if not project_id and not dry_run:
+            error_msg = (
+                "Cannot create cases: no Case Management project available. "
+                "Create a project in Datadog Case Management first, or check API permissions."
+            )
+            result["errors"].append(error_msg)
+            result["total_errors"] += 1
+            logger.error(error_msg)
+            return result
+
         for idx, case_config in enumerate(cases):
             try:
                 title = case_config.get("title", f"case-{idx}")
@@ -353,6 +438,7 @@ class CaseManager:
                         description=description,
                         vertical_name=vertical_name,
                         priority=priority,
+                        linked_resources={"project_id": project_id},
                     )
 
                     if case_result.get("status") == "success":

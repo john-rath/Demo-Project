@@ -1,5 +1,5 @@
 slos:
-  - name: "Patient Portal Availability (MyAdventHealth)"
+  - name: "Patient Portal Availability"
     description: "Patient portal availability impacts HCAHPS scores. Target 99.9% success rate over rolling 30-day window."
     type: metric
     target: 99.9

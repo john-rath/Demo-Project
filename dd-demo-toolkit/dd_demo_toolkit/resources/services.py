@@ -97,17 +97,16 @@ class ServiceCatalogManager:
                 # Build the service payload
                 payload = self._build_service_payload(service_config, vertical_name, tags)
 
+                # Service name is at top-level "dd-service" in our v2.2 payload
+                service_name = payload.get("dd-service", f"service-{idx}")
+
                 if dry_run:
-                    service_name = payload.get("schema-version", {}).get("0.2.1", {}).get("info", {}).get("dd-service", f"service-{idx}")
                     logger.info(f"[DRY RUN] Would register service '{service_name}'")
                     result["created_names"].append(service_name)
                     result["total_created"] += 1
                 else:
                     # Register service via JSON API v2
                     response = api_client.register_service(payload)
-
-                    # Extract service name from response or payload
-                    service_name = payload.get("info", {}).get("dd-service", f"service-{idx}")
                     result["created_names"].append(service_name)
                     result["total_created"] += 1
                     logger.info(f"Registered service '{service_name}'")

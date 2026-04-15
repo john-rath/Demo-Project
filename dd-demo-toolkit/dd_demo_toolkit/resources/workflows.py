@@ -186,10 +186,24 @@ class WorkflowManager:
             # Build a minimal valid spec from our trigger/steps config
             steps_spec = []
             for step in config.get("steps", []):
+                # The Workflow API expects parameters as an array of
+                # {name: str, value: any} objects, not a flat dict.
+                raw_params = step.get("parameters", {})
+                if isinstance(raw_params, dict):
+                    params_array = [
+                        {"name": k, "value": v}
+                        for k, v in raw_params.items()
+                    ]
+                elif isinstance(raw_params, list):
+                    # Already in [{name, value}] format
+                    params_array = raw_params
+                else:
+                    params_array = []
+
                 steps_spec.append({
                     "name": step.get("name", "step"),
                     "actionId": step.get("action_id", "com.datadoghq.core.noop"),
-                    "parameters": step.get("parameters", {}),
+                    "parameters": params_array,
                 })
 
             trigger_config = config.get("trigger", {})

@@ -1,6 +1,6 @@
 services:
   - dd-service: patient-portal
-    display-name: "Patient Portal (MyAdventHealth)"
+    display-name: "Patient Portal"
     description: "Patient-facing portal for appointments, messaging, pre-visit checkin, health records. Java Spring Boot."
     owner: "Digital Health"
     tier: "Tier 1"

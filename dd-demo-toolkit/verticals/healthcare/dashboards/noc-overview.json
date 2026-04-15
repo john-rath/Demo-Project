@@ -582,6 +582,12 @@
                   "response_format": "timeseries"
                 }
               ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 3
             }
           },
           {
@@ -605,6 +611,12 @@
                   "response_format": "timeseries"
                 }
               ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 3
             }
           },
           {
@@ -628,6 +640,12 @@
                   "response_format": "timeseries"
                 }
               ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 3,
+              "width": 6,
+              "height": 2
             }
           },
           {
@@ -651,6 +669,12 @@
                   "response_format": "timeseries"
                 }
               ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 3,
+              "width": 6,
+              "height": 2
             }
           }
         ]
@@ -733,6 +757,12 @@
                   "color": "vivid_yellow"
                 }
               ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 4
             }
           },
           {
@@ -756,6 +786,12 @@
                   "response_format": "timeseries"
                 }
               ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 4
             }
           }
         ]
@@ -811,6 +847,12 @@
                   "response_format": "timeseries"
                 }
               ]
+            },
+            "layout": {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 4
             }
           },
           {
@@ -834,6 +876,12 @@
                   "response_format": "timeseries"
                 }
               ]
+            },
+            "layout": {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 4
             }
           }
         ]

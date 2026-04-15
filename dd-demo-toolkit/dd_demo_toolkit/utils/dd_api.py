@@ -412,3 +412,26 @@ class DatadogAPIClient:
         if filter_query:
             params["filter"] = filter_query
         return self._request("GET", "/api/v2/cases", params=params)
+
+    # ===== Case Management Projects API =====
+
+    def list_case_projects(self) -> Dict[str, Any]:
+        """
+        List all Case Management projects.
+
+        Returns:
+            API response with projects list.
+        """
+        return self._request("GET", "/api/v2/cases/projects")
+
+    def create_case_project(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create a new Case Management project.
+
+        Args:
+            payload: Project payload with data.attributes (name, key).
+
+        Returns:
+            API response with created project details.
+        """
+        return self._request("POST", "/api/v2/cases/projects", json_data=payload)
