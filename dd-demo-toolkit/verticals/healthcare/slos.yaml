@@ -5,8 +5,8 @@ slos:
     target: 99.9
     timeframe: "30d"
     query:
-      numerator: "sum:hospital.app.requests_total{service_name:patient-portal} - sum:hospital.app.errors_total{service_name:patient-portal}"
-      denominator: "sum:hospital.app.requests_total{service_name:patient-portal}"
+      numerator: "sum:hospital.app.requests_total{service_name:patient-portal}.as_count() - sum:hospital.app.errors_total{service_name:patient-portal}.as_count()"
+      denominator: "sum:hospital.app.requests_total{service_name:patient-portal}.as_count()"
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "team:digital-health"]
 
   - name: "Medical IoT Device Fleet Uptime"
@@ -15,8 +15,8 @@ slos:
     target: 99.5
     timeframe: "30d"
     query:
-      numerator: "sum:hospital.device.online{device_category:medical_iot}"
-      denominator: "count:hospital.device.online{device_category:medical_iot}"
+      numerator: "sum:hospital.device.online{device_category:medical_iot}.as_count()"
+      denominator: "sum:hospital.device.heartbeats_total{device_category:medical_iot}.as_count()"
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "team:biomed"]
 
   - name: "Nurse Call Response Time SLA (Urgent <120s)"
@@ -25,6 +25,6 @@ slos:
     target: 95.0
     timeframe: "30d"
     query:
-      numerator: "count:hospital.nursecall.response_time_sec{call_type:urgent} where response_time < 120"
-      denominator: "count:hospital.nursecall.response_time_sec{call_type:urgent}"
+      numerator: "sum:hospital.nursecall.calls_answered_in_sla{call_type:urgent}.as_count()"
+      denominator: "sum:hospital.nursecall.calls_total{call_type:urgent}.as_count()"
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "team:operations"]

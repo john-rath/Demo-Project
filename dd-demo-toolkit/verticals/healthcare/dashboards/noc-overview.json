@@ -3,7 +3,6 @@
   "description": "SolarWinds-style NOC overview for hospital infrastructure monitoring. Real-time device status, alerts, network health, and facility operations across all floors and departments. Fully dynamic — all navigation and status panels auto-populate from live metric data.",
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
         "content": "# 🏥 Healthcare NOC — Network & Device Operations Center\n\n**Real-time Infrastructure Monitoring** | Hospital-wide device status, alerts, and network health\n\nUse the template variables above to drill down by **Floor → Wing → Department → Device Type → Manufacturer** • All navigation is live-driven from metric tags",
@@ -22,14 +21,12 @@
       }
     },
     {
-      "id": 2,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "🎯 Current Filter Context",
         "widgets": [
           {
-            "id": 3,
             "definition": {
               "title": "Devices in Scope",
               "type": "query_value",
@@ -51,28 +48,10 @@
                 }
               ],
               "autoscale": true,
-              "precision": 0,
-              "conditional_formats": [
-                {
-                  "comparator": ">",
-                  "value": 100,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": ">",
-                  "value": 10,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": "<=",
-                  "value": 10,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 0
             }
           },
           {
-            "id": 4,
             "definition": {
               "title": "Locations Active",
               "type": "query_value",
@@ -94,23 +73,10 @@
                 }
               ],
               "autoscale": true,
-              "precision": 0,
-              "conditional_formats": [
-                {
-                  "comparator": ">",
-                  "value": 5,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": ">",
-                  "value": 1,
-                  "color": "vivid_yellow"
-                }
-              ]
+              "precision": 0
             }
           },
           {
-            "id": 5,
             "definition": {
               "title": "Alerts (Filtered)",
               "type": "query_value",
@@ -132,28 +98,10 @@
                 }
               ],
               "autoscale": true,
-              "precision": 0,
-              "conditional_formats": [
-                {
-                  "comparator": ">",
-                  "value": 20,
-                  "color": "vivid_red"
-                },
-                {
-                  "comparator": ">",
-                  "value": 5,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": "<=",
-                  "value": 5,
-                  "color": "vivid_green"
-                }
-              ]
+              "precision": 0
             }
           },
           {
-            "id": 6,
             "definition": {
               "title": "Avg Signal (Filtered)",
               "type": "query_value",
@@ -175,24 +123,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 0,
-              "conditional_formats": [
-                {
-                  "comparator": ">",
-                  "value": -50,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": ">",
-                  "value": -70,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": "<=",
-                  "value": -70,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 0
             }
           }
         ]
@@ -205,14 +136,12 @@
       }
     },
     {
-      "id": 7,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "📊 All Nodes — By Status",
         "widgets": [
           {
-            "id": 8,
             "definition": {
               "title": "Device Types — Online Percentage",
               "type": "toplist",
@@ -262,7 +191,6 @@
             }
           },
           {
-            "id": 9,
             "definition": {
               "title": "Device Fleet by Category & Type",
               "type": "treemap",
@@ -286,7 +214,6 @@
             }
           },
           {
-            "id": 10,
             "definition": {
               "title": "Manufacturers — Device Count",
               "type": "toplist",
@@ -334,14 +261,12 @@
       }
     },
     {
-      "id": 11,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "🗺️ All Nodes — By Location",
         "widgets": [
           {
-            "id": 12,
             "definition": {
               "title": "Alerts by Floor & Wing",
               "type": "toplist",
@@ -403,7 +328,6 @@
             }
           },
           {
-            "id": 13,
             "definition": {
               "title": "Device Distribution by Floor & Wing",
               "type": "treemap",
@@ -427,7 +351,6 @@
             }
           },
           {
-            "id": 14,
             "definition": {
               "title": "Department Device Health",
               "type": "toplist",
@@ -486,7 +409,6 @@
       }
     },
     {
-      "id": 15,
       "definition": {
         "type": "note",
         "content": "## 🔴 Completely Down Devices\n\nDevices currently offline or in critical failure state. Click device_id to view detailed diagnostics.",
@@ -505,7 +427,6 @@
       }
     },
     {
-      "id": 16,
       "definition": {
         "title": "Offline Devices Summary",
         "type": "query_table",
@@ -553,7 +474,6 @@
       }
     },
     {
-      "id": 17,
       "definition": {
         "type": "note",
         "content": "## ⚠️ All Network Alerts — Last 24 Hours\n\nReal-time alert activity sorted by severity and frequency. Click device_id to drill down to device detail dashboard.",
@@ -572,7 +492,6 @@
       }
     },
     {
-      "id": 18,
       "definition": {
         "title": "Network Alerts — Devices with Most Activity (Last 24h)",
         "type": "query_table",
@@ -620,7 +539,6 @@
       }
     },
     {
-      "id": 19,
       "definition": {
         "type": "note",
         "content": "## 📡 Network Infrastructure Health\n\nWiFi coverage, signal strength, and network performance metrics across hospital floors",
@@ -639,13 +557,11 @@
       }
     },
     {
-      "id": 20,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "widgets": [
           {
-            "id": 21,
             "definition": {
               "title": "WiFi Channel Utilization by Floor",
               "type": "timeseries",
@@ -669,7 +585,6 @@
             }
           },
           {
-            "id": 22,
             "definition": {
               "title": "Signal Strength Distribution (dBm)",
               "type": "timeseries",
@@ -693,7 +608,6 @@
             }
           },
           {
-            "id": 23,
             "definition": {
               "title": "Network Retransmission Rate",
               "type": "timeseries",
@@ -717,7 +631,6 @@
             }
           },
           {
-            "id": 24,
             "definition": {
               "title": "Peak Network Utilization",
               "type": "timeseries",
@@ -750,7 +663,6 @@
       }
     },
     {
-      "id": 25,
       "definition": {
         "type": "note",
         "content": "## 🏥 Application Services Health\n\nMedical device application performance, error rates, and latency across hospital infrastructure",
@@ -769,13 +681,11 @@
       }
     },
     {
-      "id": 26,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "widgets": [
           {
-            "id": 27,
             "definition": {
               "title": "Application Error Rates by Device Type",
               "type": "toplist",
@@ -826,7 +736,6 @@
             }
           },
           {
-            "id": 28,
             "definition": {
               "title": "Application Latency (p99)",
               "type": "timeseries",
@@ -859,7 +768,6 @@
       }
     },
     {
-      "id": 29,
       "definition": {
         "type": "note",
         "content": "## 🌡️ Environmental Overview\n\nTemperature, humidity, and facility environmental monitoring across hospital floors and departments",
@@ -878,13 +786,11 @@
       }
     },
     {
-      "id": 30,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "widgets": [
           {
-            "id": 31,
             "definition": {
               "title": "Temperature by Floor (°C)",
               "type": "timeseries",
@@ -908,7 +814,6 @@
             }
           },
           {
-            "id": 32,
             "definition": {
               "title": "Humidity Levels by Floor (%)",
               "type": "timeseries",
@@ -941,7 +846,6 @@
       }
     },
     {
-      "id": 33,
       "definition": {
         "type": "note",
         "content": "**Dashboard Last Updated**: Real-time data from hospital monitoring infrastructure | **All navigation is dynamic** — floors, departments, devices, and manufacturers auto-populate from metric tags | **Tags**: `vertical:healthcare`, `dashboard-type:noc` | For issues, contact Network Operations Center",
@@ -990,9 +894,5 @@
   "layout_type": "ordered",
   "notify_list": [],
   "reflow_type": "fixed",
-  "tags": [
-    "vertical:healthcare",
-    "dd-demo-toolkit:true",
-    "dashboard-type:noc"
-  ]
+  "tags": []
 }

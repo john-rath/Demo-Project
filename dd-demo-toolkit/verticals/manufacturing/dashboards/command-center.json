@@ -3,7 +3,6 @@
   "description": "Real-time observability across all production equipment, quality systems, environmental controls, and supply chain logistics. Multi-plant view with OEE metrics, equipment health, energy usage, and predictive maintenance alerts.",
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
         "content": "# Manufacturing Command Center\n### Real-time Production Observability\n\nMonitoring **Production Equipment** · **Quality Systems** · **Environmental Controls** · **Supply Chain Logistics**\n\nAll telemetry streamed via OpenTelemetry → Datadog",
@@ -24,7 +23,6 @@
       }
     },
     {
-      "id": 2,
       "definition": {
         "title": "Overall Equipment Effectiveness (OEE)",
         "type": "query_value",
@@ -62,7 +60,6 @@
       }
     },
     {
-      "id": 3,
       "definition": {
         "title": "Quality Defect Rate (PPM)",
         "type": "query_value",
@@ -100,7 +97,6 @@
       }
     },
     {
-      "id": 4,
       "definition": {
         "title": "Planned Downtime Incidents (24h)",
         "type": "query_value",
@@ -134,7 +130,6 @@
       }
     },
     {
-      "id": 5,
       "definition": {
         "title": "Total Devices Online",
         "type": "query_value",
@@ -168,7 +163,6 @@
       }
     },
     {
-      "id": 6,
       "definition": {
         "title": "Production Equipment Status",
         "type": "timeseries",
@@ -205,7 +199,6 @@
       }
     },
     {
-      "id": 7,
       "definition": {
         "title": "Robot Arm Metrics by Plant",
         "type": "query_table",
@@ -257,7 +250,6 @@
       }
     },
     {
-      "id": 8,
       "definition": {
         "title": "Equipment Cycle Time Trends",
         "type": "timeseries",
@@ -294,7 +286,6 @@
       }
     },
     {
-      "id": 9,
       "definition": {
         "title": "Quality Metrics: Defect Rate Trend",
         "type": "timeseries",
@@ -331,7 +322,6 @@
       }
     },
     {
-      "id": 10,
       "definition": {
         "title": "Conveyor System Health",
         "type": "query_table",
@@ -383,7 +373,6 @@
       }
     },
     {
-      "id": 11,
       "definition": {
         "title": "Environmental Controls: Temperature & Humidity",
         "type": "timeseries",
@@ -420,7 +409,6 @@
       }
     },
     {
-      "id": 12,
       "definition": {
         "title": "AGV Fleet Status",
         "type": "query_table",
@@ -472,7 +460,6 @@
       }
     },
     {
-      "id": 13,
       "definition": {
         "title": "Energy Consumption by Plant",
         "type": "timeseries",
@@ -508,5 +495,6 @@
         "height": 3
       }
     }
-  ]
+  ],
+  "layout_type": "ordered"
 }

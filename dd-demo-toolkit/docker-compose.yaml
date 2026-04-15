@@ -29,7 +29,7 @@ services:
       - .env
     environment:
       - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-healthcare}
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - EMIT_INTERVAL=${EMIT_INTERVAL:-15}
       - PYTHONUNBUFFERED=1
@@ -40,7 +40,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: dd-demo-setup
-    command: ["dd-demo", "setup", "--vertical", "${DD_DEMO_VERTICAL:-healthcare}"]
+    command: ["dd-demo", "setup", "--vertical", "${DD_DEMO_VERTICAL:-healthcare}", "--clean"]
     env_file:
       - .env
     environment:

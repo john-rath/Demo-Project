@@ -1,5 +1,5 @@
 {
-  "title": "\ud83c\udfe5 Patient Experience & Clinical Operations",
+  "title": "🏥 Patient Experience & Clinical Operations",
   "description": "Executive dashboard correlating patient satisfaction, staffing levels, physician engagement, and IT infrastructure health.",
   "layout_type": "ordered",
   "template_variables": [
@@ -21,7 +21,6 @@
   ],
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
         "content": "# Patient Experience & Clinical Operations\nExecutive dashboard: Patient satisfaction, staffing, physician engagement, and IT infrastructure health.",
@@ -40,7 +39,6 @@
       }
     },
     {
-      "id": 100,
       "definition": {
         "type": "note",
         "content": "## Patient Satisfaction (HCAHPS)",
@@ -59,7 +57,6 @@
       }
     },
     {
-      "id": 101,
       "definition": {
         "title": "Overall HCAHPS Score",
         "type": "query_value",
@@ -109,7 +106,6 @@
       }
     },
     {
-      "id": 102,
       "definition": {
         "title": "Patient Satisfaction by Floor/Wing",
         "type": "timeseries",
@@ -147,7 +143,6 @@
       }
     },
     {
-      "id": 103,
       "definition": {
         "title": "Nurse Communication",
         "type": "query_value",
@@ -197,7 +192,6 @@
       }
     },
     {
-      "id": 104,
       "definition": {
         "title": "Staff Responsiveness",
         "type": "query_value",
@@ -247,7 +241,6 @@
       }
     },
     {
-      "id": 105,
       "definition": {
         "title": "Pain Management",
         "type": "query_value",
@@ -297,7 +290,6 @@
       }
     },
     {
-      "id": 106,
       "definition": {
         "title": "Discharge Info",
         "type": "query_value",
@@ -347,7 +339,6 @@
       }
     },
     {
-      "id": 200,
       "definition": {
         "type": "note",
         "content": "## Staffing & Workforce",
@@ -366,7 +357,6 @@
       }
     },
     {
-      "id": 201,
       "definition": {
         "title": "Nurses on Duty by Floor/Wing",
         "type": "timeseries",
@@ -397,7 +387,6 @@
       }
     },
     {
-      "id": 202,
       "definition": {
         "title": "Nurse-to-Patient Ratio",
         "type": "timeseries",
@@ -435,7 +424,6 @@
       }
     },
     {
-      "id": 203,
       "definition": {
         "title": "Open Nursing Positions",
         "type": "query_value",
@@ -485,7 +473,6 @@
       }
     },
     {
-      "id": 204,
       "definition": {
         "title": "Nursing Overtime Hours",
         "type": "timeseries",
@@ -516,7 +503,6 @@
       }
     },
     {
-      "id": 205,
       "definition": {
         "title": "Staff Turnover Rate (%)",
         "type": "query_value",
@@ -566,7 +552,6 @@
       }
     },
     {
-      "id": 300,
       "definition": {
         "type": "note",
         "content": "## Patient Flow & Response Times",
@@ -585,9 +570,8 @@
       }
     },
     {
-      "id": 301,
       "definition": {
-        "title": "Patient Wait Time (Admission \u2192 Physician)",
+        "title": "Patient Wait Time (Admission → Physician)",
         "type": "timeseries",
         "requests": [
           {
@@ -616,7 +600,6 @@
       }
     },
     {
-      "id": 302,
       "definition": {
         "title": "Pain Response Time (Minutes)",
         "type": "timeseries",
@@ -647,7 +630,6 @@
       }
     },
     {
-      "id": 303,
       "definition": {
         "title": "Discharge Process Time (Hours)",
         "type": "timeseries",
@@ -678,7 +660,6 @@
       }
     },
     {
-      "id": 304,
       "definition": {
         "title": "F3E Avg Wait Time",
         "type": "query_value",
@@ -728,7 +709,6 @@
       }
     },
     {
-      "id": 400,
       "definition": {
         "type": "note",
         "content": "## Physician Engagement & Mobile App",
@@ -747,7 +727,6 @@
       }
     },
     {
-      "id": 401,
       "definition": {
         "title": "Mobile Orders Placed (Epic Haiku)",
         "type": "timeseries",
@@ -778,7 +757,6 @@
       }
     },
     {
-      "id": 402,
       "definition": {
         "title": "Lab/Imaging Results Viewed on Mobile",
         "type": "timeseries",
@@ -809,7 +787,6 @@
       }
     },
     {
-      "id": 403,
       "definition": {
         "title": "Order-to-Administration Time (Min)",
         "type": "timeseries",
@@ -847,7 +824,6 @@
       }
     },
     {
-      "id": 404,
       "definition": {
         "title": "Physician Time with Patient (Min)",
         "type": "timeseries",
@@ -878,7 +854,6 @@
       }
     },
     {
-      "id": 405,
       "definition": {
         "title": "Rounds Completed",
         "type": "query_value",
@@ -911,7 +886,6 @@
       }
     },
     {
-      "id": 500,
       "definition": {
         "type": "note",
         "content": "## Telemetry & Clinical Device Health",
@@ -930,7 +904,6 @@
       }
     },
     {
-      "id": 501,
       "definition": {
         "title": "Active Telemetry Alarms",
         "type": "timeseries",
@@ -961,7 +934,6 @@
       }
     },
     {
-      "id": 502,
       "definition": {
         "title": "Telemetry False Alarm Rate (%)",
         "type": "timeseries",
@@ -999,7 +971,6 @@
       }
     },
     {
-      "id": 503,
       "definition": {
         "title": "F3E: Telemetry Gaps vs WiFi Utilization",
         "type": "timeseries",
@@ -1038,7 +1009,6 @@
       }
     },
     {
-      "id": 504,
       "definition": {
         "title": "Telemetry Alarm Response Time (Sec)",
         "type": "timeseries",
@@ -1069,10 +1039,9 @@
       }
     },
     {
-      "id": 600,
       "definition": {
         "type": "note",
-        "content": "## Floor 3 East \u2014 Correlation Analysis\n**Floor 3 East shows the lowest patient satisfaction scores in the hospital.** This group correlates the root causes: chronic understaffing, recurring WiFi infrastructure issues, and their downstream impact on clinical workflows and patient care.",
+        "content": "## Floor 3 East — Correlation Analysis\n**Floor 3 East shows the lowest patient satisfaction scores in the hospital.** This group correlates the root causes: chronic understaffing, recurring WiFi infrastructure issues, and their downstream impact on clinical workflows and patient care.",
         "background_color": "yellow",
         "font_size": "14",
         "text_align": "left",
@@ -1088,7 +1057,6 @@
       }
     },
     {
-      "id": 601,
       "definition": {
         "title": "F3E: Satisfaction Score vs Staffing Ratio",
         "type": "timeseries",
@@ -1127,7 +1095,6 @@
       }
     },
     {
-      "id": 602,
       "definition": {
         "title": "F3E: WiFi Utilization vs Device Signal Strength",
         "type": "timeseries",
@@ -1166,7 +1133,6 @@
       }
     },
     {
-      "id": 603,
       "definition": {
         "title": "F3E: Telemetry Gaps & Order-to-Admin Delays",
         "type": "timeseries",

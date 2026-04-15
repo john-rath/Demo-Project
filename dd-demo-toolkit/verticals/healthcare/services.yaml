@@ -1,72 +1,72 @@
 services:
-  - name: patient-portal
-    display_name: "Patient Portal (MyAdventHealth)"
+  - dd-service: patient-portal
+    display-name: "Patient Portal (MyAdventHealth)"
     description: "Patient-facing portal for appointments, messaging, pre-visit checkin, health records. Java Spring Boot."
-    team: "Digital Health"
+    owner: "Digital Health"
     tier: "Tier 1"
     languages: ["java"]
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]
 
-  - name: clinical-workflow-engine
-    display_name: "Clinical Workflow Engine"
+  - dd-service: clinical-workflow-engine
+    display-name: "Clinical Workflow Engine"
     description: "Central orchestrator for orders, task routing, workflow state. .NET on Azure."
-    team: "Clinical Systems"
+    owner: "Clinical Systems"
     tier: "Tier 1"
     languages: ["dotnet"]
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]
 
-  - name: nurse-call-integration
-    display_name: "Nurse Call Integration Service"
+  - dd-service: nurse-call-integration
+    display-name: "Nurse Call Integration Service"
     description: "Real-time nurse call routing and escalation. Python FastAPI, Hill-Rom integration."
-    team: "Biomedical Engineering"
+    owner: "Biomedical Engineering"
     tier: "Tier 1"
     languages: ["python"]
-    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa", "sla:120s-response"]
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]
 
-  - name: pharmacy-dispensing-api
-    display_name: "Pharmacy Dispensing System"
+  - dd-service: pharmacy-dispensing-api
+    display-name: "Pharmacy Dispensing System"
     description: "Medication dispensing, pharmacist authorization, inventory. Java Spring Boot."
-    team: "Pharmacy Systems"
+    owner: "Pharmacy Systems"
     tier: "Tier 1"
     languages: ["java"]
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]
 
-  - name: asset-management-platform
-    display_name: "Asset Management Platform (RTLS Backend)"
+  - dd-service: asset-management-platform
+    display-name: "Asset Management Platform (RTLS Backend)"
     description: "Real-time location services for equipment tracking. Golang."
-    team: "IT Infrastructure"
+    owner: "IT Infrastructure"
     tier: "Tier 2"
     languages: ["go"]
     tags: ["vertical:healthcare", "dd-demo-toolkit:true"]
 
-  - name: bed-management-service
-    display_name: "Bed Management & Capacity Service"
+  - dd-service: bed-management-service
+    display-name: "Bed Management & Capacity Service"
     description: "Bed availability, assignment, capacity planning, housekeeping. Python Django."
-    team: "Clinical Systems"
+    owner: "Clinical Systems"
     tier: "Tier 2"
     languages: ["python"]
     tags: ["vertical:healthcare", "dd-demo-toolkit:true"]
 
-  - name: medical-device-gateway
-    display_name: "Medical Device Integration Gateway"
+  - dd-service: medical-device-gateway
+    display-name: "Medical Device Integration Gateway"
     description: "Telemetry ingestion from 430+ medical devices. Java Spring Boot + Kafka."
-    team: "Biomedical Engineering"
+    owner: "Biomedical Engineering"
     tier: "Tier 1"
     languages: ["java"]
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:fda-510k"]
 
-  - name: hl7-fhir-broker
-    display_name: "HL7/FHIR Interoperability Broker"
+  - dd-service: hl7-fhir-broker
+    display-name: "HL7/FHIR Interoperability Broker"
     description: "HL7v2/FHIR translation, validation, routing. .NET on Azure."
-    team: "Integration Services"
+    owner: "Integration Services"
     tier: "Tier 1"
     languages: ["dotnet"]
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]
 
-  - name: physician-mobile-app
-    display_name: "Physician Mobile App (Epic Haiku)"
+  - dd-service: physician-mobile-app
+    display-name: "Physician Mobile App (Epic Haiku)"
     description: "Physician iOS app for bedside orders, results, notes. Swift iOS backend API."
-    team: "Digital Health"
+    owner: "Digital Health"
     tier: "Tier 1"
     languages: ["swift"]
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "compliance:hipaa"]

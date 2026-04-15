@@ -107,8 +107,10 @@ class NotebookManager:
                 else:
                     # Create via API
                     response = api_client.create_notebook(payload)
-                    notebook_id = response.get("id")
-                    notebook_name = response.get("name", "")
+                    # Notebooks API returns {data: {id: ..., attributes: {name: ...}}}
+                    notebook_data = response.get("data", response)
+                    notebook_id = notebook_data.get("id")
+                    notebook_name = notebook_data.get("attributes", {}).get("name", "")
 
                     if notebook_id:
                         result["created_ids"].append(notebook_id)
@@ -153,6 +155,30 @@ class NotebookManager:
         """
         Build a notebook payload from config.
 
+        The Datadog Notebooks API v1 expects:
+        {
+          "data": {
+            "attributes": {
+              "name": "...",
+              "cells": [...],
+              "time": {"live_span": "1h"},
+              "status": "published"
+            },
+            "type": "notebooks"
+          }
+        }
+
+        Each cell must be:
+        {
+          "attributes": {
+            "definition": {
+              "type": "markdown",
+              "text": "..."
+            }
+          },
+          "type": "notebook_cells"
+        }
+
         Args:
             config: Notebook configuration dict.
             vertical_name: Vertical name for tagging.
@@ -164,41 +190,58 @@ class NotebookManager:
         Raises:
             KeyError: If required fields are missing.
         """
-        # Validate required fields
-        required = ["name"]
-        for field in required:
-            if field not in config:
-                raise KeyError(f"Required field '{field}' missing")
+        if "name" not in config:
+            raise KeyError("Required field 'name' missing")
 
-        payload = {
-            "name": config["name"],
-        }
-
-        # Add optional fields if present
-        if "description" in config:
-            payload["description"] = config["description"]
-
-        # Handle cells
-        if "cells" in config:
-            cells = config["cells"]
-            if isinstance(cells, list):
-                payload["cells"] = cells
-            else:
-                logger.warning("Cells should be a list, ignoring")
-                payload["cells"] = []
+        # Build cells - convert from simple config format to API format
+        cells = []
+        if "cells" in config and isinstance(config["cells"], list):
+            for cell in config["cells"]:
+                cells.append(cell)
         else:
-            payload["cells"] = []
+            # Auto-generate a title cell from name and description
+            title_text = f"# {config['name']}"
+            if "description" in config:
+                title_text += f"\n\n{config['description']}"
+            cells.append({
+                "attributes": {
+                    "definition": {
+                        "type": "markdown",
+                        "text": title_text,
+                    }
+                },
+                "type": "notebook_cells",
+            })
 
-        # Add tags
+        # Determine time range
+        time_range = config.get("time_range", "1h")
+        time_obj = {"live_span": time_range}
+
+        # Build tags
         tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []
-        tags.append(f"vertical:{vertical_name}")
-        tags.append("dd-demo-toolkit:true")
-
+        if f"vertical:{vertical_name}" not in tags:
+            tags.append(f"vertical:{vertical_name}")
+        if "dd-demo-toolkit:true" not in tags:
+            tags.append("dd-demo-toolkit:true")
         if additional_tags:
             for key, value in additional_tags.items():
                 tags.append(f"{key}:{value}")
 
-        payload["tags"] = tags
+        # Wrap in Notebooks API v1 envelope
+        payload = {
+            "data": {
+                "attributes": {
+                    "name": config["name"],
+                    "cells": cells,
+                    "time": time_obj,
+                    "status": "published",
+                    "metadata": {
+                        "type": config.get("type", "investigation"),
+                    },
+                },
+                "type": "notebooks",
+            }
+        }
 
         return payload
 

@@ -2,11 +2,7 @@
   "title": "🔍 Healthcare NOC — Device Detail Drill-Down",
   "description": "Device-level detailed monitoring dashboard. Drill down from NOC Overview to inspect specific device metrics including health, network, medical device specifics, environmental data, and alert history.",
   "layout_type": "ordered",
-  "tags": [
-    "vertical:healthcare",
-    "dd-demo-toolkit:true",
-    "dashboard-type:noc-detail"
-  ],
+  "tags": [],
   "template_variables": [
     {
       "name": "device_id",
@@ -41,7 +37,6 @@
   ],
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
         "content": "# 🔍 Device Detail Drill-Down\n\n**Select a device using the template variables above** (`device_id`, `device_type`, `floor`, `wing`, `department`, `manufacturer`), or **click through from the NOC Overview dashboard**.\n\nThis dashboard shows real-time health, network performance, medical device specifics, environmental context, and alert history for the selected device(s).",
@@ -60,14 +55,12 @@
       }
     },
     {
-      "id": 2,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "📋 Device Identity Header",
         "widgets": [
           {
-            "id": 3,
             "definition": {
               "title": "Online Status",
               "type": "query_value",
@@ -89,19 +82,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 0,
-              "conditional_formats": [
-                {
-                  "comparator": "==",
-                  "value": 1,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": "!=",
-                  "value": 1,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 0
             },
             "layout": {
               "x": 0,
@@ -111,7 +92,6 @@
             }
           },
           {
-            "id": 4,
             "definition": {
               "title": "Battery %",
               "type": "query_value",
@@ -133,24 +113,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 1,
-              "conditional_formats": [
-                {
-                  "comparator": ">",
-                  "value": 40,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": ">",
-                  "value": 20,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": "<=",
-                  "value": 20,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 1
             },
             "layout": {
               "x": 2,
@@ -160,7 +123,6 @@
             }
           },
           {
-            "id": 5,
             "definition": {
               "title": "CPU %",
               "type": "query_value",
@@ -182,24 +144,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 1,
-              "conditional_formats": [
-                {
-                  "comparator": "<",
-                  "value": 70,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": "<",
-                  "value": 85,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": ">=",
-                  "value": 85,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 1
             },
             "layout": {
               "x": 4,
@@ -209,7 +154,6 @@
             }
           },
           {
-            "id": 6,
             "definition": {
               "title": "Memory %",
               "type": "query_value",
@@ -231,24 +175,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 1,
-              "conditional_formats": [
-                {
-                  "comparator": "<",
-                  "value": 70,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": "<",
-                  "value": 85,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": ">=",
-                  "value": 85,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 1
             },
             "layout": {
               "x": 6,
@@ -258,7 +185,6 @@
             }
           },
           {
-            "id": 7,
             "definition": {
               "title": "Signal Strength dBm",
               "type": "query_value",
@@ -280,24 +206,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 1,
-              "conditional_formats": [
-                {
-                  "comparator": ">",
-                  "value": -70,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": ">",
-                  "value": -80,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": "<=",
-                  "value": -80,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 1
             },
             "layout": {
               "x": 8,
@@ -307,7 +216,6 @@
             }
           },
           {
-            "id": 8,
             "definition": {
               "title": "Temperature °C",
               "type": "query_value",
@@ -329,24 +237,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 1,
-              "conditional_formats": [
-                {
-                  "comparator": "<",
-                  "value": 45,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": "<",
-                  "value": 50,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": ">=",
-                  "value": 50,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 1
             },
             "layout": {
               "x": 10,
@@ -365,14 +256,12 @@
       }
     },
     {
-      "id": 9,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "📈 Device Health Timeline",
         "widgets": [
           {
-            "id": 10,
             "definition": {
               "title": "Battery % Over Time",
               "type": "timeseries",
@@ -419,7 +308,6 @@
             }
           },
           {
-            "id": 11,
             "definition": {
               "title": "CPU & Memory Usage",
               "type": "timeseries",
@@ -488,7 +376,6 @@
             }
           },
           {
-            "id": 12,
             "definition": {
               "title": "Signal Strength dBm",
               "type": "timeseries",
@@ -535,7 +422,6 @@
             }
           },
           {
-            "id": 13,
             "definition": {
               "title": "Temperature °C",
               "type": "timeseries",
@@ -582,7 +468,6 @@
             }
           },
           {
-            "id": 14,
             "definition": {
               "title": "Heartbeat / Keep-Alive",
               "type": "query_value",
@@ -604,19 +489,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 0,
-              "conditional_formats": [
-                {
-                  "comparator": ">",
-                  "value": 0,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": "==",
-                  "value": 0,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 0
             },
             "layout": {
               "x": 0,
@@ -635,14 +508,12 @@
       }
     },
     {
-      "id": 15,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "🌐 Network Metrics",
         "widgets": [
           {
-            "id": 16,
             "definition": {
               "title": "Channel Utilization %",
               "type": "timeseries",
@@ -684,7 +555,6 @@
             }
           },
           {
-            "id": 17,
             "definition": {
               "title": "Connected Clients",
               "type": "timeseries",
@@ -719,7 +589,6 @@
             }
           },
           {
-            "id": 18,
             "definition": {
               "title": "Packet Loss & Retransmission %",
               "type": "timeseries",
@@ -783,7 +652,6 @@
             }
           },
           {
-            "id": 19,
             "definition": {
               "title": "Throughput Mbps",
               "type": "timeseries",
@@ -818,7 +686,6 @@
             }
           },
           {
-            "id": 20,
             "definition": {
               "title": "Latency ms",
               "type": "timeseries",
@@ -869,14 +736,12 @@
       }
     },
     {
-      "id": 21,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "💊 Medical Device Specific Metrics",
         "widgets": [
           {
-            "id": 22,
             "definition": {
               "title": "Infusion Pump Flow Rate (mL/hr)",
               "type": "timeseries",
@@ -911,7 +776,6 @@
             }
           },
           {
-            "id": 23,
             "definition": {
               "title": "Occlusion & Air-in-Line Alerts",
               "type": "timeseries",
@@ -968,7 +832,6 @@
             }
           },
           {
-            "id": 24,
             "definition": {
               "title": "Volume Infused (mL)",
               "type": "timeseries",
@@ -1003,7 +866,6 @@
             }
           },
           {
-            "id": 25,
             "definition": {
               "title": "Nurse Call Active Calls",
               "type": "query_value",
@@ -1025,24 +887,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 0,
-              "conditional_formats": [
-                {
-                  "comparator": "==",
-                  "value": 0,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": ">",
-                  "value": 0,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": ">",
-                  "value": 5,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 0
             },
             "layout": {
               "x": 6,
@@ -1052,7 +897,6 @@
             }
           },
           {
-            "id": 26,
             "definition": {
               "title": "Nurse Call Response Time (sec)",
               "type": "query_value",
@@ -1074,24 +918,7 @@
                 }
               ],
               "autoscale": true,
-              "precision": 1,
-              "conditional_formats": [
-                {
-                  "comparator": "<",
-                  "value": 60,
-                  "color": "vivid_green"
-                },
-                {
-                  "comparator": "<",
-                  "value": 120,
-                  "color": "vivid_yellow"
-                },
-                {
-                  "comparator": ">=",
-                  "value": 120,
-                  "color": "vivid_red"
-                }
-              ]
+              "precision": 1
             },
             "layout": {
               "x": 9,
@@ -1110,14 +937,12 @@
       }
     },
     {
-      "id": 27,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "🌡️ Environmental Metrics",
         "widgets": [
           {
-            "id": 28,
             "definition": {
               "title": "Room Temperature °F",
               "type": "timeseries",
@@ -1164,7 +989,6 @@
             }
           },
           {
-            "id": 29,
             "definition": {
               "title": "Humidity %",
               "type": "timeseries",
@@ -1206,7 +1030,6 @@
             }
           },
           {
-            "id": 30,
             "definition": {
               "title": "Air Quality AQI / CO2 PPM",
               "type": "timeseries",
@@ -1270,7 +1093,6 @@
             }
           },
           {
-            "id": 31,
             "definition": {
               "title": "Differential Pressure Pa",
               "type": "timeseries",
@@ -1305,7 +1127,6 @@
             }
           },
           {
-            "id": 32,
             "definition": {
               "title": "UPS Load % & Runtime min",
               "type": "timeseries",
@@ -1378,14 +1199,12 @@
       }
     },
     {
-      "id": 33,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "🚨 Alert History",
         "widgets": [
           {
-            "id": 34,
             "definition": {
               "title": "Recent Alerts for Selected Device",
               "type": "query_table",
@@ -1420,14 +1239,12 @@
       }
     },
     {
-      "id": 35,
       "definition": {
         "type": "group",
         "layout_type": "ordered",
         "title": "🔗 Related Devices on Same Floor/Wing",
         "widgets": [
           {
-            "id": 36,
             "definition": {
               "title": "Devices on Same Floor & Wing",
               "type": "query_table",

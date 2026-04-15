@@ -171,13 +171,43 @@ class WorkflowManager:
             if field not in config:
                 raise KeyError(f"Required field '{field}' missing")
 
-        # Build attributes
-        attributes = {
-            "name": config["name"],
-            "description": config["description"],
-            "trigger": config["trigger"],
-            "steps": config["steps"],
-        }
+        # The Workflow Automation API v2 requires a complex 'spec' field with
+        # actionIds, display bounds, connectionEnv, etc. that cannot be generated
+        # from declarative YAML. If a pre-built spec is provided, use it directly.
+        # Otherwise, build a minimal spec from our YAML config.
+        if "spec" in config:
+            # Use pre-built spec exported from Datadog UI (Edit JSON Spec)
+            attributes = {
+                "name": config["name"],
+                "description": config["description"],
+                "spec": config["spec"],
+            }
+        else:
+            # Build a minimal valid spec from our trigger/steps config
+            steps_spec = []
+            for step in config.get("steps", []):
+                steps_spec.append({
+                    "name": step.get("name", "step"),
+                    "actionId": step.get("action_id", "com.datadoghq.core.noop"),
+                    "parameters": step.get("parameters", {}),
+                })
+
+            trigger_config = config.get("trigger", {})
+            trigger_type = trigger_config.get("type", "manual")
+
+            spec = {
+                "triggers": [{
+                    "startStepNames": [steps_spec[0]["name"]] if steps_spec else [],
+                    f"{trigger_type}Trigger": trigger_config,
+                }],
+                "steps": steps_spec,
+            }
+
+            attributes = {
+                "name": config["name"],
+                "description": config["description"],
+                "spec": spec,
+            }
 
         # Inject tags
         tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []

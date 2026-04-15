@@ -1,9 +1,8 @@
 {
-  "title": "Infusion Pumps & Pharmacy \u2014 AdventHealth",
+  "title": "Infusion Pumps & Pharmacy — AdventHealth",
   "description": "Pharmacy Director & Nursing Ops: Pump fleet health, medication dispensing, occlusion alerts, flow monitoring.",
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
         "content": "# Infusion Pump & Pharmacy Operations\nReal-time monitoring of pump fleet health, medication dispensing, and safety alerts.",
@@ -22,7 +21,6 @@
       }
     },
     {
-      "id": 2,
       "definition": {
         "title": "Pumps Online",
         "type": "query_value",
@@ -54,7 +52,6 @@
       }
     },
     {
-      "id": 3,
       "definition": {
         "title": "Infusions Completed (24h)",
         "type": "query_value",
@@ -87,7 +84,6 @@
       }
     },
     {
-      "id": 4,
       "definition": {
         "title": "Occlusion Alerts",
         "type": "query_value",
@@ -120,7 +116,6 @@
       }
     },
     {
-      "id": 5,
       "definition": {
         "title": "Air-in-Line Alerts",
         "type": "query_value",
@@ -153,7 +148,6 @@
       }
     },
     {
-      "id": 6,
       "definition": {
         "title": "Medication Dispenses",
         "type": "query_value",
@@ -186,7 +180,6 @@
       }
     },
     {
-      "id": 7,
       "definition": {
         "title": "Override Dispenses",
         "type": "query_value",
@@ -219,7 +212,6 @@
       }
     },
     {
-      "id": 10,
       "definition": {
         "type": "note",
         "content": "## Pump Flow Monitoring",
@@ -238,7 +230,6 @@
       }
     },
     {
-      "id": 11,
       "definition": {
         "title": "Average Flow Rate by Floor",
         "type": "timeseries",
@@ -269,7 +260,6 @@
       }
     },
     {
-      "id": 12,
       "definition": {
         "title": "Time to Empty (min) by Floor",
         "type": "timeseries",
@@ -307,7 +297,6 @@
       }
     },
     {
-      "id": 13,
       "definition": {
         "title": "Active Pump Channels by Floor",
         "type": "timeseries",
@@ -338,7 +327,6 @@
       }
     },
     {
-      "id": 14,
       "definition": {
         "title": "Occlusion & Air-in-Line Alerts Over Time",
         "type": "timeseries",
@@ -377,7 +365,6 @@
       }
     },
     {
-      "id": 20,
       "definition": {
         "type": "note",
         "content": "## Medication Dispensing",
@@ -396,7 +383,6 @@
       }
     },
     {
-      "id": 21,
       "definition": {
         "title": "Dispense Events by Medication Class",
         "type": "timeseries",
@@ -427,7 +413,6 @@
       }
     },
     {
-      "id": 22,
       "definition": {
         "title": "Override Dispenses by Medication Class",
         "type": "timeseries",
@@ -458,7 +443,6 @@
       }
     },
     {
-      "id": 23,
       "definition": {
         "title": "Cabinets Needing Restock by Floor",
         "type": "toplist",
@@ -493,7 +477,6 @@
       }
     },
     {
-      "id": 24,
       "definition": {
         "title": "Pump Battery Levels",
         "type": "timeseries",

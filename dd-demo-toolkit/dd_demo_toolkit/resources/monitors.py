@@ -5,6 +5,7 @@ Handles deployment, deletion, and listing of Datadog monitors for verticals.
 """
 
 import logging
+import re
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
@@ -177,11 +178,26 @@ class MonitorManager:
             "message": config["message"],
         }
 
-        # Add optional fields if present
+        # Build options with thresholds
+        options = config.get("options", {})
         if "thresholds" in config:
-            payload["thresholds"] = config["thresholds"]
-        if "options" in config:
-            payload["options"] = config["options"]
+            options["thresholds"] = config["thresholds"]
+
+        # If no explicit thresholds, try to extract from the query string
+        if "thresholds" not in options:
+            query = config["query"]
+            # Match patterns like "> 75", "< -70", "> 2000"
+            match = re.search(r'([><]=?)\s*([-\d.]+)\s*$', query)
+            if match:
+                op, val = match.group(1), float(match.group(2))
+                options["thresholds"] = {"critical": val}
+
+        if options:
+            payload["options"] = options
+
+        # Add priority if present (1-5 integer)
+        if "priority" in config:
+            payload["priority"] = config["priority"]
 
         # Inject tags
         tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []
@@ -192,7 +208,8 @@ class MonitorManager:
             for key, value in additional_tags.items():
                 tags.append(f"{key}:{value}")
 
-        payload["tags"] = tags
+        # Deduplicate
+        payload["tags"] = list(dict.fromkeys(tags))
 
         return payload
 

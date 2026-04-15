@@ -1,9 +1,8 @@
 {
-  "title": "Nurse Call & Bed Management \u2014 AdventHealth",
+  "title": "Nurse Call & Bed Management — AdventHealth",
   "description": "CNO & Nursing Directors: Call response times, bed capacity, turnover efficiency, patient safety alerts.",
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
         "content": "# Nurse Call & Bed Management\nCall response performance, bed capacity tracking, and patient safety monitoring.",
@@ -22,7 +21,6 @@
       }
     },
     {
-      "id": 2,
       "definition": {
         "title": "Active Nurse Calls Now",
         "type": "query_value",
@@ -55,7 +53,6 @@
       }
     },
     {
-      "id": 3,
       "definition": {
         "title": "Total Calls Today",
         "type": "query_value",
@@ -88,7 +85,6 @@
       }
     },
     {
-      "id": 4,
       "definition": {
         "title": "Escalations",
         "type": "query_value",
@@ -121,7 +117,6 @@
       }
     },
     {
-      "id": 5,
       "definition": {
         "title": "Beds Occupied",
         "type": "query_value",
@@ -154,7 +149,6 @@
       }
     },
     {
-      "id": 6,
       "definition": {
         "title": "Beds Available",
         "type": "query_value",
@@ -187,7 +181,6 @@
       }
     },
     {
-      "id": 7,
       "definition": {
         "title": "Fall Risk Alerts",
         "type": "query_value",
@@ -220,7 +213,6 @@
       }
     },
     {
-      "id": 10,
       "definition": {
         "type": "note",
         "content": "## Nurse Call Response",
@@ -239,7 +231,6 @@
       }
     },
     {
-      "id": 11,
       "definition": {
         "title": "Avg Response Time (sec) by Floor",
         "type": "timeseries",
@@ -282,7 +273,6 @@
       }
     },
     {
-      "id": 12,
       "definition": {
         "title": "Calls by Type",
         "type": "timeseries",
@@ -313,7 +303,6 @@
       }
     },
     {
-      "id": 13,
       "definition": {
         "title": "Active Calls by Floor & Wing",
         "type": "timeseries",
@@ -344,7 +333,6 @@
       }
     },
     {
-      "id": 14,
       "definition": {
         "title": "Escalations by Call Type",
         "type": "timeseries",
@@ -375,7 +363,6 @@
       }
     },
     {
-      "id": 20,
       "definition": {
         "type": "note",
         "content": "## Bed Management & Safety",
@@ -394,7 +381,6 @@
       }
     },
     {
-      "id": 21,
       "definition": {
         "title": "Bed Occupancy by Floor",
         "type": "timeseries",
@@ -433,7 +419,6 @@
       }
     },
     {
-      "id": 22,
       "definition": {
         "title": "Avg Bed Turnover Time (min)",
         "type": "timeseries",
@@ -476,7 +461,6 @@
       }
     },
     {
-      "id": 23,
       "definition": {
         "title": "Cleaning Queue by Floor",
         "type": "timeseries",
@@ -507,7 +491,6 @@
       }
     },
     {
-      "id": 24,
       "definition": {
         "title": "Fall Risk Alerts by Floor",
         "type": "timeseries",
@@ -538,7 +521,6 @@
       }
     },
     {
-      "id": 25,
       "definition": {
         "title": "Patient Exit Alerts by Floor",
         "type": "timeseries",

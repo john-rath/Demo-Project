@@ -15,7 +15,7 @@ notebooks:
 
   - id: "predictive-maintenance-triage"
     name: "⚙️ Predictive Maintenance Alert Triage"
-    type: workflow
+    type: runbook
     description: "ML model analysis for RUL-based maintenance scheduling. Triage logic for critical vs. routine maintenance, parts procurement, technician dispatch, work order creation, historical performance comparison."
     time_range: "7d"
     tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "workflow:maintenance", "service:predictive-maintenance-api", "team:maintenance"]

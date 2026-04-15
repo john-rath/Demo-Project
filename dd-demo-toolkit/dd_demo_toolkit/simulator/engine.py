@@ -141,13 +141,13 @@ class SimulatorEngine:
             self.logger_provider = logger_provider
             self._owns_providers = False
 
+        # Build service catalog (before fleet, since _build_fleet logs service count)
+        self.services: Dict[str, ServiceProfile] = {}
+        self._build_services()
+
         # Build device fleet
         self.fleet: List[DeviceProfile] = []
         self._build_fleet()
-
-        # Build service catalog
-        self.services: Dict[str, ServiceProfile] = {}
-        self._build_services()
 
         # OTel instruments (cached)
         self.instruments: Dict[str, Any] = {}
@@ -401,9 +401,8 @@ class SimulatorEngine:
 
             # Emit based on metric type
             if metric.type == "gauge":
-                instrument.record(value, attributes=attributes)
+                instrument.set(value, attributes=attributes)
             elif metric.type == "counter":
-                # For counters, record increments
                 instrument.add(max(0, value), attributes=attributes)
             elif metric.type == "histogram":
                 instrument.record(value, attributes=attributes)
@@ -450,9 +449,6 @@ class SimulatorEngine:
             else:
                 span.set_status(Status(StatusCode.OK))
 
-            # Simulate latency
-            time.sleep(latency_ms / 1000.0)
-
             # Generate child spans for dependencies
             for dependency in service.dependencies:
                 if random.random() < dependency.probability:
@@ -472,9 +468,6 @@ class SimulatorEngine:
             child_span.set_attribute("service.name", dependency.service)
             child_span.set_attribute("operation", dependency.operation)
             child_span.set_attribute("parent_service", parent_span.get_span_context())
-
-            # Simulate small latency
-            time.sleep(random.uniform(5, 50) / 1000.0)
 
     def run(self, interval_sec: float = 1.0) -> None:
         """

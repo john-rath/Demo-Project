@@ -107,8 +107,16 @@ class SLOManager:
                 else:
                     # Create via API
                     response = api_client.create_slo(payload)
-                    slo_id = response.get("id")
-                    slo_name = response.get("name", "")
+                    # SLO API returns {"data": [{"id": ..., "name": ...}]}
+                    slo_data = response.get("data", [response])
+                    if isinstance(slo_data, list) and slo_data:
+                        slo_data = slo_data[0]
+                    elif isinstance(slo_data, dict):
+                        pass
+                    else:
+                        slo_data = response
+                    slo_id = slo_data.get("id")
+                    slo_name = slo_data.get("name", "")
 
                     if slo_id:
                         result["created_ids"].append(slo_id)
@@ -178,18 +186,28 @@ class SLOManager:
         # Add optional fields if present
         if "description" in config:
             payload["description"] = config["description"]
-        if "target" in config:
-            payload["target"] = config["target"]
-        if "target_display" in config:
-            payload["target_display"] = config["target_display"]
-        if "timeframe" in config:
-            payload["timeframe"] = config["timeframe"]
         if "groups" in config:
             payload["groups"] = config["groups"]
         if "query" in config:
             payload["query"] = config["query"]
+
+        # Build thresholds array — the SLO API requires this format:
+        # "thresholds": [{"target": 99.9, "timeframe": "30d"}]
         if "thresholds" in config:
+            # Already in correct format
             payload["thresholds"] = config["thresholds"]
+        elif "target" in config:
+            # Convert flat target/timeframe to thresholds array
+            threshold = {"target": config["target"]}
+            if "timeframe" in config:
+                threshold["timeframe"] = config["timeframe"]
+            else:
+                threshold["timeframe"] = "30d"
+            if "target_display" in config:
+                threshold["target_display"] = config["target_display"]
+            if "warning" in config:
+                threshold["warning"] = config["warning"]
+            payload["thresholds"] = [threshold]
 
         # Add tags
         tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []
@@ -200,7 +218,7 @@ class SLOManager:
             for key, value in additional_tags.items():
                 tags.append(f"{key}:{value}")
 
-        payload["tags"] = tags
+        payload["tags"] = list(dict.fromkeys(tags))
 
         return payload
 

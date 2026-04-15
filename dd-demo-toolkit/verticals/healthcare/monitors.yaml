@@ -11,7 +11,7 @@
 
 monitors:
   - name: "[Healthcare] WiFi Channel Utilization Critical"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:hospital.network.channel_utilization_pct{device_type:wireless_ap} by {device_id,floor,wing} > 75"
     message: "📡 WiFi channel saturation on Floor {{floor}} {{wing}}. High utilization causes low-power device disconnects."
     tags:
@@ -22,7 +22,7 @@ monitors:
     priority: 2
 
   - name: "[Healthcare] Medical Device Signal Degradation"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:hospital.device.signal_strength_dbm{device_category:medical_iot} by {device_id,device_type,floor,wing} < -70"
     message: "📶 Device {{device_type}} signal degrading on Floor {{floor}} {{wing}}. Check WiFi AP status."
     tags:
@@ -33,7 +33,7 @@ monitors:
     priority: 2
 
   - name: "[Healthcare] Critical Medical Device Offline"
-    type: metric_alert
+    type: "query alert"
     query: "sum(last_5m):sum:hospital.device.online{device_category:medical_iot} by {device_id,device_type,floor,wing} < 1"
     message: "🚨 Device {{device_type}} offline on Floor {{floor}} {{wing}}. Check network signal and AP channel utilization."
     tags:
@@ -44,7 +44,7 @@ monitors:
     priority: 1
 
   - name: "[Healthcare] WiFi Retransmission Rate High"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:hospital.network.retransmit_pct{device_type:wireless_ap} by {device_id,floor,wing} > 8"
     message: "🔄 High packet retransmits on Floor {{floor}} {{wing}} AP. Channel congestion likely."
     tags:
@@ -54,7 +54,7 @@ monitors:
     priority: 2
 
   - name: "[Healthcare] Patient Portal Error Rate Spike"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):sum:hospital.app.errors_total{service_name:patient-portal} / sum:hospital.app.requests_total{service_name:patient-portal} * 100 > 5"
     message: "🚨 Patient Portal error rate elevated. Check upstream services (EHR, auth, FHIR broker)."
     tags:
@@ -64,7 +64,7 @@ monitors:
     priority: 1
 
   - name: "[Healthcare] HL7/FHIR Broker Error Rate Anomaly"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):sum:hospital.app.errors_total{service_name:hl7-fhir-broker} / sum:hospital.app.requests_total{service_name:hl7-fhir-broker} * 100 > 4"
     message: "🏥 FHIR Broker critical errors. Impacts all downstream systems (portal, pharmacy, gateway)."
     tags:
@@ -74,7 +74,7 @@ monitors:
     priority: 1
 
   - name: "[Healthcare] Pharmacy Dispensing API Latency Anomaly"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):p99:hospital.app.latency_ms{service_name:pharmacy-dispensing-api} > 2000"
     message: "💊 Pharmacy API p99 latency spiking. Check database connection pool and query performance."
     tags:
@@ -84,7 +84,7 @@ monitors:
     priority: 2
 
   - name: "[Healthcare] Infusion Pump Occlusion Alert Spike"
-    type: metric_alert
+    type: "query alert"
     query: "sum(last_5m):sum:hospital.pump.occlusion_alerts_total{} > 10"
     message: "⚠️ Pump occlusion alerts spiking. Check network signal strength and tubing."
     tags:
@@ -93,10 +93,21 @@ monitors:
       - "team:biomed"
     priority: 2
 
-  - name: "[Healthcare] OR Temperature Out of Compliance Range"
-    type: metric_alert
-    query: "avg(last_5m):avg:hospital.env.room_temperature_f{department:OR} < 68 or avg(last_5m):avg:hospital.env.room_temperature_f{department:OR} > 75"
-    message: "🌡️ OR temperature out of range (68-75°F required). Check HVAC system."
+  - name: "[Healthcare] OR Temperature Too Low"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.env.room_temperature_f{department:OR} < 68"
+    message: "🌡️ OR temperature below 68°F minimum. Check HVAC system."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:facilities"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare] OR Temperature Too High"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.env.room_temperature_f{department:OR} > 75"
+    message: "🌡️ OR temperature above 75°F maximum. Check HVAC system."
     tags:
       - "vertical:healthcare"
       - "dd-demo-toolkit:true"
@@ -105,7 +116,7 @@ monitors:
     priority: 1
 
   - name: "[Healthcare] Nurse Call Response Time Exceeding SLA"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:hospital.nursecall.response_time_sec{} > 180"
     message: "📞 Nurse call response time exceeding 3-minute SLA. Check staffing levels and system status."
     tags:
@@ -115,7 +126,7 @@ monitors:
     priority: 2
 
   - name: "[Healthcare] UPS Battery Runtime Critically Low"
-    type: metric_alert
+    type: "query alert"
     query: "min(last_5m):min:hospital.env.ups_runtime_min{} < 15"
     message: "🔋 UPS battery runtime critically low (<15 min). Check charge level and load. Life-safety risk."
     tags:
@@ -126,7 +137,7 @@ monitors:
     priority: 1
 
   - name: "[Healthcare] Medical Device Gateway Error Spike"
-    type: metric_alert
+    type: "query alert"
     query: "sum(last_5m):sum:hospital.app.errors_total{service_name:medical-device-gateway} / sum:hospital.app.requests_total{service_name:medical-device-gateway} * 100 > 5"
     message: "🏥 Device Gateway error rate spiking. Likely caused by device disconnects. Check device online status."
     tags:

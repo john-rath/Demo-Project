@@ -405,14 +405,19 @@ class CaseManager:
         Returns:
             Case payload ready for API submission.
         """
+        # The Datadog Case Management API v2 requires:
+        # - data.type = "case"
+        # - data.attributes: title, priority (P1-P5), type (STANDARD)
+        # - data.relationships.project: must reference an existing project
         attributes = {
             "title": title,
-            "description": description,
             "priority": priority,
             "type": "STANDARD",
-            "status": "OPEN",
-            "tags": [f"vertical:{vertical_name}", "dd-demo-toolkit:true"],
         }
+
+        # Description goes in attributes if the API supports it
+        if description:
+            attributes["description"] = description
 
         payload = {
             "data": {
@@ -421,17 +426,24 @@ class CaseManager:
             }
         }
 
+        # Project relationship is required — check linked_resources for project_id
         relationships = {}
-
-        if linked_resources:
-            # Handle linked incidents, etc.
-            if "incident_id" in linked_resources:
-                relationships["incident"] = {
-                    "data": {
-                        "type": "incidents",
-                        "id": linked_resources["incident_id"],
-                    }
+        project_id = (linked_resources or {}).get("project_id")
+        if project_id:
+            relationships["project"] = {
+                "data": {
+                    "type": "project",
+                    "id": project_id,
                 }
+            }
+
+        if linked_resources and "incident_id" in linked_resources:
+            relationships["incident"] = {
+                "data": {
+                    "type": "incidents",
+                    "id": linked_resources["incident_id"],
+                }
+            }
 
         if relationships:
             payload["data"]["relationships"] = relationships

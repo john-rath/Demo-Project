@@ -88,10 +88,9 @@ def setup_logging(verbose: bool = False) -> None:
 
 
 def load_env_file(env_path: str) -> None:
-    """Load environment variables from .env file."""
+    """Load environment variables from .env file if it exists."""
     if not os.path.exists(env_path):
-        print_warning(f".env file not found at {env_path}, using environment variables")
-        return
+        return  # No .env file — assume env vars are already set (e.g. via docker-compose)
 
     load_dotenv(env_path)
     print_info(f"Loaded environment from {env_path}")
@@ -140,6 +139,22 @@ def cmd_setup(args: argparse.Namespace) -> None:
 
         # Use ResourceManager for orchestrated deployment
         mgr = ResourceManager(verticals_dir="verticals")
+
+        # Clean up existing resources first if --clean flag is set
+        if getattr(args, "clean", False):
+            print_header("Cleaning up existing resources...")
+            teardown_result = mgr.teardown_selected(
+                args.vertical, client, resources, dry_run=args.dry_run
+            )
+            total_deleted = teardown_result.get("summary", {}).get("total_deleted", 0)
+            teardown_errors = teardown_result.get("summary", {}).get("total_errors", 0)
+            if total_deleted > 0:
+                print_success(f"Cleaned up {total_deleted} existing resource(s)")
+            if teardown_errors > 0:
+                print_warning(f"{teardown_errors} error(s) during cleanup (continuing with deploy)")
+            if total_deleted == 0 and teardown_errors == 0:
+                print_info("No existing resources found — clean slate")
+
         print_header("Deploying resources...")
 
         result = mgr.deploy_selected(
@@ -147,9 +162,12 @@ def cmd_setup(args: argparse.Namespace) -> None:
         )
 
         # Print results per resource type
+        summary = result.get("summary", {})
         for rtype, details in result.items():
-            count = details.get("created", 0)
-            errors = details.get("errors", 0)
+            if rtype == "summary" or not isinstance(details, dict):
+                continue
+            count = details.get("total_created", 0)
+            errors = details.get("total_errors", 0)
             if count > 0 or errors > 0:
                 status = f"{Colors.GREEN}{count} created{Colors.RESET}"
                 if errors:
@@ -157,8 +175,8 @@ def cmd_setup(args: argparse.Namespace) -> None:
                 print(f"  {rtype:12s}  {status}")
 
         print_header("Setup Summary")
-        total_created = sum(d.get("created", 0) for d in result.values())
-        total_errors = sum(d.get("errors", 0) for d in result.values())
+        total_created = summary.get("total_created", 0)
+        total_errors = summary.get("total_errors", 0)
 
         if args.dry_run:
             print_info("(DRY-RUN) No resources were actually created")
@@ -348,8 +366,14 @@ def cmd_simulate(args: argparse.Namespace) -> None:
         # Setup OTel (via environment)
         load_env_file(args.env)
 
+        # Get interval: prefer CLI arg, fall back to env var, then default
+        interval = args.interval
+        env_interval = os.getenv("EMIT_INTERVAL")
+        if env_interval and interval == 1.0:  # 1.0 is the argparse default
+            interval = float(env_interval)
+
         # Initialize simulator
-        print_info(f"Initializing simulator with {args.interval}s tick interval...")
+        print_info(f"Initializing simulator with {interval}s tick interval...")
         engine = SimulatorEngine(config)
 
         # Show fleet info
@@ -365,7 +389,7 @@ def cmd_simulate(args: argparse.Namespace) -> None:
         print()
 
         # Run simulator
-        engine.run(interval_sec=args.interval)
+        engine.run(interval_sec=interval)
 
     except ConfigError as e:
         print_error(f"Configuration error: {e}")
@@ -480,6 +504,11 @@ Examples:
         action="store_true",
         help="Show what would be done without doing it",
     )
+    setup_parser.add_argument(
+        "--clean",
+        action="store_true",
+        help="Tear down existing resources before deploying (idempotent rebuild)",
+    )
     setup_parser.set_defaults(func=cmd_setup)
 
     # 'teardown' command
@@ -524,7 +553,7 @@ Examples:
         "--interval",
         type=float,
         default=1.0,
-        help="Time between simulator ticks in seconds (default: 1.0)",
+        help="Time between simulator ticks in seconds (default: 1.0, or set EMIT_INTERVAL env var)",
     )
     simulate_parser.set_defaults(func=cmd_simulate)
 

@@ -4,7 +4,6 @@
   "layout_type": "ordered",
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
         "content": "# Global Financial Services Command Center\n### Real-time Operations & SLA Monitoring\n\nTrading Platform · Payment Systems · Fraud Detection · Risk Management · Compliance\n\nObserving **65+ infrastructure nodes** across **4 regions** · **3 environments** · **4 business units**",
@@ -23,14 +22,15 @@
       }
     },
     {
-      "id": 2,
       "definition": {
         "title": "Transaction Throughput (24h)",
         "type": "query_value",
         "requests": [
           {
             "formulas": [
-              {"formula": "query1"}
+              {
+                "formula": "query1"
+              }
             ],
             "queries": [
               {
@@ -55,14 +55,15 @@
       }
     },
     {
-      "id": 3,
       "definition": {
         "title": "Payment Success Rate",
         "type": "query_value",
         "requests": [
           {
             "formulas": [
-              {"formula": "query1 * 100"}
+              {
+                "formula": "query1 * 100"
+              }
             ],
             "queries": [
               {
@@ -88,14 +89,15 @@
       }
     },
     {
-      "id": 4,
       "definition": {
         "title": "Fraud Detection Alerts",
         "type": "query_value",
         "requests": [
           {
             "formulas": [
-              {"formula": "query1"}
+              {
+                "formula": "query1"
+              }
             ],
             "queries": [
               {
@@ -120,14 +122,15 @@
       }
     },
     {
-      "id": 5,
       "definition": {
         "title": "Trading Order Fill Rate",
         "type": "query_value",
         "requests": [
           {
             "formulas": [
-              {"formula": "query1 * 100"}
+              {
+                "formula": "query1 * 100"
+              }
             ],
             "queries": [
               {
@@ -153,14 +156,15 @@
       }
     },
     {
-      "id": 6,
       "definition": {
         "title": "ATM Fleet Uptime",
         "type": "query_value",
         "requests": [
           {
             "formulas": [
-              {"formula": "query1"}
+              {
+                "formula": "query1"
+              }
             ],
             "queries": [
               {
@@ -186,14 +190,15 @@
       }
     },
     {
-      "id": 7,
       "definition": {
         "title": "Online Banking Error Rate",
         "type": "query_value",
         "requests": [
           {
             "formulas": [
-              {"formula": "query1 * 100"}
+              {
+                "formula": "query1 * 100"
+              }
             ],
             "queries": [
               {
@@ -219,7 +224,6 @@
       }
     },
     {
-      "id": 8,
       "definition": {
         "title": "Payment Processing Latency (p99)",
         "type": "timeseries",
@@ -249,7 +253,6 @@
       }
     },
     {
-      "id": 9,
       "definition": {
         "title": "Fraud Detection Model Latency",
         "type": "timeseries",
@@ -279,7 +282,6 @@
       }
     },
     {
-      "id": 10,
       "definition": {
         "title": "Database Replication Lag",
         "type": "timeseries",
@@ -309,7 +311,6 @@
       }
     },
     {
-      "id": 11,
       "definition": {
         "title": "Trading Order Rejection Rate",
         "type": "timeseries",
@@ -339,7 +340,6 @@
       }
     },
     {
-      "id": 12,
       "definition": {
         "title": "Payment Gateway Decline Rate",
         "type": "timeseries",
@@ -369,7 +369,6 @@
       }
     },
     {
-      "id": 13,
       "definition": {
         "title": "Cache Hit Rate by Cluster",
         "type": "timeseries",
@@ -399,7 +398,6 @@
       }
     },
     {
-      "id": 14,
       "definition": {
         "title": "FIX Gateway Active Sessions",
         "type": "timeseries",
@@ -429,7 +427,6 @@
       }
     },
     {
-      "id": 15,
       "definition": {
         "title": "Market Data Feed Latency",
         "type": "timeseries",
@@ -459,7 +456,6 @@
       }
     },
     {
-      "id": 16,
       "definition": {
         "title": "Wire Transfer Settlement Time",
         "type": "timeseries",
@@ -489,7 +485,6 @@
       }
     },
     {
-      "id": 17,
       "definition": {
         "title": "Database Connection Pool Usage",
         "type": "timeseries",
@@ -519,7 +514,6 @@
       }
     },
     {
-      "id": 18,
       "definition": {
         "title": "Fraud Detection False Positive Rate",
         "type": "timeseries",
@@ -549,7 +543,6 @@
       }
     },
     {
-      "id": 19,
       "definition": {
         "title": "HSM Temperature & Key Slot Usage",
         "type": "timeseries",
@@ -584,7 +577,6 @@
       }
     },
     {
-      "id": 20,
       "definition": {
         "title": "Risk Engine VaR Calculations",
         "type": "timeseries",
@@ -614,7 +606,6 @@
       }
     },
     {
-      "id": 21,
       "definition": {
         "title": "Kafka Consumer Lag",
         "type": "timeseries",
@@ -644,7 +635,6 @@
       }
     },
     {
-      "id": 22,
       "definition": {
         "title": "WAF Blocked Request Rate",
         "type": "timeseries",
@@ -674,7 +664,6 @@
       }
     },
     {
-      "id": 23,
       "definition": {
         "title": "Mobile Banking API Error Rate",
         "type": "timeseries",
@@ -704,14 +693,12 @@
       }
     },
     {
-      "id": 24,
       "definition": {
         "title": "Service Dependencies & Status (by Business Unit)",
         "type": "group",
         "layout_type": "ordered",
         "widgets": [
           {
-            "id": 25,
             "definition": {
               "title": "Retail Banking Services",
               "type": "note",
@@ -728,7 +715,6 @@
             }
           },
           {
-            "id": 26,
             "definition": {
               "title": "Capital Markets Services",
               "type": "note",
@@ -758,17 +744,31 @@
     {
       "name": "region",
       "prefix": "region",
-      "available_values": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"]
+      "available_values": [
+        "us-east-1",
+        "us-west-2",
+        "eu-west-1",
+        "ap-southeast-1"
+      ]
     },
     {
       "name": "environment",
       "prefix": "environment",
-      "available_values": ["production", "staging", "dr-site"]
+      "available_values": [
+        "production",
+        "staging",
+        "dr-site"
+      ]
     },
     {
       "name": "business_unit",
       "prefix": "business_unit",
-      "available_values": ["Retail Banking", "Capital Markets", "Wealth Management", "Risk & Compliance"]
+      "available_values": [
+        "Retail Banking",
+        "Capital Markets",
+        "Wealth Management",
+        "Risk & Compliance"
+      ]
     }
   ]
 }

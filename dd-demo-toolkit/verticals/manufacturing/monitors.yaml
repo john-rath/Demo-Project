@@ -10,7 +10,7 @@
 
 monitors:
   - name: "[Manufacturing] Robot Arm Servo Error Spike"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.device.servo_error_count{device_type:robot_arm} by {device_id,plant,line} > 15"
     message: "Robot arm servo errors spiking on {{line}} at {{plant}}. Check joint temperatures and motor winding."
     tags:
@@ -21,7 +21,7 @@ monitors:
     priority: 2
 
   - name: "[Manufacturing] Robot Arm Joint Temperature High"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.device.joint_temperature_c{device_type:robot_arm} by {device_id,plant,line} > 75"
     message: "Robot arm joint temperature critical ({{value}}°C) on {{line}} at {{plant}}. Thermal shutdown imminent."
     tags:
@@ -32,7 +32,7 @@ monitors:
     priority: 2
 
   - name: "[Manufacturing] Robot Arm Cycle Time Degradation"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.device.cycle_time_ms{device_type:robot_arm} by {device_id,plant,line} > 5500"
     message: "Robot arm cycle time increased ({{value}}ms, baseline 5000ms) on {{line}} at {{plant}}. Impacts OEE."
     tags:
@@ -43,7 +43,7 @@ monitors:
     priority: 2
 
   - name: "[Manufacturing] PLC Cycle Time Deviation"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.device.cycle_time_ms{device_type:plc_controller} by {device_id,plant,line} > 350"
     message: "PLC cycle time deviation on {{line}} at {{plant}}. Indicates synchronization issues with downstream equipment."
     tags:
@@ -53,7 +53,7 @@ monitors:
     priority: 2
 
   - name: "[Manufacturing] CNC Tool Wear Critical"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.device.tool_wear_pct{device_type:cnc_machine} by {device_id,plant,line} > 85"
     message: "CNC tool wear critical ({{value}}%) on {{line}} at {{plant}}. Preventive maintenance required."
     tags:
@@ -63,7 +63,7 @@ monitors:
     priority: 2
 
   - name: "[Manufacturing] Conveyor Jam Events"
-    type: metric_alert
+    type: "query alert"
     query: "sum(last_5m):sum:mfg.device.jam_events{device_type:conveyor_system} by {device_id,plant,line} > 3"
     message: "🚨 Conveyor jam detected on {{line}} at {{plant}}. Check part accumulation and belt tension."
     tags:
@@ -74,7 +74,7 @@ monitors:
     priority: 1
 
   - name: "[Manufacturing] Quality Defect Rate Above Threshold"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.device.defect_rate_ppm{device_type:vision_inspector} by {device_id,plant,line} > 100"
     message: "❌ Defect rate elevated ({{value}} PPM) on {{line}} at {{plant}}. SLA target: <50 PPM. Investigate root cause."
     tags:
@@ -85,7 +85,7 @@ monitors:
     priority: 1
 
   - name: "[Manufacturing] Cleanroom Particle Count Violation"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.device.particle_count_per_m3{device_type:cleanroom_controller} > 3500"
     message: "🧬 Cleanroom particle count above Class 7 limit ({{value}}/m³). Check HEPA filters and differential pressure."
     tags:
@@ -96,7 +96,7 @@ monitors:
     priority: 1
 
   - name: "[Manufacturing] AGV Fleet Battery Critical"
-    type: metric_alert
+    type: "query alert"
     query: "min(last_5m):min:mfg.device.battery_pct{device_type:agv} by {device_id,plant} < 15"
     message: "🔋 AGV battery critical ({{value}}%) on {{plant}}. Dispatch to charging station."
     tags:
@@ -106,7 +106,7 @@ monitors:
     priority: 2
 
   - name: "[Manufacturing] Press Machine Alignment Drift"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.device.alignment_offset_mm{device_type:press_machine} by {device_id,plant,line} > 0.5"
     message: "📐 Press machine alignment drift exceeds tolerance on {{line}} at {{plant}}. Calibration required."
     tags:
@@ -116,7 +116,7 @@ monitors:
     priority: 2
 
   - name: "[Manufacturing] Energy Consumption Anomaly"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.device.energy_kwh{device_type:hvac_unit} by {device_id,plant} > 150"
     message: "⚡ HVAC energy consumption anomaly ({{value}} kWh) on {{plant}}. Check filter clogging and ductwork."
     tags:
@@ -126,7 +126,7 @@ monitors:
     priority: 2
 
   - name: "[Manufacturing] Predictive Maintenance RUL Alert"
-    type: metric_alert
+    type: "query alert"
     query: "avg(last_5m):avg:mfg.predictive_maintenance.estimated_rul_hours{device_type:cnc_machine} by {device_id,plant,line} < 72"
     message: "🔮 CNC machine estimated RUL <72 hours on {{line}} at {{plant}}. Schedule preventive maintenance."
     tags:

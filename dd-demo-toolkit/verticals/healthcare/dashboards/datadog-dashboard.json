@@ -1,12 +1,11 @@
 {
-  "title": "Sensing Hospital \u2014 AdventHealth Device Command Center",
+  "title": "Sensing Hospital — AdventHealth Device Command Center",
   "description": "Real-time observability across all hospital IoT devices, network infrastructure, environmental sensors, and asset tracking systems.",
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
-        "content": "# AdventHealth Sensing Hospital\n### Real-time Device Observability Command Center\n\nMonitoring **Medical IoT** \u00b7 **Network Infrastructure** \u00b7 **Environmental Sensors** \u00b7 **Asset Tracking**\n\nAll telemetry streamed via OpenTelemetry \u2192 Datadog",
+        "content": "# AdventHealth Sensing Hospital\n### Real-time Device Observability Command Center\n\nMonitoring **Medical IoT** · **Network Infrastructure** · **Environmental Sensors** · **Asset Tracking**\n\nAll telemetry streamed via OpenTelemetry → Datadog",
         "background_color": "vivid_blue",
         "font_size": "14",
         "text_align": "center",
@@ -24,7 +23,6 @@
       }
     },
     {
-      "id": 2,
       "definition": {
         "title": "Total Devices Online",
         "type": "query_value",
@@ -58,7 +56,6 @@
       }
     },
     {
-      "id": 3,
       "definition": {
         "title": "Medical IoT Devices",
         "type": "query_value",
@@ -92,7 +89,6 @@
       }
     },
     {
-      "id": 4,
       "definition": {
         "title": "Network Devices",
         "type": "query_value",
@@ -125,7 +121,6 @@
       }
     },
     {
-      "id": 5,
       "definition": {
         "title": "Environmental + RTLS",
         "type": "query_value",
@@ -164,7 +159,6 @@
       }
     },
     {
-      "id": 6,
       "definition": {
         "title": "Active Alerts",
         "type": "query_value",
@@ -198,7 +192,6 @@
       }
     },
     {
-      "id": 7,
       "definition": {
         "title": "Alerts by Severity",
         "type": "sunburst",
@@ -229,7 +222,6 @@
       }
     },
     {
-      "id": 8,
       "definition": {
         "title": "Devices with Active Alerts",
         "type": "toplist",
@@ -264,10 +256,9 @@
       }
     },
     {
-      "id": 10,
       "definition": {
         "type": "note",
-        "content": "## \ud83d\udce1 Medical IoT Fleet",
+        "content": "## 📡 Medical IoT Fleet",
         "background_color": "blue",
         "font_size": "16",
         "text_align": "left",
@@ -283,7 +274,6 @@
       }
     },
     {
-      "id": 11,
       "definition": {
         "title": "Medical Device CPU Usage by Type",
         "type": "timeseries",
@@ -318,7 +308,6 @@
       }
     },
     {
-      "id": 12,
       "definition": {
         "title": "Medical Device Battery Levels",
         "type": "timeseries",
@@ -365,7 +354,6 @@
       }
     },
     {
-      "id": 13,
       "definition": {
         "title": "Medical Device Temperature",
         "type": "timeseries",
@@ -403,7 +391,6 @@
       }
     },
     {
-      "id": 14,
       "definition": {
         "title": "Medical Device Memory Usage",
         "type": "timeseries",
@@ -438,10 +425,9 @@
       }
     },
     {
-      "id": 20,
       "definition": {
         "type": "note",
-        "content": "## \ud83c\udf10 Network Infrastructure",
+        "content": "## 🌐 Network Infrastructure",
         "background_color": "green",
         "font_size": "16",
         "text_align": "left",
@@ -457,7 +443,6 @@
       }
     },
     {
-      "id": 21,
       "definition": {
         "title": "Network Throughput (Mbps) by Device",
         "type": "timeseries",
@@ -488,7 +473,6 @@
       }
     },
     {
-      "id": 22,
       "definition": {
         "title": "Connected Clients per AP/Switch",
         "type": "timeseries",
@@ -519,7 +503,6 @@
       }
     },
     {
-      "id": 23,
       "definition": {
         "title": "Network Latency (ms)",
         "type": "timeseries",
@@ -557,7 +540,6 @@
       }
     },
     {
-      "id": 24,
       "definition": {
         "title": "Packet Loss (%)",
         "type": "timeseries",
@@ -595,10 +577,9 @@
       }
     },
     {
-      "id": 30,
       "definition": {
         "type": "note",
-        "content": "## \ud83c\udf21\ufe0f Environmental Monitoring",
+        "content": "## 🌡️ Environmental Monitoring",
         "background_color": "orange",
         "font_size": "16",
         "text_align": "left",
@@ -614,9 +595,8 @@
       }
     },
     {
-      "id": 31,
       "definition": {
-        "title": "Room Temperature (\u00b0F) by Floor",
+        "title": "Room Temperature (°F) by Floor",
         "type": "timeseries",
         "requests": [
           {
@@ -655,7 +635,6 @@
       }
     },
     {
-      "id": 32,
       "definition": {
         "title": "Humidity (%) by Floor",
         "type": "timeseries",
@@ -686,7 +665,6 @@
       }
     },
     {
-      "id": 33,
       "definition": {
         "title": "Air Quality Index by Floor",
         "type": "timeseries",
@@ -729,7 +707,6 @@
       }
     },
     {
-      "id": 34,
       "definition": {
         "title": "Total Room Occupancy by Floor & Wing",
         "type": "timeseries",
@@ -763,10 +740,9 @@
       }
     },
     {
-      "id": 40,
       "definition": {
         "type": "note",
-        "content": "## \ud83d\udccd Asset Tracking (RTLS)",
+        "content": "## 📍 Asset Tracking (RTLS)",
         "background_color": "purple",
         "font_size": "16",
         "text_align": "left",
@@ -782,7 +758,6 @@
       }
     },
     {
-      "id": 41,
       "definition": {
         "title": "RTLS Tag Signal Strength by Floor",
         "type": "timeseries",
@@ -813,7 +788,6 @@
       }
     },
     {
-      "id": 42,
       "definition": {
         "title": "RTLS / Beacon Battery Levels",
         "type": "timeseries",
@@ -855,10 +829,9 @@
       }
     },
     {
-      "id": 50,
       "definition": {
         "type": "note",
-        "content": "## \ud83d\udd0d Device Fleet Inventory",
+        "content": "## 🔍 Device Fleet Inventory",
         "background_color": "gray",
         "font_size": "16",
         "text_align": "left",
@@ -874,7 +847,6 @@
       }
     },
     {
-      "id": 51,
       "definition": {
         "title": "Devices by Category",
         "type": "sunburst",
@@ -905,7 +877,6 @@
       }
     },
     {
-      "id": 52,
       "definition": {
         "title": "Devices by Floor & Wing",
         "type": "treemap",
@@ -936,7 +907,6 @@
       }
     },
     {
-      "id": 53,
       "definition": {
         "title": "Device Uptime Distribution by Manufacturer",
         "type": "toplist",
@@ -971,7 +941,6 @@
       }
     },
     {
-      "id": 54,
       "definition": {
         "title": "Firmware Version Distribution",
         "type": "toplist",
@@ -1006,10 +975,9 @@
       }
     },
     {
-      "id": 60,
       "definition": {
         "type": "note",
-        "content": "## Hospital Application Services (Traced)\n\nThese services have full Datadog agents installed. View the live **Service Map** at **APM \u2192 Service Map** to see dependencies between these systems.",
+        "content": "## Hospital Application Services (Traced)\n\nThese services have full Datadog agents installed. View the live **Service Map** at **APM → Service Map** to see dependencies between these systems.",
         "background_color": "yellow",
         "font_size": "16",
         "text_align": "left",
@@ -1025,7 +993,6 @@
       }
     },
     {
-      "id": 61,
       "definition": {
         "title": "Request Rate by Service",
         "type": "timeseries",
@@ -1056,7 +1023,6 @@
       }
     },
     {
-      "id": 62,
       "definition": {
         "title": "Error Rate by Service",
         "type": "timeseries",
@@ -1087,7 +1053,6 @@
       }
     },
     {
-      "id": 63,
       "definition": {
         "title": "Request Latency by Service (avg / max)",
         "type": "timeseries",
@@ -1128,7 +1093,6 @@
       }
     },
     {
-      "id": 64,
       "definition": {
         "title": "Active Connections by Service",
         "type": "timeseries",
@@ -1159,7 +1123,6 @@
       }
     },
     {
-      "id": 65,
       "definition": {
         "title": "App Host CPU by Service",
         "type": "timeseries",
@@ -1194,7 +1157,6 @@
       }
     },
     {
-      "id": 66,
       "definition": {
         "title": "App Host Memory by Service",
         "type": "timeseries",
@@ -1229,7 +1191,6 @@
       }
     },
     {
-      "id": 67,
       "definition": {
         "title": "Message Queue Depth by Service",
         "type": "timeseries",

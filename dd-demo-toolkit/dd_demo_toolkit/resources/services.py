@@ -103,9 +103,8 @@ class ServiceCatalogManager:
                     result["created_names"].append(service_name)
                     result["total_created"] += 1
                 else:
-                    # Convert payload to YAML for service registration
-                    yaml_payload = yaml.dump(payload, default_flow_style=False)
-                    response = api_client.register_service(yaml_payload)
+                    # Register service via JSON API v2
+                    response = api_client.register_service(payload)
 
                     # Extract service name from response or payload
                     service_name = payload.get("info", {}).get("dd-service", f"service-{idx}")
@@ -156,49 +155,46 @@ class ServiceCatalogManager:
         Raises:
             KeyError: If required fields are missing.
         """
-        # Validate required fields
-        required = ["dd-service"]
-        for field in required:
-            if field not in config:
-                raise KeyError(f"Required field '{field}' missing")
+        # Accept either "dd-service" or "name" as the service identifier
+        service_name = config.get("dd-service") or config.get("name")
+        if not service_name:
+            raise KeyError("Required field 'dd-service' missing")
 
-        # Build base service definition structure
-        # Following Datadog service definition schema v2.1
-        payload = {
-            "schema-version": "v2.2",
-        }
+        # Build service definition following Datadog schema v2.2
+        # The v2 API expects the full definition as a JSON object
+        dd_team = config.get("owner") or config.get("team", "")
+        display_name = config.get("display-name") or config.get("display_name", "")
+        description = config.get("description", "")
 
-        # Create info section with service name and optional fields
-        info = {
-            "dd-service": config["dd-service"],
-        }
-
-        if "display-name" in config:
-            info["display-name"] = config["display-name"]
-        if "description" in config:
-            info["description"] = config["description"]
-        if "owner" in config:
-            info["owner"] = config["owner"]
-
-        payload["info"] = info
-
-        # Add tags - injecting vertical and toolkit tags
+        # Build tags
         tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []
         tags.append(f"vertical:{vertical_name}")
         tags.append("dd-demo-toolkit:true")
-
         if additional_tags:
             for key, value in additional_tags.items():
                 tags.append(f"{key}:{value}")
+        tags = list(dict.fromkeys(tags))  # Deduplicate
 
-        if tags:
-            payload["tags"] = tags
+        # Service Definition v2.2 schema
+        payload = {
+            "schema-version": "v2.2",
+            "dd-service": service_name,
+            "team": dd_team,
+            "tags": tags,
+        }
 
-        # Copy over any other fields from config
-        excluded_fields = {"dd-service", "display-name", "description", "owner", "tags"}
-        for key, value in config.items():
-            if key not in excluded_fields:
-                payload[key] = value
+        if display_name:
+            payload["display-name"] = display_name
+        if description:
+            payload["description"] = description
+
+        # Add optional metadata
+        languages = config.get("languages", [])
+        if languages:
+            payload["languages"] = languages
+        tier = config.get("tier")
+        if tier:
+            payload["tier"] = tier
 
         return payload
 

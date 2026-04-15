@@ -78,18 +78,23 @@ class DashboardManager:
                 with open(json_file, "r") as f:
                     payload = json.load(f)
 
-                # Inject tags
+                # Inject tags using only allowed tag keys.
+                # Many Datadog orgs restrict tag keys (e.g. only "team" and "ai").
+                # We use "team" as a safe namespace for our identification tags.
                 if "tags" not in payload:
                     payload["tags"] = []
                 if not isinstance(payload["tags"], list):
                     payload["tags"] = []
 
-                payload["tags"].append(f"vertical:{vertical_name}")
-                payload["tags"].append("dd-demo-toolkit:true")
+                # Add identification tags using allowed key format
+                payload["tags"].append(f"team:dd-demo-{vertical_name}")
 
                 if tags:
                     for key, value in tags.items():
                         payload["tags"].append(f"{key}:{value}")
+
+                # Deduplicate tags
+                payload["tags"] = list(dict.fromkeys(payload["tags"]))
 
                 if dry_run:
                     logger.info(f"[DRY RUN] Would create dashboard from {json_file.name}")
@@ -177,7 +182,7 @@ class DashboardManager:
             return result
 
         # Filter by vertical tag
-        target_tag = f"vertical:{vertical_name}"
+        target_tag = f"team:dd-demo-{vertical_name}"
         dashboards_to_delete = [
             d for d in dashboard_list
             if target_tag in d.get("tags", [])
@@ -245,7 +250,7 @@ class DashboardManager:
             logger.error(result["error"])
             return result
 
-        target_tag = f"vertical:{vertical_name}"
+        target_tag = f"team:dd-demo-{vertical_name}"
         deployed = [
             d for d in dashboard_list
             if target_tag in d.get("tags", [])

@@ -1,9 +1,8 @@
 {
-  "title": "Network & Clinical Engineering \u2014 AdventHealth",
+  "title": "Network & Clinical Engineering — AdventHealth",
   "description": "IT & Biomed Leadership: Wireless coverage, switch health, device connectivity, signal quality across the hospital.",
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
         "content": "# Network & Clinical Engineering\nWireless coverage, infrastructure health, and clinical device connectivity across all floors.",
@@ -22,7 +21,6 @@
       }
     },
     {
-      "id": 2,
       "definition": {
         "title": "APs Online",
         "type": "query_value",
@@ -54,7 +52,6 @@
       }
     },
     {
-      "id": 3,
       "definition": {
         "title": "Switches Online",
         "type": "query_value",
@@ -86,7 +83,6 @@
       }
     },
     {
-      "id": 4,
       "definition": {
         "title": "Total Connected Clients",
         "type": "query_value",
@@ -119,7 +115,6 @@
       }
     },
     {
-      "id": 5,
       "definition": {
         "title": "Avg Latency (ms)",
         "type": "query_value",
@@ -152,7 +147,6 @@
       }
     },
     {
-      "id": 6,
       "definition": {
         "title": "Avg Packet Loss %",
         "type": "query_value",
@@ -185,7 +179,6 @@
       }
     },
     {
-      "id": 7,
       "definition": {
         "title": "Auth Failures",
         "type": "query_value",
@@ -218,7 +211,6 @@
       }
     },
     {
-      "id": 10,
       "definition": {
         "type": "note",
         "content": "## Wireless Coverage & Quality",
@@ -237,7 +229,6 @@
       }
     },
     {
-      "id": 11,
       "definition": {
         "title": "Connected Clients by Floor & AP",
         "type": "timeseries",
@@ -268,7 +259,6 @@
       }
     },
     {
-      "id": 12,
       "definition": {
         "title": "Channel Utilization by Floor",
         "type": "timeseries",
@@ -315,7 +305,6 @@
       }
     },
     {
-      "id": 13,
       "definition": {
         "title": "Signal Strength by Floor (dBm)",
         "type": "timeseries",
@@ -358,7 +347,6 @@
       }
     },
     {
-      "id": 14,
       "definition": {
         "title": "Noise Floor (dBm) by Floor",
         "type": "timeseries",
@@ -389,7 +377,6 @@
       }
     },
     {
-      "id": 20,
       "definition": {
         "type": "note",
         "content": "## Network Performance",
@@ -408,7 +395,6 @@
       }
     },
     {
-      "id": 21,
       "definition": {
         "title": "Throughput (Mbps) by Device Type",
         "type": "timeseries",
@@ -439,7 +425,6 @@
       }
     },
     {
-      "id": 22,
       "definition": {
         "title": "Packet Loss by Floor",
         "type": "timeseries",
@@ -481,7 +466,6 @@
       }
     },
     {
-      "id": 23,
       "definition": {
         "title": "Latency by Floor",
         "type": "timeseries",
@@ -523,7 +507,6 @@
       }
     },
     {
-      "id": 24,
       "definition": {
         "title": "Retransmission Rate by Floor",
         "type": "timeseries",
@@ -565,7 +548,6 @@
       }
     },
     {
-      "id": 30,
       "definition": {
         "type": "note",
         "content": "## Infrastructure Health",
@@ -584,7 +566,6 @@
       }
     },
     {
-      "id": 31,
       "definition": {
         "title": "Network Device CPU by Type",
         "type": "timeseries",
@@ -619,7 +600,6 @@
       }
     },
     {
-      "id": 32,
       "definition": {
         "title": "Network Device Temperature",
         "type": "timeseries",

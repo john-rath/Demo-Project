@@ -8,14 +8,14 @@ notebooks:
 
   - id: "executive-report-30day"
     name: "Executive Report: Hospital IT System Health"
-    type: executive_report
+    type: report
     description: "30-day health summary for hospital leadership. SLO compliance, device uptime, service health, notable incidents, recommendations."
     time_range: "30d"
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "audience:executive"]
 
   - id: "workflow-alert-triage"
     name: "⚙️ Workflow: Device Alert Triage & Escalation"
-    type: workflow
+    type: runbook
     description: "Alert classification and PagerDuty routing automation. Triage logic, escalation policies, Slack notifications."
     time_range: "6h"
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "workflow:alert-management"]

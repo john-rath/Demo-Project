@@ -115,6 +115,17 @@ class DatadogAPIClient:
             response.raise_for_status()
             return response.json() if response.text else {}
 
+        except requests.exceptions.HTTPError as e:
+            # Capture the response body for debugging 400/422 errors
+            body = ""
+            if e.response is not None:
+                try:
+                    body = e.response.text[:1000]  # Limit to 1000 chars
+                except Exception:
+                    pass
+            raise RuntimeError(
+                f"Datadog API request failed ({method} {endpoint}): {e.response.status_code if e.response is not None else 'N/A'} - {body or str(e)}"
+            )
         except requests.exceptions.RequestException as e:
             raise RuntimeError(f"Datadog API request failed ({method} {endpoint}): {str(e)}")
 
@@ -247,29 +258,20 @@ class DatadogAPIClient:
         """
         return self._request("DELETE", f"/api/v1/slo/{slo_id}")
 
-    def register_service(self, yaml_payload: str) -> Dict[str, Any]:
+    def register_service(self, json_payload: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Register a service in the Datadog catalog (Service Definition).
+        Register a service in the Datadog catalog (Service Definition API v2).
 
         Args:
-            yaml_payload: Service definition in YAML format.
+            json_payload: Service definition as a dict (JSON payload).
 
         Returns:
             API response.
 
         Note:
-            This uses the service definitions API endpoint.
+            Uses the v2 service definitions endpoint with JSON content type.
         """
-        # Service definitions are typically submitted as YAML via a specific endpoint
-        headers = self.headers.copy()
-        headers["Content-Type"] = "application/yaml"
-        url = f"{self.base_url}/api/v1/service_definitions"
-        try:
-            response = requests.post(url, headers=headers, data=yaml_payload, timeout=10)
-            response.raise_for_status()
-            return response.json() if response.text else {}
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Failed to register service: {str(e)}")
+        return self._request("POST", "/api/v2/services/definitions", json_data=json_payload)
 
     # ===== Workflow Automation API =====
 

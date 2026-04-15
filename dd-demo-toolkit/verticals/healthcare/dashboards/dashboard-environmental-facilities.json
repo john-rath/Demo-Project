@@ -1,9 +1,8 @@
 {
-  "title": "Environmental & Facilities \u2014 AdventHealth",
+  "title": "Environmental & Facilities — AdventHealth",
   "description": "Facilities & Compliance: HVAC compliance, air quality, power systems, regulatory monitoring.",
   "widgets": [
     {
-      "id": 1,
       "definition": {
         "type": "note",
         "content": "# Environmental & Facilities Management\nHVAC compliance, OR air quality, power systems, and regulatory monitoring across the hospital.",
@@ -22,7 +21,6 @@
       }
     },
     {
-      "id": 2,
       "definition": {
         "title": "Sensors Online",
         "type": "query_value",
@@ -54,9 +52,8 @@
       }
     },
     {
-      "id": 3,
       "definition": {
-        "title": "Avg Room Temp (\u00b0F)",
+        "title": "Avg Room Temp (°F)",
         "type": "query_value",
         "requests": [
           {
@@ -87,7 +84,6 @@
       }
     },
     {
-      "id": 4,
       "definition": {
         "title": "Avg AQI",
         "type": "query_value",
@@ -120,7 +116,6 @@
       }
     },
     {
-      "id": 5,
       "definition": {
         "title": "Water Leaks Detected",
         "type": "query_value",
@@ -153,7 +148,6 @@
       }
     },
     {
-      "id": 10,
       "definition": {
         "type": "note",
         "content": "## HVAC & Temperature Compliance",
@@ -172,7 +166,6 @@
       }
     },
     {
-      "id": 11,
       "definition": {
         "title": "Room Temperature by Floor",
         "type": "timeseries",
@@ -215,9 +208,8 @@
       }
     },
     {
-      "id": 12,
       "definition": {
-        "title": "HVAC Setpoint Deviation (\u00b0F) by Floor",
+        "title": "HVAC Setpoint Deviation (°F) by Floor",
         "type": "timeseries",
         "requests": [
           {
@@ -241,12 +233,12 @@
           {
             "value": "y = 2",
             "display_type": "warning dashed",
-            "label": "+2\u00b0F"
+            "label": "+2°F"
           },
           {
             "value": "y = -2",
             "display_type": "warning dashed",
-            "label": "-2\u00b0F"
+            "label": "-2°F"
           }
         ]
       },
@@ -258,7 +250,6 @@
       }
     },
     {
-      "id": 13,
       "definition": {
         "title": "Humidity by Floor",
         "type": "timeseries",
@@ -301,7 +292,6 @@
       }
     },
     {
-      "id": 14,
       "definition": {
         "title": "CO2 Levels (ppm) by Floor",
         "type": "timeseries",
@@ -344,7 +334,6 @@
       }
     },
     {
-      "id": 20,
       "definition": {
         "type": "note",
         "content": "## Air Quality & OR Compliance",
@@ -363,7 +352,6 @@
       }
     },
     {
-      "id": 21,
       "definition": {
         "title": "Air Quality Index by Floor",
         "type": "timeseries",
@@ -406,7 +394,6 @@
       }
     },
     {
-      "id": 22,
       "definition": {
         "title": "OR Differential Pressure (Pa)",
         "type": "timeseries",
@@ -449,7 +436,6 @@
       }
     },
     {
-      "id": 30,
       "definition": {
         "type": "note",
         "content": "## Power & Backup Systems",
@@ -468,7 +454,6 @@
       }
     },
     {
-      "id": 31,
       "definition": {
         "title": "UPS Load (%)",
         "type": "timeseries",
@@ -515,7 +500,6 @@
       }
     },
     {
-      "id": 32,
       "definition": {
         "title": "UPS Runtime Remaining (min)",
         "type": "timeseries",
@@ -558,7 +542,6 @@
       }
     },
     {
-      "id": 33,
       "definition": {
         "title": "Generator Fuel Level (%)",
         "type": "timeseries",
