@@ -467,7 +467,7 @@ class SimulatorEngine:
         ) as child_span:
             child_span.set_attribute("service.name", dependency.service)
             child_span.set_attribute("operation", dependency.operation)
-            child_span.set_attribute("parent_service", parent_span.get_span_context())
+            child_span.set_attribute("parent_service", parent_span.attributes.get("service.name", "unknown"))
 
     def run(self, interval_sec: float = 1.0) -> None:
         """

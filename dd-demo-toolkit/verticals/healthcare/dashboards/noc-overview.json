@@ -49,7 +49,8 @@
               ],
               "autoscale": true,
               "precision": 0
-            }
+            },
+            "layout": { "x": 0, "y": 0, "width": 3, "height": 2 }
           },
           {
             "definition": {
@@ -74,7 +75,8 @@
               ],
               "autoscale": true,
               "precision": 0
-            }
+            },
+            "layout": { "x": 3, "y": 0, "width": 3, "height": 2 }
           },
           {
             "definition": {
@@ -99,7 +101,8 @@
               ],
               "autoscale": true,
               "precision": 0
-            }
+            },
+            "layout": { "x": 6, "y": 0, "width": 3, "height": 2 }
           },
           {
             "definition": {
@@ -124,7 +127,8 @@
               ],
               "autoscale": true,
               "precision": 0
-            }
+            },
+            "layout": { "x": 9, "y": 0, "width": 3, "height": 2 }
           }
         ]
       },
@@ -188,7 +192,8 @@
                   "color": "vivid_red"
                 }
               ]
-            }
+            },
+            "layout": { "x": 0, "y": 0, "width": 6, "height": 2 }
           },
           {
             "definition": {
@@ -211,7 +216,8 @@
                   "response_format": "scalar"
                 }
               ]
-            }
+            },
+            "layout": { "x": 0, "y": 2, "width": 6, "height": 2 }
           },
           {
             "definition": {
@@ -249,7 +255,8 @@
                   "type": "numbers"
                 }
               }
-            }
+            },
+            "layout": { "x": 0, "y": 4, "width": 6, "height": 1 }
           }
         ]
       },
@@ -325,7 +332,8 @@
                   "link": "?var-floor={{floor}}&var-wing={{wing}}"
                 }
               ]
-            }
+            },
+            "layout": { "x": 0, "y": 0, "width": 6, "height": 2 }
           },
           {
             "definition": {
@@ -348,7 +356,8 @@
                   "response_format": "scalar"
                 }
               ]
-            }
+            },
+            "layout": { "x": 0, "y": 2, "width": 6, "height": 2 }
           },
           {
             "definition": {
@@ -397,7 +406,8 @@
                   "color": "vivid_red"
                 }
               ]
-            }
+            },
+            "layout": { "x": 0, "y": 4, "width": 6, "height": 1 }
           }
         ]
       },
