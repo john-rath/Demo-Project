@@ -235,7 +235,11 @@ class ServiceCatalogManager:
         )
 
         # For now, log that teardown was requested but cannot be fully automated
-        logger.info(f"Service teardown requested for vertical '{vertical_name}'")
+        scope_label = (
+            "all toolkit-managed verticals" if vertical_name is None
+            else f"vertical '{vertical_name}'"
+        )
+        logger.info(f"Service teardown requested for {scope_label}")
         logger.info(
             "Note: Service Catalog deregistration may require manual intervention "
             "or future API updates."

@@ -154,15 +154,17 @@ class DashboardManager:
     def teardown(
         self,
         api_client: DatadogAPIClient,
-        vertical_name: str,
+        vertical_name: Optional[str],
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
-        Delete all dashboards tagged with a vertical.
+        Delete dashboards marked as toolkit-managed.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Name of the vertical to clean up.
+            vertical_name: Name of the vertical to clean up. If ``None``, every
+                dashboard whose description contains the ``[dd-demo-toolkit:``
+                marker is deleted regardless of vertical (orphan-sweep mode).
             dry_run: If True, skip API calls and return what would be deleted.
 
         Returns:
@@ -189,18 +191,23 @@ class DashboardManager:
             logger.error(error_msg)
             return result
 
-        # Filter by toolkit marker in description.
         # NOTE: The list-dashboards API does NOT return tags, so we use the
-        # description marker injected during deploy instead.
-        marker = f"[dd-demo-toolkit:{vertical_name}]"
+        # description marker injected during deploy instead. The vertical-
+        # specific form is "[dd-demo-toolkit:<vertical>]"; for all-verticals
+        # sweeps we match the common prefix "[dd-demo-toolkit:".
+        if vertical_name is None:
+            marker = "[dd-demo-toolkit:"
+            scope_label = "all toolkit-managed verticals"
+        else:
+            marker = f"[dd-demo-toolkit:{vertical_name}]"
+            scope_label = f"vertical '{vertical_name}'"
         dashboards_to_delete = [
             d for d in dashboard_list
             if marker in (d.get("description") or "")
         ]
 
         logger.info(
-            f"Found {len(dashboards_to_delete)} dashboard(s) to delete for "
-            f"vertical '{vertical_name}'"
+            f"Found {len(dashboards_to_delete)} dashboard(s) to delete for {scope_label}"
         )
 
         for dashboard in dashboards_to_delete:

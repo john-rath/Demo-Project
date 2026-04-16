@@ -238,7 +238,7 @@ class ResourceManager:
 
     def teardown_all(
         self,
-        vertical_name: str,
+        vertical_name: Optional[str],
         api_client: DatadogAPIClient,
         dry_run: bool = False,
     ) -> Dict[str, Any]:
@@ -246,7 +246,9 @@ class ResourceManager:
         Tear down all resources for a vertical.
 
         Args:
-            vertical_name: Name of the vertical to clean up.
+            vertical_name: Name of the vertical to clean up, or ``None`` for
+                an all-verticals sweep that deletes every toolkit-managed
+                resource.
             api_client: Datadog API client instance.
             dry_run: If True, skip API calls.
 
@@ -262,7 +264,8 @@ class ResourceManager:
                 }
             }
         """
-        logger.info(f"Starting full teardown for vertical '{vertical_name}'")
+        scope = vertical_name if vertical_name is not None else "<all toolkit verticals>"
+        logger.info(f"Starting full teardown for vertical '{scope}'")
 
         return self.teardown_selected(
             vertical_name,
@@ -273,7 +276,7 @@ class ResourceManager:
 
     def teardown_selected(
         self,
-        vertical_name: str,
+        vertical_name: Optional[str],
         api_client: DatadogAPIClient,
         resource_types: List[str],
         dry_run: bool = False,
@@ -282,7 +285,9 @@ class ResourceManager:
         Tear down selected resource types for a vertical.
 
         Args:
-            vertical_name: Name of the vertical to clean up.
+            vertical_name: Name of the vertical to clean up, or ``None`` to
+                sweep every toolkit-managed resource across all verticals
+                (orphan-sweep mode).
             api_client: Datadog API client instance.
             resource_types: List of resource types to tear down.
             dry_run: If True, skip API calls.
@@ -299,8 +304,9 @@ class ResourceManager:
                 }
             }
         """
+        scope = vertical_name if vertical_name is not None else "<all toolkit verticals>"
         logger.info(
-            f"Starting selective teardown for vertical '{vertical_name}': "
+            f"Starting selective teardown for vertical '{scope}': "
             f"{', '.join(resource_types)}"
         )
 
@@ -351,8 +357,8 @@ class ResourceManager:
         }
 
         logger.info(
-            f"Selective teardown complete: {total_deleted} resources deleted, "
-            f"{total_errors} errors"
+            f"Selective teardown complete for '{scope}': "
+            f"{total_deleted} resources deleted, {total_errors} errors"
         )
 
         return results

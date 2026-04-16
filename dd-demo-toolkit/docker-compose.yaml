@@ -49,3 +49,39 @@ services:
     restart: "no"
     profiles:
       - setup
+
+  # Single-vertical teardown. Targets the vertical in DD_DEMO_VERTICAL
+  # (defaults to "healthcare"). Equivalent of:
+  #   dd-demo teardown --vertical <vertical> --force
+  teardown:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dd-demo-teardown
+    command: ["dd-demo", "teardown", "--vertical", "${DD_DEMO_VERTICAL:-healthcare}", "--force"]
+    env_file:
+      - .env
+    environment:
+      - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-healthcare}
+      - PYTHONUNBUFFERED=1
+    restart: "no"
+    profiles:
+      - teardown
+
+  # Nuke-everything sweep. Deletes every resource tagged
+  # "dd-demo-toolkit:true" across ALL verticals, including orphans from
+  # renamed/removed verticals. Equivalent of:
+  #   dd-demo teardown --all-verticals --force
+  teardown-all:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dd-demo-teardown-all
+    command: ["dd-demo", "teardown", "--all-verticals", "--force"]
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: "no"
+    profiles:
+      - teardown-all

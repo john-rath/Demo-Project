@@ -246,15 +246,17 @@ class WorkflowManager:
     def teardown(
         self,
         api_client: DatadogAPIClient,
-        vertical_name: str,
+        vertical_name: Optional[str],
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
-        Delete all workflows tagged with a vertical.
+        Delete workflows tagged by the toolkit.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Name of the vertical to clean up.
+            vertical_name: Name of the vertical to clean up. If ``None``, every
+                workflow tagged ``dd-demo-toolkit:true`` is deleted regardless
+                of vertical (orphan-sweep mode).
             dry_run: If True, skip API calls and return what would be deleted.
 
         Returns:
@@ -274,7 +276,12 @@ class WorkflowManager:
         }
 
         try:
-            tag_filter = f"vertical:{vertical_name}"
+            if vertical_name is None:
+                tag_filter = "dd-demo-toolkit:true"
+                scope_label = "all toolkit-managed verticals"
+            else:
+                tag_filter = f"vertical:{vertical_name}"
+                scope_label = f"vertical '{vertical_name}'"
             response = api_client.list_workflows(tag_filter=tag_filter)
             workflows = response.get("data", [])
         except RuntimeError as e:
@@ -285,7 +292,7 @@ class WorkflowManager:
             return result
 
         logger.info(
-            f"Found {len(workflows)} workflow(s) to delete for vertical '{vertical_name}'"
+            f"Found {len(workflows)} workflow(s) to delete for {scope_label}"
         )
 
         for workflow in workflows:

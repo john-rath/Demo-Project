@@ -51,6 +51,34 @@ docker compose --profile setup up setup
 
 Metrics and logs will begin flowing to Datadog within 30 seconds. Pre-built dashboards will populate automatically.
 
+#### Cleaning up (Docker)
+
+Two profile-scoped services are provided for cleanup. Both are one-shot
+containers; neither requires the stack to be running.
+
+```bash
+# Remove resources for the vertical in DD_DEMO_VERTICAL (default: healthcare)
+docker compose --profile teardown up teardown
+
+# Nuke everything: deletes every resource tagged 'dd-demo-toolkit:true'
+# across ALL verticals, including orphans from renamed/removed verticals.
+docker compose --profile teardown-all up teardown-all
+```
+
+Preview first with `--dry-run`:
+
+```bash
+docker compose --profile teardown-all run --rm teardown-all \
+  dd-demo teardown --all-verticals --dry-run
+```
+
+> **Rebuild after code changes.** The `setup`, `teardown`, and
+> `teardown-all` services share the image built by Docker. If you pull
+> or edit Python code, rebuild before running the cleanup command:
+> `docker compose --profile teardown-all build teardown-all`. A sign
+> you're on a stale image is that `--help` inside the container
+> doesn't list the `--all-verticals` flag.
+
 ### 3. Or Use the CLI Directly (Local)
 
 ```bash
@@ -160,11 +188,32 @@ dd-demo simulate --vertical manufacturing \
 ```
 
 ### `dd-demo teardown`
-Remove all resources created by `dd-demo setup` for a vertical.
+Remove resources created by `dd-demo setup`. Runs in two modes: scoped to
+one vertical (the default) or a full sweep of every toolkit-managed
+resource across all verticals (`--all-verticals`, useful for cleaning up
+orphans from renamed / removed verticals).
 
 ```bash
+# Scoped to a single vertical (prompts for confirmation)
 dd-demo teardown --vertical healthcare
+
+# Full sweep across every vertical, including orphans
+dd-demo teardown --all-verticals
+
+# Preview first — always safe
+dd-demo teardown --all-verticals --dry-run
+
+# Skip the interactive confirmation (CI / scripting)
+dd-demo teardown --all-verticals --force
 ```
+
+Safety: the all-verticals sweep only touches resources carrying the
+`dd-demo-toolkit:true` tag (or the `[dd-demo-toolkit:` description
+marker for dashboards). Any resource without that marker — customer
+dashboards, production monitors, etc. — is never touched.
+
+Exactly one of `--vertical <name>` or `--all-verticals` must be
+provided; passing both or neither exits with an error.
 
 ---
 
@@ -433,17 +482,62 @@ All resources are tagged with `env:demo` and vertical-specific tags for easy dis
 
 ## Teardown
 
-When you're done with a demo, remove all resources:
+When you're done with a demo, remove resources. Pick the mode that
+matches what you want to clean up.
+
+### Scoped to one vertical
+
+Removes everything tagged `vertical:<name>` for the named vertical:
 
 ```bash
-# Remove healthcare demo resources
+# Local CLI
 dd-demo teardown --vertical healthcare
 
-# This removes all dashboards, monitors, SLOs, notebooks, and service catalog entries
-# created by dd-demo setup
+# Docker
+docker compose --profile teardown up teardown     # uses $DD_DEMO_VERTICAL
 ```
 
-Alternatively, filter by tag in the Datadog UI: `env:demo` and `vertical:healthcare`.
+### Full environment sweep (`--all-verticals`)
+
+Deletes every resource tagged `dd-demo-toolkit:true` regardless of
+vertical. Use this when you want to wipe the Datadog environment clean,
+including orphans from renamed or removed verticals that the scoped
+teardown can no longer find:
+
+```bash
+# Local CLI
+dd-demo teardown --all-verticals
+
+# Docker (one-shot container)
+docker compose --profile teardown-all up teardown-all
+```
+
+Always preview with `--dry-run` first — it prints exactly what would be
+deleted and then exits without touching anything:
+
+```bash
+dd-demo teardown --all-verticals --dry-run
+
+docker compose --profile teardown-all run --rm teardown-all \
+  dd-demo teardown --all-verticals --dry-run
+```
+
+### Safety guarantees
+
+- `--all-verticals` only matches resources with the `dd-demo-toolkit:true`
+  tag (or the `[dd-demo-toolkit:` description marker for dashboards).
+  Customer-owned monitors, dashboards, and SLOs without that marker are
+  never touched.
+- Exactly one of `--vertical <name>` or `--all-verticals` is required;
+  passing both or neither exits with a validation error.
+- `--force` skips the interactive confirmation prompt (the Docker
+  services pass `--force` so the one-shot containers don't hang waiting
+  for stdin — that's why you should dry-run first).
+
+### Finding resources in the Datadog UI
+
+- Any vertical: filter by tag `dd-demo-toolkit:true`.
+- Specific vertical: filter by tag `vertical:<name>` (e.g. `vertical:healthcare`).
 
 ---
 

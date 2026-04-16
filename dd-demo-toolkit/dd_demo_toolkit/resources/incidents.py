@@ -190,14 +190,15 @@ class IncidentManager:
     def list_active(
         self,
         api_client: DatadogAPIClient,
-        vertical_name: str,
+        vertical_name: Optional[str],
     ) -> Dict[str, Any]:
         """
         List active incidents for a vertical.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Name of the vertical.
+            vertical_name: Name of the vertical, or ``None`` to match every
+                toolkit-tagged active incident across all verticals.
 
         Returns:
             Dictionary with:
@@ -212,13 +213,19 @@ class IncidentManager:
         }
 
         try:
-            # Filter for active incidents with vertical tag
-            filter_query = f"tag:vertical:{vertical_name} AND status:active"
+            # Filter for active incidents — either scoped to one vertical or
+            # the full toolkit-managed set.
+            if vertical_name is None:
+                filter_query = "tag:dd-demo-toolkit:true AND status:active"
+                scope_label = "all toolkit-managed verticals"
+            else:
+                filter_query = f"tag:vertical:{vertical_name} AND status:active"
+                scope_label = f"vertical '{vertical_name}'"
             response = api_client.list_incidents(filter_query=filter_query)
             incidents = response.get("data", [])
             result["total"] = len(incidents)
             result["incidents"] = incidents
-            logger.info(f"Found {len(incidents)} active incident(s) for vertical '{vertical_name}'")
+            logger.info(f"Found {len(incidents)} active incident(s) for {scope_label}")
         except RuntimeError as e:
             error_msg = f"Failed to list incidents: {str(e)}"
             result["errors"].append(error_msg)
@@ -233,15 +240,17 @@ class IncidentManager:
     def teardown(
         self,
         api_client: DatadogAPIClient,
-        vertical_name: str,
+        vertical_name: Optional[str],
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
-        Resolve all active demo incidents for a vertical.
+        Resolve active demo incidents for a vertical.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Name of the vertical.
+            vertical_name: Name of the vertical, or ``None`` to resolve every
+                toolkit-tagged active incident across all verticals
+                (orphan-sweep mode).
             dry_run: If True, skip API calls.
 
         Returns:
@@ -264,7 +273,8 @@ class IncidentManager:
         active_result = self.list_active(api_client, vertical_name)
         incidents = active_result.get("incidents", [])
 
-        logger.info(f"Found {len(incidents)} active incident(s) to resolve for vertical '{vertical_name}'")
+        scope_label = "all toolkit-managed verticals" if vertical_name is None else f"vertical '{vertical_name}'"
+        logger.info(f"Found {len(incidents)} active incident(s) to resolve for {scope_label}")
 
         for incident in incidents:
             try:

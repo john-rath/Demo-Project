@@ -248,15 +248,17 @@ class NotebookManager:
     def teardown(
         self,
         api_client: DatadogAPIClient,
-        vertical_name: str,
+        vertical_name: Optional[str],
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
-        Delete all notebooks tagged with a vertical.
+        Delete notebooks tagged by the toolkit.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Name of the vertical to clean up.
+            vertical_name: Name of the vertical to clean up. If ``None``, every
+                notebook tagged ``dd-demo-toolkit:true`` is deleted regardless
+                of vertical (orphan-sweep mode).
             dry_run: If True, skip API calls and return what would be deleted.
 
         Returns:
@@ -285,16 +287,24 @@ class NotebookManager:
             logger.error(error_msg)
             return result
 
-        # Filter by vertical tag (tags can be None on some notebooks)
-        target_tag = f"vertical:{vertical_name}"
-        notebooks_to_delete = [
-            n for n in notebook_list
-            if target_tag in (n.get("attributes", {}).get("tags") or [])
-        ]
+        # Filter by vertical tag, or by toolkit marker when no vertical given.
+        # Tags can be None on some notebooks — coalesce to [] defensively.
+        if vertical_name is None:
+            notebooks_to_delete = [
+                n for n in notebook_list
+                if "dd-demo-toolkit:true" in (n.get("attributes", {}).get("tags") or [])
+            ]
+            scope_label = "all toolkit-managed verticals"
+        else:
+            target_tag = f"vertical:{vertical_name}"
+            notebooks_to_delete = [
+                n for n in notebook_list
+                if target_tag in (n.get("attributes", {}).get("tags") or [])
+            ]
+            scope_label = f"vertical '{vertical_name}'"
 
         logger.info(
-            f"Found {len(notebooks_to_delete)} notebook(s) to delete for "
-            f"vertical '{vertical_name}'"
+            f"Found {len(notebooks_to_delete)} notebook(s) to delete for {scope_label}"
         )
 
         for notebook in notebooks_to_delete:

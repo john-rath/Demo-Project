@@ -214,7 +214,53 @@ first page).
 
 ---
 
-## 5. Working-on-this-project tips
+## 5. `--all-verticals` teardown (2026-04-16)
+
+Follow-up to the pagination fix. Users also need a way to nuke *every*
+toolkit-managed resource — not just those tagged for the single vertical
+named in the `.env`. Common reason: orphans from a renamed vertical
+(e.g. `vertical:hilton` resources that remain after the rename to
+`hospitality`) are invisible to `teardown --vertical hospitality`.
+
+New flag:
+
+    dd-demo teardown --all-verticals            # prompt + confirm
+    dd-demo teardown --all-verticals --dry-run  # safe preview
+    dd-demo teardown --all-verticals --force    # no prompt (CI)
+
+Semantics:
+
+- `--vertical` is now optional; exactly one of `--vertical <name>` or
+  `--all-verticals` is required (CLI rejects both / neither with
+  exit 2).
+- In all-verticals mode, `cmd_teardown` passes `vertical_name=None`
+  through to each resource manager.
+- Each manager branches on `vertical_name is None` and filters by the
+  universal toolkit marker rather than the vertical tag:
+    - monitors / notebooks / SLOs → `dd-demo-toolkit:true` in tags
+    - dashboards → description contains `[dd-demo-toolkit:` (any
+      vertical, since dashboards API doesn't return tags)
+    - workflows → server-side `list_workflows(tag_filter="dd-demo-toolkit:true")`
+    - incidents → `list_incidents(filter_query="tag:dd-demo-toolkit:true AND status:active")`
+    - cases → client-side filter on `dd-demo-toolkit:true` in the case's
+      `attributes.tags`
+    - services → still a no-op (Datadog API doesn't support
+      deregistration)
+
+Safety: any resource without the `dd-demo-toolkit:true` marker
+(or the `[dd-demo-toolkit:` description marker for dashboards) is
+never touched — customer-owned monitors / dashboards / etc. are
+invisible to the sweep. Confirmed by the verification script.
+
+Verification: `/sessions/intelligent-nifty-babbage/verify_all_verticals.py`
+simulates a mixed-ownership Datadog environment (hospitality +
+healthcare toolkit resources + a renamed-hilton orphan + an
+untagged customer monitor) and confirms the sweep deletes exactly
+the toolkit resources (including orphans) and nothing else.
+
+---
+
+## 6. Working-on-this-project tips
 
 - After any vertical rename, run a case-insensitive grep for the old name
   across the whole repo — dashboards JSON, YAML, Python plugins, core

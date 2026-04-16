@@ -222,14 +222,15 @@ class CaseManager:
     def list_cases(
         self,
         api_client: DatadogAPIClient,
-        vertical_name: str,
+        vertical_name: Optional[str],
     ) -> Dict[str, Any]:
         """
-        List cases for a vertical.
+        List cases for a vertical, or all toolkit-managed cases.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Name of the vertical.
+            vertical_name: Name of the vertical, or ``None`` to match every
+                toolkit-tagged case across all verticals (orphan-sweep mode).
 
         Returns:
             Dictionary with:
@@ -244,19 +245,30 @@ class CaseManager:
         }
 
         try:
-            # List all cases and filter client-side by title prefix
-            # (Cases API filter syntax doesn't support tag-based queries)
+            # List all cases and filter client-side
+            # (Cases API filter syntax doesn't support tag-based queries).
             response = api_client.list_cases()
             all_cases = response.get("data", [])
-            # Filter to cases that belong to our demo vertical
-            cases = [
-                c for c in all_cases
-                if f"[{vertical_name.title()}]" in c.get("attributes", {}).get("title", "")
-                or f"dd-demo-{vertical_name}" in str(c.get("attributes", {}).get("title", ""))
-            ]
+            if vertical_name is None:
+                # Match any case carrying the toolkit tag on its attributes.
+                cases = [
+                    c for c in all_cases
+                    if "dd-demo-toolkit:true" in (
+                        c.get("attributes", {}).get("tags") or []
+                    )
+                ]
+                scope_label = "all toolkit-managed verticals"
+            else:
+                # Existing title-based matching keyed to the vertical.
+                cases = [
+                    c for c in all_cases
+                    if f"[{vertical_name.title()}]" in c.get("attributes", {}).get("title", "")
+                    or f"dd-demo-{vertical_name}" in str(c.get("attributes", {}).get("title", ""))
+                ]
+                scope_label = f"vertical '{vertical_name}'"
             result["total"] = len(cases)
             result["cases"] = cases
-            logger.info(f"Found {len(cases)} case(s) for vertical '{vertical_name}'")
+            logger.info(f"Found {len(cases)} case(s) for {scope_label}")
         except RuntimeError as e:
             error_msg = f"Failed to list cases: {str(e)}"
             result["errors"].append(error_msg)
@@ -271,15 +283,16 @@ class CaseManager:
     def teardown(
         self,
         api_client: DatadogAPIClient,
-        vertical_name: str,
+        vertical_name: Optional[str],
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
-        Close/archive all demo cases for a vertical.
+        Close/archive demo cases for a vertical.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Name of the vertical.
+            vertical_name: Name of the vertical, or ``None`` to close every
+                toolkit-tagged case across all verticals (orphan-sweep mode).
             dry_run: If True, skip API calls.
 
         Returns:
@@ -302,7 +315,8 @@ class CaseManager:
         list_result = self.list_cases(api_client, vertical_name)
         cases = list_result.get("cases", [])
 
-        logger.info(f"Found {len(cases)} case(s) to close for vertical '{vertical_name}'")
+        scope_label = "all toolkit-managed verticals" if vertical_name is None else f"vertical '{vertical_name}'"
+        logger.info(f"Found {len(cases)} case(s) to close for {scope_label}")
 
         for case in cases:
             try:

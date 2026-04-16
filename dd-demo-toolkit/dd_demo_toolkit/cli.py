@@ -201,7 +201,18 @@ def cmd_setup(args: argparse.Namespace) -> None:
 
 def cmd_teardown(args: argparse.Namespace) -> None:
     """Handle 'teardown' command."""
-    print_banner(f"Teardown - {args.vertical}")
+    # Resolve scope: one vertical vs. a full all-verticals sweep.
+    all_verticals = getattr(args, "all_verticals", False)
+    if all_verticals and args.vertical:
+        print_error("Pass either --vertical or --all-verticals, not both.")
+        sys.exit(2)
+    if not all_verticals and not args.vertical:
+        print_error("Either --vertical <name> or --all-verticals is required.")
+        sys.exit(2)
+
+    scope_label = "ALL verticals" if all_verticals else args.vertical
+    vertical_arg: Optional[str] = None if all_verticals else args.vertical
+    print_banner(f"Teardown - {scope_label}")
 
     try:
         # Get resources to tear down
@@ -218,48 +229,78 @@ def cmd_teardown(args: argparse.Namespace) -> None:
         if args.dry_run:
             print_warning("DRY-RUN MODE: No resources will be deleted")
 
-        # Use ResourceManager to check what's deployed
         mgr = ResourceManager(verticals_dir="verticals")
-        print_header("Searching for demo resources...")
-        status = mgr.get_status(args.vertical, client)
 
-        total_found = sum(
-            s.get("count", 0) for s in status.values()
-            if isinstance(s, dict)
-        )
+        if all_verticals:
+            # All-verticals sweep: skip the per-vertical preview (get_status
+            # is scoped to a single vertical). Prompt loudly, then run.
+            print_header("All-verticals sweep")
+            print_warning(
+                "This will delete every resource tagged 'dd-demo-toolkit:true' "
+                "across every vertical, including orphans from renamed or "
+                "removed verticals."
+            )
+            if not args.force and not args.dry_run:
+                response = input(
+                    f"{Colors.YELLOW}Type 'yes' to confirm full cleanup: {Colors.RESET}"
+                )
+                if response.lower() != "yes":
+                    print_info("Teardown cancelled")
+                    return
+        else:
+            # Use ResourceManager to check what's deployed
+            print_header("Searching for demo resources...")
+            status = mgr.get_status(vertical_arg, client)
 
-        if total_found == 0:
-            print_info("No demo resources found for this vertical")
-            print()
-            return
+            total_found = sum(
+                s.get("count", 0) for s in status.values()
+                if isinstance(s, dict)
+            )
 
-        # Show what we found
-        for rtype, details in status.items():
-            count = details.get("count", 0) if isinstance(details, dict) else 0
-            if count > 0:
-                print(f"  {rtype:12s}  {Colors.CYAN}{count} found{Colors.RESET}")
-
-        # Confirm deletion (unless --force)
-        if not args.force and not args.dry_run:
-            print(f"\n{Colors.YELLOW}Warning:{Colors.RESET} This will delete {total_found} resources")
-            response = input("Are you sure? (type 'yes' to confirm): ")
-            if response.lower() != "yes":
-                print_info("Teardown cancelled")
+            if total_found == 0:
+                print_info("No demo resources found for this vertical")
+                print()
                 return
+
+            # Show what we found
+            for rtype, details in status.items():
+                count = details.get("count", 0) if isinstance(details, dict) else 0
+                if count > 0:
+                    print(f"  {rtype:12s}  {Colors.CYAN}{count} found{Colors.RESET}")
+
+            # Confirm deletion (unless --force)
+            if not args.force and not args.dry_run:
+                print(f"\n{Colors.YELLOW}Warning:{Colors.RESET} This will delete {total_found} resources")
+                response = input("Are you sure? (type 'yes' to confirm): ")
+                if response.lower() != "yes":
+                    print_info("Teardown cancelled")
+                    return
 
         # Perform teardown
         print_header("Tearing down resources...")
         result = mgr.teardown_selected(
-            args.vertical, client, resources, dry_run=args.dry_run
+            vertical_arg, client, resources, dry_run=args.dry_run
         )
 
+        # Per-resource-type summary. Each manager uses slightly different
+        # count keys (total_deleted / total_resolved / total_closed /
+        # total_deregistered), so read any int-valued "total_*" key except
+        # total_errors. The "summary" aggregate key is skipped.
+        _SKIP_RTYPES = {"summary"}
         for rtype, details in result.items():
-            deleted = details.get("deleted", 0)
-            errors = details.get("errors", 0)
-            if deleted > 0 or errors > 0:
+            if rtype in _SKIP_RTYPES or not isinstance(details, dict):
+                continue
+            deleted = sum(
+                v for k, v in details.items()
+                if k.startswith("total_")
+                and k != "total_errors"
+                and isinstance(v, int)
+            )
+            error_count = details.get("total_errors", 0) or 0
+            if deleted > 0 or error_count > 0:
                 status_str = f"{Colors.GREEN}{deleted} removed{Colors.RESET}"
-                if errors:
-                    status_str += f", {Colors.RED}{errors} errors{Colors.RESET}"
+                if error_count:
+                    status_str += f", {Colors.RED}{error_count} errors{Colors.RESET}"
                 print(f"  {rtype:12s}  {status_str}")
 
         if args.dry_run:
@@ -508,6 +549,7 @@ Examples:
                                                         Setup only specific resource types
   dd-demo simulate --vertical healthcare --interval 5   Run simulator with 5s ticks
   dd-demo teardown --vertical healthcare                Tear down resources for healthcare
+  dd-demo teardown --all-verticals                      Sweep every toolkit-managed resource (incl. orphans)
   dd-demo status --vertical healthcare                  Check deployed resources
         """,
     )
@@ -553,8 +595,16 @@ Examples:
     teardown_parser = subparsers.add_parser("teardown", help="Remove demo resources")
     teardown_parser.add_argument(
         "--vertical",
-        required=True,
-        help="Vertical name to teardown",
+        help="Vertical name to teardown. Required unless --all-verticals is set.",
+    )
+    teardown_parser.add_argument(
+        "--all-verticals",
+        action="store_true",
+        help=(
+            "Sweep every toolkit-managed resource across every vertical, "
+            "including orphans from renamed or removed verticals. "
+            "Matches the 'dd-demo-toolkit:true' marker."
+        ),
     )
     teardown_parser.add_argument(
         "--resources",

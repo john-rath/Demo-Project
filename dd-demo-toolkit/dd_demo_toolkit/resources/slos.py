@@ -225,15 +225,17 @@ class SLOManager:
     def teardown(
         self,
         api_client: DatadogAPIClient,
-        vertical_name: str,
+        vertical_name: Optional[str],
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
-        Delete all SLOs tagged with a vertical.
+        Delete SLOs tagged by the toolkit.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Name of the vertical to clean up.
+            vertical_name: Name of the vertical to clean up. If ``None``, every
+                SLO tagged ``dd-demo-toolkit:true`` is deleted regardless of
+                vertical (orphan-sweep mode).
             dry_run: If True, skip API calls and return what would be deleted.
 
         Returns:
@@ -262,16 +264,23 @@ class SLOManager:
             logger.error(error_msg)
             return result
 
-        # Filter by vertical tag
-        target_tag = f"vertical:{vertical_name}"
-        slos_to_delete = [
-            s for s in slo_list
-            if target_tag in s.get("tags", [])
-        ]
+        # Filter by vertical tag, or by toolkit marker when no vertical given.
+        if vertical_name is None:
+            slos_to_delete = [
+                s for s in slo_list
+                if "dd-demo-toolkit:true" in s.get("tags", [])
+            ]
+            scope_label = "all toolkit-managed verticals"
+        else:
+            target_tag = f"vertical:{vertical_name}"
+            slos_to_delete = [
+                s for s in slo_list
+                if target_tag in s.get("tags", [])
+            ]
+            scope_label = f"vertical '{vertical_name}'"
 
         logger.info(
-            f"Found {len(slos_to_delete)} SLO(s) to delete for "
-            f"vertical '{vertical_name}'"
+            f"Found {len(slos_to_delete)} SLO(s) to delete for {scope_label}"
         )
 
         for slo in slos_to_delete:
