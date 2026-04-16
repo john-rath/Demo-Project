@@ -23,6 +23,14 @@ exporters:
     api:
       key: ${env:DD_API_KEY}
       site: ${env:DD_SITE}
+    metrics:
+      histograms:
+        mode: distributions
+      sums:
+        cumulative_monotonic_mode: to_delta
+    traces:
+      span_name_as_resource_name: true
+    hostname: ""
 
   debug:
     verbosity: basic

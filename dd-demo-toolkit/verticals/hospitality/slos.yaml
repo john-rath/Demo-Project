@@ -1,0 +1,70 @@
+slos:
+  - name: "Reservations Portal Booking Availability"
+    description: "the Reservations Portal availability directly impacts revenue. Target 99.95% success rate over rolling 30-day window."
+    type: metric
+    target: 99.95
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospitality.app.requests_total{service_name:reservations-portal}.as_count() - sum:hospitality.app.errors_total{service_name:reservations-portal}.as_count()"
+      denominator: "sum:hospitality.app.requests_total{service_name:reservations-portal}.as_count()"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:digital", "impact:revenue"]
+
+  - name: "IoT Gateway Fleet Uptime"
+    description: "Connected Room gateway connectivity across 7000+ properties. Target 99.5% of fleet online."
+    type: metric
+    target: 99.5
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospitality.iot.gateway_online{*}.as_count()"
+      denominator: "sum:hospitality.device.online{device_type:connected_room_gateway}.as_count()"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:iot"]
+
+  - name: "Digital Check-in Success Rate"
+    description: "PEP digital check-in success rate. Target 98% across all properties."
+    type: metric
+    target: 98.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospitality.checkin.digital_transactions_total{*}.as_count() - sum:hospitality.checkin.failures_total{*}.as_count()"
+      denominator: "sum:hospitality.checkin.digital_transactions_total{*}.as_count()"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:property-tech"]
+
+  - name: "Zero-Touch Resolution Rate"
+    description: "Percentage of IoT and infrastructure incidents resolved without on-site dispatch. Target 85% — directly reduces truck rolls and operational cost."
+    type: metric
+    target: 85.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospitality.ops.dispatches_avoided_total{*}.as_count()"
+      denominator: "sum:hospitality.ops.dispatches_avoided_total{*}.as_count() + sum:hospitality.ops.onsite_dispatches_total{*}.as_count()"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:it-ops", "impact:cost"]
+
+  - name: "AI Stay Planner Latency SLO"
+    description: "AI inference latency for stay planning recommendations. Target 95% of requests under 200ms to ensure smooth the Reservations Portal experience."
+    type: metric
+    target: 95.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospitality.ai.requests_total{latency_bucket:under_200ms}.as_count()"
+      denominator: "sum:hospitality.ai.requests_total{*}.as_count()"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:digital", "impact:revenue"]
+
+  - name: "Guest WiFi Portal Availability"
+    description: "Guest WiFi authentication portal availability. Target 99.9% — WiFi is the #1 guest satisfaction driver."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospitality.app.requests_total{service_name:guest-wifi-portal}.as_count() - sum:hospitality.app.errors_total{service_name:guest-wifi-portal}.as_count()"
+      denominator: "sum:hospitality.app.requests_total{service_name:guest-wifi-portal}.as_count()"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:network"]
+
+  - name: "ServiceNow Self-Healing Success Rate"
+    description: "Self-healing automation success rate via ServiceNow integration. Target 90% success on automated remediation workflows."
+    type: metric
+    target: 90.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospitality.ops.self_heal_success_total{*}.as_count()"
+      denominator: "sum:hospitality.ops.self_heal_success_total{*}.as_count() + sum:hospitality.ops.self_heal_failure_total{*}.as_count()"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:it-ops"]

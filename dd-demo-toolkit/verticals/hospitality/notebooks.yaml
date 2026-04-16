@@ -1,0 +1,828 @@
+notebooks:
+  # =========================================================================
+  # 1. WiFi Client Overload → IoT Gateway Cascade — Root Cause Analysis
+  # =========================================================================
+  - id: "meraki-cascade-rca"
+    name: "Incident RCA: WiFi Client Overload → IoT Device Disconnection"
+    type: investigation
+    description: "Root cause analysis: anomalous WiFi client surge on Extended Stay APAC Meraki APs degraded signal strength, causing IoT gateways to lose connected room devices."
+    time_range: "1h"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "incident_domain:network-to-iot"]
+    cells:
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              # Incident RCA: WiFi Client Overload → IoT Device Disconnection
+
+              **Root Cause:** An anomalous surge of WiFi clients on Extended Stay APAC Meraki APs (from ~33 to ~47 clients, a 42% increase) overloaded the wireless network, degrading signal strength from -48 dBm to -57 dBm. This progressive WiFi signal degradation caused IoT gateways to lose connectivity to their connected room devices, dropping the average from ~8 devices per gateway to ~1.9.
+
+              **Key Evidence:**
+              - Channel utilization only reached ~51% — **below the 80% critical threshold** — making this invisible to traditional channel saturation alerts
+              - Network retransmit rates fell from ~4% to near 0%, indicating devices were **disconnecting entirely** rather than experiencing degraded connections
+              - Gateway hardware remained perfectly healthy throughout (CPU 43-45%, Memory 41-44%, no restart events)
+              - Concurrent but **distinct** failure at Luxury Collection APAC: channel saturation to 85% (different failure mode)
+
+              **Resolution:** Datadog Workflow called Meraki Dashboard API to rate-limit rogue clients, restoring signal strength and device connectivity — zero on-site dispatches required.
+
+              ---
+              ## Layer 1: Root Cause — WiFi Client Overload
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "WiFi Connected Clients (Extended Stay APAC)"
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.network.connected_clients{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: line
+                style:
+                  palette: warm
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "WiFi Signal Strength dBm (Extended Stay APAC)"
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: line
+                style:
+                  palette: cool
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Channel Utilization — Below 80% Threshold Despite Outage"
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.network.channel_utilization_pct{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Retransmit Rate — Drops to 0% as Devices Disconnect"
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.network.retransmit_pct{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: line
+                style:
+                  palette: orange
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Layer 2: Cascade — IoT Gateway Device Loss
+
+              **Key insight:** Gateways remained fully healthy during the AP ramp-up phase. The temporal lag between signal degradation and device disconnection proves causality — without unified observability, this would appear as two unrelated incidents. Gateway CPU (43-45%) and Memory (41-44%) remained perfectly stable, ruling out gateway hardware failure.
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Connected Devices per Gateway — Dropped from ~8 to ~1.9"
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.iot.gateway_connected_devices{property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: line
+                style:
+                  palette: red
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Gateway Hardware Health — CPU & Memory Stable Throughout"
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.iot.gateway_cpu_pct{property_type:extended_stay,region:apac}"
+                  - data_source: metrics
+                    name: query2
+                    query: "avg:hospitality.iot.gateway_memory_pct{property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: line
+                style:
+                  palette: green
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Layer 3: Guest Impact — Smart Locks, Thermostats, Check-in
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Guest-Facing Failures"
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.lock.failures_total{property_type:extended_stay,region:apac}"
+                  - data_source: metrics
+                    name: query2
+                    query: "sum:hospitality.checkin.failures_total{property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: line
+                style:
+                  palette: red
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Concurrent Event: Luxury Collection APAC — Channel Saturation (Distinct Failure Mode)
+
+              A separate failure at Luxury Collection APAC occurred concurrently but with a **different failure mode**: channel saturation to 85% (vs. Extended Stay's client overload at only 51% channel util). Retransmit rate hit 10% and clients dropped from ~43 to ~11.
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Luxury Collection APAC — Channel Utilization (Saturation Mode)"
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.network.channel_utilization_pct{device_type:meraki_ap,property_type:luxury_collection,region:apac}"
+                response_format: timeseries
+                display_type: line
+                style:
+                  palette: warm
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Luxury Collection vs Extended Stay — Connected Clients Comparison"
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.network.connected_clients{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+                  - data_source: metrics
+                    name: query2
+                    query: "avg:hospitality.network.connected_clients{device_type:meraki_ap,property_type:luxury_collection,region:apac}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Layer 4: Self-Healing — Bits RCA → Datadog Workflow → Meraki API
+
+              Bits identified the root cause chain (WiFi client overload → signal degradation → IoT disconnection) and generated the investigation above. This investigation was used to build a **Datadog Workflow** that automatically remediates the issue:
+
+              ### Auto-Remediation Workflow
+
+              ```
+              TRIGGER: Monitor alert — hospitality.network.connected_clients > 45
+                       AND hospitality.network.signal_strength_dbm < -52
+                       AND property_type:extended_stay AND region:apac
+
+              STEP 1: Query Meraki Dashboard API
+                      GET /api/v1/networks/{network_id}/clients
+                      → Identify anomalous clients (connected < 5min, high bandwidth)
+
+              STEP 2: Rate-limit rogue clients via Meraki API
+                      PUT /api/v1/networks/{network_id}/clients/{client_id}/policy
+                      → Apply "IoT-Priority" group policy (throttle non-IoT clients)
+
+              STEP 3: Wait 90s for signal recovery
+
+              STEP 4: Verify recovery
+                      Query: avg:hospitality.network.signal_strength_dbm{...} > -50
+                      Query: avg:hospitality.iot.gateway_connected_devices{...} > 5
+
+              STEP 5: Notify #iot-ops Slack channel with resolution summary
+                      → "WiFi client overload at Extended Stay APAC auto-remediated.
+                         Rogue clients rate-limited via Meraki API. Signal recovered
+                         from -57 dBm to -48 dBm. IoT devices reconnected: 1.9 → 7.5
+                         avg/gateway. Zero on-site dispatches."
+              ```
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "IT Ops — Incidents Created vs Self-Heal Successes"
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.ops.incidents_total{property_type:extended_stay,region:apac}"
+                  - data_source: metrics
+                    name: query2
+                    query: "sum:hospitality.ops.self_heal_success_total{property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: bars
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Mean Time to Resolution (minutes)"
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.ops.mttr_minutes{property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Layer 5: Workflow Execution Log — Actual Auto-Remediation Run
+
+              The Datadog Workflow fired automatically at **14:32:18 UTC** when the monitor conditions were met. Below is the execution timeline from the most recent incident:
+
+              | Step | Action | Status | Duration | Details |
+              |------|--------|--------|----------|---------|
+              | 1 | **Monitor trigger** | ✅ Fired | — | `connected_clients=47`, `signal_strength=-55.2 dBm` at HGI APAC |
+              | 2 | **Query Meraki Dashboard API** | ✅ 200 OK | 1.2s | `GET /api/v1/networks/N_724857/clients` → 47 clients returned |
+              | 3 | **Identify rogue clients** | ✅ Complete | 0.3s | 14 non-IoT clients flagged (connected <5min, >50Mbps bandwidth) |
+              | 4 | **Apply rate-limit policy** | ✅ 200 OK | 2.8s | `PUT /clients/{id}/policy` → "IoT-Priority" group policy applied to 14 clients |
+              | 5 | **Wait for signal recovery** | ✅ Complete | 90s | Polling every 15s for signal improvement |
+              | 6 | **Verify signal recovery** | ✅ Pass | 1.1s | Signal: `-55.2 dBm → -47.8 dBm` ✓ (threshold: >-50 dBm) |
+              | 7 | **Verify IoT recovery** | ✅ Pass | 1.3s | Connected devices: `1.9 → 7.8 avg/gateway` ✓ (threshold: >5) |
+              | 8 | **Create ServiceNow incident** | ✅ INC0041892 | 0.9s | Priority: P3, auto-resolved, tagged `workflow-remediated` |
+              | 9 | **Notify #iot-ops Slack** | ✅ Sent | 0.4s | Resolution summary with metrics attached |
+
+              **Total workflow execution time: 98.0 seconds** (vs. 45-minute average for manual dispatch)
+
+              ### Workflow Run Metrics (Last 30 Days)
+
+              | Metric | Value |
+              |--------|-------|
+              | Total workflow executions | 23 |
+              | Successful auto-remediations | 21 (91.3%) |
+              | Escalated to on-call | 2 (8.7%) |
+              | Mean workflow duration | 94s |
+              | Mean time to recovery (MTTR) | 6.2 min |
+              | Previous MTTR (manual) | 47 min |
+              | MTTR improvement | **86.8%** |
+              | On-site dispatches avoided | 21 |
+              | Estimated cost savings | $18,900 (dispatch + guest comp) |
+              | Guest impact (avg rooms affected) | 48 → 0 in <7 min |
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Layer 6: Guest-Facing RUM Impact — Frontend Error Correlation
+
+              When IoT devices disconnect, the Guest Loyalty Program mobile app and web portal experience a cascade of frontend errors. Guests attempting to use Digital Key, room controls, or in-stay services see failures that correlate directly with the network incident:
+
+              | Timeline | RUM Signal | Impact |
+              |----------|-----------|--------|
+              | T+0:00 | WiFi client surge begins | No guest-visible impact yet |
+              | T+1:30 | Signal degrades past -52 dBm | Digital Key BLE pairing failures spike (3x baseline) |
+              | T+2:00 | IoT gateways start disconnecting | `/api/v2/digital-key/activate` → 504 errors, room control API timeouts |
+              | T+2:30 | Guest complaints begin | `hospitality.rum.errors_total{view_path:/digital-key}` spikes 400% |
+              | T+4:00 | Auto-remediation kicks in | Error rate starts declining |
+              | T+5:30 | Signal recovered | Frontend errors return to baseline |
+
+              **Key insight:** RUM error spikes on `/digital-key` and `/in-stay/services` views are a **leading indicator** of IoT connectivity issues — guests notice the problem 30-60 seconds before traditional infra monitors fire.
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "RUM — Frontend Errors by View During Incident"
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                  - formula: query3
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.rum.errors_total{view_path:/digital-key,property_type:extended_stay,region:apac}"
+                  - data_source: metrics
+                    name: query2
+                    query: "sum:hospitality.rum.errors_total{view_path:/in-stay/services,property_type:extended_stay,region:apac}"
+                  - data_source: metrics
+                    name: query3
+                    query: "sum:hospitality.rum.errors_total{view_path:/booking/checkout,property_type:extended_stay,region:apac}"
+                response_format: timeseries
+                display_type: bars
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "RUM — Page Load Time (LCP) During Incident"
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.rum.lcp_ms{property_type:extended_stay,region:apac}"
+                  - data_source: metrics
+                    name: query2
+                    query: "avg:hospitality.rum.lcp_ms{property_type:extended_stay,region:apac} by {view_path}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Resolution & Learnings
+
+              - **Root cause:** Anomalous WiFi client surge (42% increase) overloaded Meraki APs, degrading signal by 9 dBm
+              - **Why it was hard to find:** Channel utilization was only 51% — well below the 80% alert threshold. Traditional monitoring would miss this entirely.
+              - **Impact:** ~48 rooms lost connected room controls (smart locks, HVAC, lighting) for ~4 minutes
+              - **Guest impact (RUM):** 400% spike in frontend errors on Digital Key and In-Stay Services — guests noticed before infra monitors fired
+              - **Resolution:** Datadog Workflow auto-detected the pattern, called Meraki API to rate-limit rogue clients
+              - **MTTR:** 6 minutes (vs. 45-min average for manual dispatch)
+              - **Dispatches avoided:** 100% — zero on-site intervention required
+              - **Cost savings this month:** $18,900 in avoided dispatches and guest compensation
+
+              **How Bits helped:** Bits correlated the WiFi client surge, signal degradation, IoT device loss, AND frontend RUM errors across four separate monitoring domains (network, IoT, guest experience, RUM) to identify a root cause that no single domain team would have found alone. The investigation was then used to create the auto-remediation Workflow above, and RUM error patterns were added as early-warning signals to the monitor.
+
+  # =========================================================================
+  # 2. IoT Gateway Fleet Health Investigation
+  # =========================================================================
+  - id: "iot-gateway-investigation"
+    name: "IoT Gateway Fleet Health Investigation"
+    type: investigation
+    description: "Cross-property analysis: Gateway device connectivity, WiFi signal correlation, hardware health."
+    time_range: "1h"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "incident_domain:iot-to-guest"]
+    cells:
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              # IoT Gateway Fleet Health Investigation
+
+              Cross-property analysis of gateway connectivity, connected device counts, and WiFi signal correlation. Focus on identifying properties where WiFi conditions are degrading IoT device connectivity.
+
+              ---
+              ## Connected Devices per Gateway by Property
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.iot.gateway_connected_devices{*} by {property_type,region}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## WiFi Signal Strength vs Connected Devices (Correlation)"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap} by {property_type}"
+                  - data_source: metrics
+                    name: query2
+                    query: "avg:hospitality.iot.gateway_connected_devices{*} by {property_type}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## Gateway Hardware Health (CPU/Memory — Should Be Stable)"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.iot.gateway_cpu_pct{*} by {property_type}"
+                  - data_source: metrics
+                    name: query2
+                    query: "avg:hospitality.iot.gateway_memory_pct{*} by {property_type}"
+                response_format: timeseries
+                display_type: line
+                style:
+                  palette: green
+
+  # =========================================================================
+  # 3. Executive Report: RevPAR & Digital Performance
+  # =========================================================================
+  - id: "revpar-executive-report"
+    name: "Executive Report: RevPAR & Digital Performance"
+    type: report
+    description: "RevPAR trends by brand, digital check-in adoption, IoT fleet health, zero-touch resolution rates."
+    time_range: "1h"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "audience:executive"]
+    cells:
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              # Executive Report: RevPAR & Digital Performance
+
+              ---
+              ## RevPAR by Brand
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.revpar{*} by {property_type}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## Digital Check-in Performance"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.checkin.failures_total{*} by {property_type}"
+                response_format: timeseries
+                display_type: bars
+                style:
+                  palette: red
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## IoT Fleet Health: Devices Online"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.device.online{*} by {property_type}"
+                response_format: timeseries
+                display_type: bars
+                style:
+                  palette: green
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## IT Operations: Zero-Touch Resolution Rate"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.ops.zero_touch_resolution_rate{*} by {property_type}"
+                response_format: timeseries
+                display_type: line
+
+  # =========================================================================
+  # 4. PEP Rollout Tracker
+  # =========================================================================
+  - id: "pep-rollout-tracker"
+    name: "PEP Rollout: Property Onboarding Dashboard"
+    type: runbook
+    description: "Track PEP deployment progress across properties. Performance baselines, error rates, infrastructure readiness."
+    time_range: "1h"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "workflow:rollout"]
+    cells:
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              # PEP Rollout: Property Onboarding Dashboard
+
+              Tracking Property Engagement Platform deployment progress. Performance baselines, error rates, and infrastructure readiness by region.
+
+              ---
+              ## PEP Service Latency
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.app.latency_ms{service_name:property-engagement-platform}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## PEP Error Rate"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: "(query1 / query2) * 100"
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.app.errors_total{service_name:property-engagement-platform}"
+                  - data_source: metrics
+                    name: query2
+                    query: "sum:hospitality.app.requests_total{service_name:property-engagement-platform}"
+                response_format: timeseries
+                display_type: bars
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## Check-in Failures by Property"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.checkin.failures_total{*} by {property_type}"
+                response_format: timeseries
+                display_type: bars
+
+  # =========================================================================
+  # 5. Zero-Touch Resolution Optimization Playbook
+  # =========================================================================
+  - id: "zero-touch-optimization"
+    name: "Zero-Touch Resolution Rate: Optimization Playbook"
+    type: runbook
+    description: "Analysis of self-healing success/failure patterns to reduce on-site dispatches."
+    time_range: "1h"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "workflow:optimization"]
+    cells:
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              # Zero-Touch Resolution: Optimization Playbook
+
+              Analysis of self-healing success/failure patterns. Target: reduce on-site dispatches from current 28% to under 10%.
+
+              ---
+              ## Self-Heal Success vs. Failure
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.ops.self_heal_success_total{*} by {property_type}"
+                  - data_source: metrics
+                    name: query2
+                    query: "sum:hospitality.ops.self_heal_failure_total{*} by {property_type}"
+                response_format: timeseries
+                display_type: bars
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## MTTR Trend"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.ops.mttr_minutes{*} by {property_type}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## Dispatches Avoided (Cost Savings)"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                  - formula: query2
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.ops.dispatches_avoided_total{*} by {property_type}"
+                  - data_source: metrics
+                    name: query2
+                    query: "sum:hospitality.ops.onsite_dispatches_total{*} by {property_type}"
+                response_format: timeseries
+                display_type: bars
+
+  # =========================================================================
+  # 6. AI Stay Planner: Model Performance & Revenue Impact
+  # =========================================================================
+  - id: "ai-stay-planner-performance"
+    name: "AI Stay Planner: Model Performance & Revenue Impact"
+    type: report
+    description: "AI model inference latency, recommendation acceptance rates, token usage, and revenue attribution."
+    time_range: "1h"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:digital", "impact:revenue"]
+    cells:
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              # AI Stay Planner: Model Performance & Revenue Impact
+
+              Monitoring AI-powered stay planning on the Reservations Portal — inference latency, recommendation quality, token economics, and revenue attribution.
+
+              ---
+              ## Inference Latency by Region
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.ai.inference_latency_ms{*} by {property_type}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## Recommendation Acceptance Rate"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "avg:hospitality.ai.recommendation_acceptance_rate{*} by {property_type}"
+                response_format: timeseries
+                display_type: line
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: "## Total AI Requests"
+
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            requests:
+              - formulas:
+                  - formula: query1
+                queries:
+                  - data_source: metrics
+                    name: query1
+                    query: "sum:hospitality.ai.requests_total{*} by {property_type}"
+                response_format: timeseries
+                display_type: bars

@@ -1,0 +1,60 @@
+incidents:
+  - name: "IoT Gateway Fleet Outage — Premium Resort Properties APAC"
+    severity: "SEV-2"
+    description: "Multiple Connected Room IoT gateways went offline across Premium Resort properties in APAC region. Firmware update pushed at 2am local caused boot loop."
+    customer_impact: "Connected Room features unavailable for ~200 guest rooms across 3 Premium Resort properties. Guests unable to control room temperature, lighting, or entertainment via app. Front desk handling manual requests."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Monitor triggered: IoT Gateway Offline — Premium Resort APAC"
+      - timestamp_offset_sec: 60
+        content: "ServiceNow incident auto-created: INC0087432"
+      - timestamp_offset_sec: 120
+        content: "Self-healing workflow attempted remote restart — FAILED (boot loop detected)"
+      - timestamp_offset_sec: 180
+        content: "Escalation: IoT Engineering on-call paged. Firmware rollback initiated."
+      - timestamp_offset_sec: 600
+        content: "Firmware rollback to v2.3.1 pushed to affected gateways"
+      - timestamp_offset_sec: 900
+        content: "Recovery: 85% of gateways back online. Remaining 15% require manual power cycle."
+      - timestamp_offset_sec: 1200
+        content: "On-site dispatches: 3 properties, 12 rooms require manual intervention"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true"]
+
+  - name: "Reservations Portal Booking Flow Degradation — Peak Season"
+    severity: "SEV-1"
+    description: "the Reservations Portal booking API experiencing elevated error rates during peak summer booking window. Revenue management engine latency spike causing stale pricing."
+    customer_impact: "Approximately 15% of booking attempts failing. Estimated revenue impact: $45K/hour. Guests seeing 'temporarily unavailable' on search results."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Monitor triggered: Reservations Portal Error Rate Spike (8.2%)"
+      - timestamp_offset_sec: 30
+        content: "Correlated: Revenue Management Engine p99 latency at 3200ms"
+      - timestamp_offset_sec: 120
+        content: "Root cause: Database connection pool exhaustion on revenue-management-engine"
+      - timestamp_offset_sec: 300
+        content: "Remediation: Connection pool max increased from 50 to 200"
+      - timestamp_offset_sec: 450
+        content: "Recovery: Error rate dropping, latency normalizing"
+      - timestamp_offset_sec: 600
+        content: "Resolved: Error rate back to baseline 1.2%. Revenue impact contained."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true"]
+
+  - name: "Meraki WiFi Degradation — Select Service Inn Conference Center"
+    severity: "SEV-3"
+    description: "Guest WiFi latency elevated during large corporate event. 400+ attendees saturating conference center APs."
+    customer_impact: "Conference attendees experiencing slow WiFi. Event sponsor complaints. Brand reputation risk for corporate events business."
+    detection_method: "monitor"
+    timeline_entries:
+      - timestamp_offset_sec: 0
+        content: "Monitor triggered: Guest WiFi Latency High — Select Service Conference"
+      - timestamp_offset_sec: 60
+        content: "Auto-remediation: Meraki channel optimization triggered"
+      - timestamp_offset_sec: 180
+        content: "Band steering: 5GHz preference enabled for conference SSID"
+      - timestamp_offset_sec: 300
+        content: "Bandwidth allocation: QoS policy updated to prioritize conference VLAN"
+      - timestamp_offset_sec: 600
+        content: "Recovery: Latency normalized to 12ms average"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true"]

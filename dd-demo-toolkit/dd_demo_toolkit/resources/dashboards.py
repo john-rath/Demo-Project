@@ -96,6 +96,14 @@ class DashboardManager:
                 # Deduplicate tags
                 payload["tags"] = list(dict.fromkeys(payload["tags"]))
 
+                # Embed a toolkit marker in the description so teardown can
+                # identify our dashboards.  The Datadog list-dashboards API
+                # does NOT return tags, but it does return descriptions.
+                marker = f"[dd-demo-toolkit:{vertical_name}]"
+                desc = payload.get("description", "") or ""
+                if marker not in desc:
+                    payload["description"] = (desc + f"\n\n{marker}").strip()
+
                 if dry_run:
                     logger.info(f"[DRY RUN] Would create dashboard from {json_file.name}")
                     # Extract ID/name from payload for dry run
@@ -181,11 +189,13 @@ class DashboardManager:
             logger.error(error_msg)
             return result
 
-        # Filter by vertical tag
-        target_tag = f"team:dd-demo-{vertical_name}"
+        # Filter by toolkit marker in description.
+        # NOTE: The list-dashboards API does NOT return tags, so we use the
+        # description marker injected during deploy instead.
+        marker = f"[dd-demo-toolkit:{vertical_name}]"
         dashboards_to_delete = [
             d for d in dashboard_list
-            if target_tag in d.get("tags", [])
+            if marker in (d.get("description") or "")
         ]
 
         logger.info(
@@ -250,10 +260,10 @@ class DashboardManager:
             logger.error(result["error"])
             return result
 
-        target_tag = f"team:dd-demo-{vertical_name}"
+        marker = f"[dd-demo-toolkit:{vertical_name}]"
         deployed = [
             d for d in dashboard_list
-            if target_tag in d.get("tags", [])
+            if marker in (d.get("description") or "")
         ]
 
         result["dashboards"] = deployed

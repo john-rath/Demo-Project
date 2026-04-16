@@ -1,0 +1,449 @@
+dashboards:
+  # =========================================================================
+  # 1. Guest Loyalty Program Digital Experience — RUM & Loyalty Executive Dashboard
+  # =========================================================================
+  - id: "rum-loyalty-executive"
+    name: "[Hospitality] Digital Experience & Loyalty — Executive Dashboard"
+    description: "End-to-end guest digital experience: web vitals, funnel conversion, loyalty engagement, and revenue by tier. Correlates frontend RUM signals with backend infrastructure health."
+    layout_type: ordered
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:digital-experience"]
+    template_variables:
+      - name: loyalty_tier
+        default: "*"
+        prefix: loyalty_tier
+        available_values: ["*", "Member", "Silver", "Gold", "Diamond"]
+      - name: region
+        default: "*"
+        prefix: region
+        available_values: ["*", "Americas", "EMEA", "APAC"]
+      - name: property_type
+        default: "*"
+        prefix: property_type
+      - name: flow
+        default: "*"
+        prefix: flow
+        available_values: ["*", "booking", "loyalty", "instay"]
+    widgets:
+      # -----------------------------------------------------------------------
+      # Row 1: KPI Summary (top-level numbers)
+      # -----------------------------------------------------------------------
+      - definition:
+          type: group
+          title: "📊 Key Metrics"
+          layout_type: ordered
+          widgets:
+            - definition:
+                type: query_value
+                title: "Active Sessions"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.sessions_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                    response_format: scalar
+                autoscale: true
+                precision: 0
+
+            - definition:
+                type: query_value
+                title: "Loyalty Login Rate"
+                requests:
+                  - formulas:
+                      - formula: "(query1 / query2) * 100"
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.loyalty_logins_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                      - data_source: metrics
+                        name: query2
+                        query: "sum:hospitality.rum.sessions_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                    response_format: scalar
+                autoscale: true
+                custom_unit: "%"
+                precision: 1
+
+            - definition:
+                type: query_value
+                title: "Frontend Error Rate"
+                requests:
+                  - formulas:
+                      - formula: "(query1 / query2) * 100"
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.errors_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                      - data_source: metrics
+                        name: query2
+                        query: "sum:hospitality.rum.page_views_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                    response_format: scalar
+                autoscale: true
+                custom_unit: "%"
+                precision: 2
+                conditional_formats:
+                  - comparator: ">"
+                    value: 3
+                    palette: white_on_red
+                  - comparator: "<="
+                    value: 3
+                    palette: white_on_green
+
+            - definition:
+                type: query_value
+                title: "Avg Booking Revenue"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "avg:hospitality.rum.booking_revenue_usd{loyalty_tier:$loyalty_tier,region:$region}"
+                    response_format: scalar
+                autoscale: true
+                custom_unit: "$"
+                precision: 0
+
+      # -----------------------------------------------------------------------
+      # Row 2: Core Web Vitals
+      # -----------------------------------------------------------------------
+      - definition:
+          type: group
+          title: "🌐 Core Web Vitals"
+          layout_type: ordered
+          widgets:
+            - definition:
+                type: timeseries
+                title: "Largest Contentful Paint (LCP) by View"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "avg:hospitality.rum.lcp_ms{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}"
+                    response_format: timeseries
+                    display_type: line
+                markers:
+                  - value: "y = 2500"
+                    display_type: "error dashed"
+                    label: "Poor (>2.5s)"
+                  - value: "y = 1800"
+                    display_type: "warning dashed"
+                    label: "Needs Improvement"
+
+            - definition:
+                type: timeseries
+                title: "First Input Delay (FID) by View"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "avg:hospitality.rum.fid_ms{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}"
+                    response_format: timeseries
+                    display_type: line
+                markers:
+                  - value: "y = 100"
+                    display_type: "error dashed"
+                    label: "Poor (>100ms)"
+
+            - definition:
+                type: timeseries
+                title: "Cumulative Layout Shift (CLS)"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "avg:hospitality.rum.cls{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}"
+                    response_format: timeseries
+                    display_type: line
+                markers:
+                  - value: "y = 0.1"
+                    display_type: "error dashed"
+                    label: "Poor (>0.1)"
+
+            - definition:
+                type: timeseries
+                title: "Time to First Byte (TTFB)"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "avg:hospitality.rum.ttfb_ms{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}"
+                    response_format: timeseries
+                    display_type: line
+                markers:
+                  - value: "y = 800"
+                    display_type: "error dashed"
+                    label: "Slow (>800ms)"
+
+      # -----------------------------------------------------------------------
+      # Row 3: Funnel & Conversion
+      # -----------------------------------------------------------------------
+      - definition:
+          type: group
+          title: "🔄 Funnel & Conversion"
+          layout_type: ordered
+          widgets:
+            - definition:
+                type: toplist
+                title: "Funnel Step Completion — Booking Flow"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.funnel_step_total{flow:booking,loyalty_tier:$loyalty_tier,region:$region} by {view_path}.as_count()"
+                    response_format: scalar
+
+            - definition:
+                type: timeseries
+                title: "Funnel Drop-offs by View"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.funnel_dropoff_total{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}.as_count()"
+                    response_format: timeseries
+                    display_type: bars
+
+            - definition:
+                type: timeseries
+                title: "Sessions by Flow Type"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.sessions_total{loyalty_tier:$loyalty_tier,region:$region} by {flow}.as_count()"
+                    response_format: timeseries
+                    display_type: bars
+
+            - definition:
+                type: timeseries
+                title: "Page Views by Device Type"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.page_views_total{loyalty_tier:$loyalty_tier,region:$region} by {device_type}.as_count()"
+                    response_format: timeseries
+                    display_type: bars
+
+      # -----------------------------------------------------------------------
+      # Row 4: Loyalty Engagement
+      # -----------------------------------------------------------------------
+      - definition:
+          type: group
+          title: "⭐ Loyalty Tier Engagement"
+          layout_type: ordered
+          widgets:
+            - definition:
+                type: timeseries
+                title: "Sessions by Loyalty Tier"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.sessions_total{region:$region,flow:$flow} by {loyalty_tier}.as_count()"
+                    response_format: timeseries
+                    display_type: bars
+
+            - definition:
+                type: timeseries
+                title: "Points Balance Viewed (avg by Tier)"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "avg:hospitality.rum.points_balance_viewed{region:$region} by {loyalty_tier}"
+                    response_format: timeseries
+                    display_type: line
+
+            - definition:
+                type: timeseries
+                title: "Redemption Attempts vs Conversions"
+                requests:
+                  - formulas:
+                      - formula: query1
+                      - formula: query2
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.redemption_attempts_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                      - data_source: metrics
+                        name: query2
+                        query: "sum:hospitality.rum.redemption_conversions_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                    response_format: timeseries
+                    display_type: bars
+
+            - definition:
+                type: query_value
+                title: "Redemption Conversion Rate"
+                requests:
+                  - formulas:
+                      - formula: "(query2 / query1) * 100"
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.redemption_attempts_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                      - data_source: metrics
+                        name: query2
+                        query: "sum:hospitality.rum.redemption_conversions_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                    response_format: scalar
+                autoscale: true
+                custom_unit: "%"
+                precision: 1
+
+      # -----------------------------------------------------------------------
+      # Row 5: Revenue Metrics
+      # -----------------------------------------------------------------------
+      - definition:
+          type: group
+          title: "💰 Revenue & Upsell"
+          layout_type: ordered
+          widgets:
+            - definition:
+                type: timeseries
+                title: "Booking Revenue by Loyalty Tier"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "avg:hospitality.rum.booking_revenue_usd{region:$region} by {loyalty_tier}"
+                    response_format: timeseries
+                    display_type: bars
+
+            - definition:
+                type: timeseries
+                title: "Upsell — Impressions vs Accepted"
+                requests:
+                  - formulas:
+                      - formula: query1
+                      - formula: query2
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.upsell_impressions_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                      - data_source: metrics
+                        name: query2
+                        query: "sum:hospitality.rum.upsell_accepted_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                    response_format: timeseries
+                    display_type: bars
+
+            - definition:
+                type: timeseries
+                title: "Ancillary Revenue (Spa, F&B, Services)"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "avg:hospitality.rum.ancillary_revenue_usd{loyalty_tier:$loyalty_tier,region:$region} by {loyalty_tier}"
+                    response_format: timeseries
+                    display_type: line
+
+            - definition:
+                type: query_value
+                title: "Upsell Acceptance Rate"
+                requests:
+                  - formulas:
+                      - formula: "(query2 / query1) * 100"
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.upsell_impressions_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                      - data_source: metrics
+                        name: query2
+                        query: "sum:hospitality.rum.upsell_accepted_total{loyalty_tier:$loyalty_tier,region:$region}.as_count()"
+                    response_format: scalar
+                autoscale: true
+                custom_unit: "%"
+                precision: 1
+
+      # -----------------------------------------------------------------------
+      # Row 6: Errors & Infrastructure Correlation
+      # -----------------------------------------------------------------------
+      - definition:
+          type: group
+          title: "🔴 Errors & Infra Correlation"
+          layout_type: ordered
+          widgets:
+            - definition:
+                type: timeseries
+                title: "Frontend Errors by View Path"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.errors_total{loyalty_tier:$loyalty_tier,region:$region} by {view_path}.as_count()"
+                    response_format: timeseries
+                    display_type: bars
+
+            - definition:
+                type: timeseries
+                title: "RUM Errors vs WiFi Signal Strength (Infra Correlation)"
+                requests:
+                  - formulas:
+                      - formula: query1
+                      - formula: query2
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.errors_total{property_type:extended_stay,region:apac}.as_count()"
+                      - data_source: metrics
+                        name: query2
+                        query: "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+                    response_format: timeseries
+                    display_type: line
+
+            - definition:
+                type: timeseries
+                title: "User Actions (Engagement Signal)"
+                requests:
+                  - formulas:
+                      - formula: query1
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "sum:hospitality.rum.user_actions_total{loyalty_tier:$loyalty_tier,region:$region} by {action}.as_count()"
+                    response_format: timeseries
+                    display_type: bars
+
+            - definition:
+                type: timeseries
+                title: "Page Load Time vs IoT Connected Devices"
+                requests:
+                  - formulas:
+                      - formula: query1
+                      - formula: query2
+                    queries:
+                      - data_source: metrics
+                        name: query1
+                        query: "avg:hospitality.rum.page_load_ms{property_type:extended_stay,region:apac,view_path:/digital-key}"
+                      - data_source: metrics
+                        name: query2
+                        query: "avg:hospitality.iot.gateway_connected_devices{property_type:extended_stay,region:apac}"
+                    response_format: timeseries
+                    display_type: line

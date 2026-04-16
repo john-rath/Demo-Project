@@ -1,0 +1,203 @@
+{
+  "title": "Property Engagement & Guest Experience — Hospitality Demo",
+  "description": "Property Engagement Platform dashboard tracking digital check-in, excursions, guest WiFi, and Connected Room experience across 7-9K properties. [dd-demo-toolkit:hospitality]",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Property Engagement Platform\nDigital check-in, excursions, guest WiFi, and Connected Room experience across 7-9K properties.",
+        "background_color": "vivid_orange",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 0, "width": 12, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Digital Check-ins",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.checkin.digital_transactions_total{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 0, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Avg Check-in Time",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.checkin.avg_time_sec{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0,
+        "custom_unit": "s"
+      },
+      "layout": { "x": 3, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Check-in Failures",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.checkin.failures_total{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 6, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Streaming Sessions",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.entertainment.streaming_sessions{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 9, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "PEP Request Latency by Operation",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.app.latency_ms{service_name:property-engagement-platform}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 4, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "PEP Error Rate",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "errors / requests * 100" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "errors",
+            "query": "sum:hospitality.app.errors_total{service_name:property-engagement-platform}"
+          }, {
+            "data_source": "metrics",
+            "name": "requests",
+            "query": "sum:hospitality.app.requests_total{service_name:property-engagement-platform}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 4, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Digital Check-in Volume by Property Type",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.checkin.digital_transactions_total{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 7, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Check-in Time Trend",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.checkin.avg_time_sec{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 7, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Guest WiFi Auth Success",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.app.requests_total{service_name:guest-wifi-portal}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 10, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Loyalty API Performance",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.app.latency_ms{service_name:loyalty-rewards-api}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 10, "width": 6, "height": 3 }
+    }
+  ],
+  "template_variables": [
+    { "name": "property_type", "prefix": "property_type", "default": "*" },
+    { "name": "region", "prefix": "region", "default": "*" }
+  ],
+  "layout_type": "ordered"
+}

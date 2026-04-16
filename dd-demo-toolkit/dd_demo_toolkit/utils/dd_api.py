@@ -155,12 +155,37 @@ class DatadogAPIClient:
 
     def list_dashboards(self) -> Dict[str, Any]:
         """
-        List all dashboards.
+        List all dashboards, paging through every result.
+
+        The Datadog /api/v1/dashboard endpoint paginates with ``start`` (offset)
+        and ``count`` (page size, max 100). Without pagination the teardown
+        step only sees the first page, which causes older toolkit-managed
+        dashboards to survive across demo runs.
 
         Returns:
-            API response with dashboards list.
+            API response shaped like a single page ({"dashboards": [...]}) but
+            with the full result set concatenated across all pages.
         """
-        return self._request("GET", "/api/v1/dashboard")
+        page_size = 100
+        start = 0
+        all_dashboards: List[Dict[str, Any]] = []
+        last_response: Dict[str, Any] = {}
+
+        while True:
+            params = {"start": start, "count": page_size}
+            response = self._request("GET", "/api/v1/dashboard", params=params)
+            last_response = response
+            page = response.get("dashboards", []) or []
+            all_dashboards.extend(page)
+            if len(page) < page_size:
+                break
+            start += page_size
+
+        # Preserve the envelope of the last page for callers that read other
+        # top-level fields, but replace the list with the fully-paged result.
+        result = dict(last_response)
+        result["dashboards"] = all_dashboards
+        return result
 
     def create_monitor(self, json_payload: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -188,18 +213,53 @@ class DatadogAPIClient:
 
     def list_monitors(self, tag: Optional[str] = None) -> Dict[str, Any]:
         """
-        List monitors, optionally filtered by tag.
+        List monitors, paging through every result.
+
+        The Datadog /api/v1/monitor endpoint paginates with ``page`` (0-indexed)
+        and ``page_size`` (default 100, max 1000). Without pagination, teardown
+        only sees the first page, so monitors beyond page 1 survive across
+        demo runs and accumulate indefinitely.
 
         Args:
-            tag: Optional tag filter.
+            tag: Optional tag filter. Passed as ``monitor_tags`` (comma-
+                separated tag expression) per Datadog's list-monitor API.
+                NOTE: the previous implementation incorrectly used the
+                ``name`` parameter for this, which filters by monitor name
+                rather than by tag.
 
         Returns:
-            API response with monitors list.
+            API response shaped as a single page ({"monitors": [...]}) but with
+            the full result set concatenated across all pages.
         """
-        params = {}
-        if tag:
-            params["name"] = tag
-        return self._request("GET", "/api/v1/monitor", params=params)
+        page_size = 1000  # Datadog max
+        page = 0
+        all_monitors: List[Dict[str, Any]] = []
+
+        while True:
+            params: Dict[str, Any] = {
+                "page": page,
+                "page_size": page_size,
+            }
+            if tag:
+                params["monitor_tags"] = tag
+            response = self._request("GET", "/api/v1/monitor", params=params)
+
+            # /api/v1/monitor historically returns a bare JSON array. Be
+            # defensive and accept either shape.
+            if isinstance(response, list):
+                page_items = response
+            else:
+                page_items = response.get("monitors", []) or []
+
+            all_monitors.extend(page_items)
+            if len(page_items) < page_size:
+                break
+            page += 1
+
+        # Return the full list in the "monitors" envelope. MonitorManager
+        # handles both the list and dict shapes, so this is compatible with
+        # both of the historical response formats.
+        return {"monitors": all_monitors}
 
     def create_notebook(self, json_payload: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -227,12 +287,37 @@ class DatadogAPIClient:
 
     def list_notebooks(self) -> Dict[str, Any]:
         """
-        List all notebooks.
+        List all notebooks, paging through every result.
+
+        The Datadog /api/v1/notebooks endpoint paginates with ``start`` (offset)
+        and ``count`` (max 100). Without pagination the teardown step sees only
+        the first 100 notebooks, which is why older toolkit-managed notebooks
+        linger across demo runs.
 
         Returns:
-            API response with notebooks list.
+            API response shaped like a single page ({"data": [...]}) but with
+            the full result set concatenated across all pages.
         """
-        return self._request("GET", "/api/v1/notebooks")
+        page_size = 100  # Datadog max for notebooks
+        start = 0
+        all_notebooks: List[Dict[str, Any]] = []
+        last_response: Dict[str, Any] = {}
+
+        while True:
+            params = {"start": start, "count": page_size}
+            response = self._request("GET", "/api/v1/notebooks", params=params)
+            last_response = response
+            page = response.get("data", []) or []
+            all_notebooks.extend(page)
+            if len(page) < page_size:
+                break
+            start += page_size
+
+        # Preserve meta/links from the last page but swap in the fully-paged
+        # data array.
+        result = dict(last_response)
+        result["data"] = all_notebooks
+        return result
 
     def create_slo(self, json_payload: Dict[str, Any]) -> Dict[str, Any]:
         """

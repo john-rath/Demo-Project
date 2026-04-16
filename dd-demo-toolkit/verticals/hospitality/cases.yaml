@@ -1,0 +1,18 @@
+cases:
+  - title: "Investigate: Connected Room Gateway Fleet Reliability"
+    description: "Pattern of IoT gateway disconnections across multiple properties suggests systemic firmware or network issue. Investigate root cause across gateway fleet, correlate with Meraki AP health, and recommend firmware update strategy."
+    priority: "P2"
+    type: "STANDARD"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true"]
+
+  - title: "PEP Rollout Performance Baseline — Phase 3 Properties"
+    description: "Property Engagement Platform rolling out to remaining 4000+ properties. Establish performance baselines for digital check-in, excursion booking, and front desk request latencies. Identify properties requiring infrastructure upgrades before go-live."
+    priority: "P2"
+    type: "STANDARD"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true"]
+
+  - title: "Zero-Touch Resolution Rate Optimization"
+    description: "Current zero-touch resolution rate for IoT incidents is 72%. Target is 90%. Analyze ServiceNow self-healing workflow success/failure patterns, identify top failure modes, and recommend automation improvements to reduce on-site technical dispatches."
+    priority: "P1"
+    type: "STANDARD"
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true"]

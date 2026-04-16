@@ -1,0 +1,1 @@
+"""Hospitality incident plugins."""

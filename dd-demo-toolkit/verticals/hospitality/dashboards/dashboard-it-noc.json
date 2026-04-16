@@ -1,0 +1,480 @@
+{
+  "title": "IT NOC — Unified Operations View — Hospitality Demo",
+  "description": "Unified NOC dashboard: infrastructure health, network performance, application services, and guest experience signals in a single pane. [dd-demo-toolkit:hospitality]",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# IT NOC — Unified Operations\nSingle-pane view across Infrastructure, Network, Application, and Guest Experience.",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 0, "width": 12, "height": 2 }
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## 🏗️ Infrastructure",
+        "background_color": "gray",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 2, "width": 12, "height": 1 }
+    },
+    {
+      "definition": {
+        "title": "IoT Gateways Online",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "sum:hospitality.iot.gateway_online{property_type:$property_type,region:$region}" }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true, "precision": 0
+      },
+      "layout": { "x": 0, "y": 3, "width": 2, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "APs Online",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "sum:hospitality.device.online{device_type:meraki_ap,property_type:$property_type,region:$region}" }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true, "precision": 0
+      },
+      "layout": { "x": 2, "y": 3, "width": 2, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Switches Online",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "sum:hospitality.device.online{device_type:cisco_switch,property_type:$property_type,region:$region}" }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true, "precision": 0
+      },
+      "layout": { "x": 4, "y": 3, "width": 2, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Energy Meters",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "sum:hospitality.device.online{device_type:energy_meter,property_type:$property_type,region:$region}" }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true, "precision": 0
+      },
+      "layout": { "x": 6, "y": 3, "width": 2, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "MTTR",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.ops.mttr_minutes{property_type:$property_type,region:$region}" }],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": "<=", "value": 15, "palette": "white_on_green" },
+            { "comparator": "<=", "value": 45, "palette": "white_on_yellow" },
+            { "comparator": ">", "value": 45, "palette": "white_on_red" }
+          ]
+        }],
+        "autoscale": true, "precision": 0, "custom_unit": "min"
+      },
+      "layout": { "x": 8, "y": 3, "width": 2, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Zero-Touch %",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.ops.zero_touch_resolution_rate{property_type:$property_type,region:$region}" }],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": ">=", "value": 85, "palette": "white_on_green" },
+            { "comparator": "<", "value": 85, "palette": "white_on_yellow" }
+          ]
+        }],
+        "autoscale": true, "precision": 1, "custom_unit": "%"
+      },
+      "layout": { "x": 10, "y": 3, "width": 2, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "IoT Gateway — Connected Devices per Gateway",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.iot.gateway_connected_devices{property_type:$property_type,region:$region} by {property_type}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 5, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Gateway CPU & Memory",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }, { "formula": "query2" }],
+          "queries": [
+            { "data_source": "metrics", "name": "query1", "query": "avg:hospitality.iot.gateway_cpu_pct{property_type:$property_type,region:$region}" },
+            { "data_source": "metrics", "name": "query2", "query": "avg:hospitality.iot.gateway_memory_pct{property_type:$property_type,region:$region}" }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 4, "y": 5, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Energy Consumption (kWh) by Property",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.energy.consumption_kwh{property_type:$property_type,region:$region} by {property_type}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 8, "y": 5, "width": 4, "height": 3 }
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## 📡 Network (Cisco/Meraki)",
+        "background_color": "gray",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 8, "width": 12, "height": 1 }
+    },
+    {
+      "definition": {
+        "title": "WiFi Signal Strength by Property",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap,property_type:$property_type,region:$region} by {property_type}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = -50", "display_type": "warning dashed", "label": "Degraded" },
+          { "value": "y = -60", "display_type": "error dashed", "label": "Critical" }
+        ]
+      },
+      "layout": { "x": 0, "y": 9, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Connected Clients per AP",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.network.connected_clients{device_type:meraki_ap,property_type:$property_type,region:$region} by {property_type}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 45", "display_type": "error dashed", "label": "Overload" }
+        ]
+      },
+      "layout": { "x": 4, "y": 9, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Channel Utilization %",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.network.channel_utilization_pct{device_type:meraki_ap,property_type:$property_type,region:$region} by {property_type}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 80", "display_type": "error dashed", "label": "Saturation" }
+        ]
+      },
+      "layout": { "x": 8, "y": 9, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Guest WiFi Latency",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.network.latency_ms{property_type:$property_type,region:$region} by {property_type}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 12, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Retransmit Rate",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.network.retransmit_pct{property_type:$property_type,region:$region} by {property_type}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 4, "y": 12, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Switch Throughput (Mbps)",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "sum:hospitality.network.throughput_mbps{property_type:$property_type,region:$region} by {property_type}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 8, "y": 12, "width": 4, "height": 3 }
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## 🖥️ Application Services",
+        "background_color": "gray",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 15, "width": 12, "height": 1 }
+    },
+    {
+      "definition": {
+        "title": "Request Rate by Service",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "sum:hospitality.app.requests_total{property_type:$property_type,region:$region} by {service_name}" }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 0, "y": 16, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Error Rate by Service",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "(errors / requests) * 100" }],
+          "queries": [
+            { "data_source": "metrics", "name": "errors", "query": "sum:hospitality.app.errors_total{property_type:$property_type,region:$region} by {service_name}" },
+            { "data_source": "metrics", "name": "requests", "query": "sum:hospitality.app.requests_total{property_type:$property_type,region:$region} by {service_name}" }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 5", "display_type": "error dashed", "label": "SLO Breach (5%)" }
+        ]
+      },
+      "layout": { "x": 4, "y": 16, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "P99 Latency by Service",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "max:hospitality.app.latency_ms{property_type:$property_type,region:$region} by {service_name}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 8, "y": 16, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "AI Stay Planner — Inference Latency",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.app.latency_ms{service_name:reservations-portal,operation:ai-stay-planner*}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 19, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Loyalty Rewards API — Request Rate & Errors",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }, { "formula": "query2" }],
+          "queries": [
+            { "data_source": "metrics", "name": "query1", "query": "sum:hospitality.app.requests_total{service_name:loyalty-rewards-api}" },
+            { "data_source": "metrics", "name": "query2", "query": "sum:hospitality.app.errors_total{service_name:loyalty-rewards-api}" }
+          ],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 4, "y": 19, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Guest WiFi Portal — Error Rate",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "(errors / requests) * 100" }],
+          "queries": [
+            { "data_source": "metrics", "name": "errors", "query": "sum:hospitality.app.errors_total{service_name:guest-wifi-portal}" },
+            { "data_source": "metrics", "name": "requests", "query": "sum:hospitality.app.requests_total{service_name:guest-wifi-portal}" }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 8, "y": 19, "width": 4, "height": 3 }
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## 🏨 Guest Experience (RUM + Frontend)",
+        "background_color": "gray",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 22, "width": 12, "height": 1 }
+    },
+    {
+      "definition": {
+        "title": "LCP — Largest Contentful Paint",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.rum.lcp_ms{region:$region} by {view_path}" }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 2500", "display_type": "error dashed", "label": "Poor" }
+        ]
+      },
+      "layout": { "x": 0, "y": 23, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Frontend Errors by View",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "sum:hospitality.rum.errors_total{region:$region} by {view_path}" }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 4, "y": 23, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Sessions by Loyalty Tier",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "sum:hospitality.rum.sessions_total{region:$region} by {loyalty_tier}" }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 8, "y": 23, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Booking Revenue by Tier",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.rum.booking_revenue_usd{region:$region} by {loyalty_tier}" }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 0, "y": 26, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Funnel Drop-offs by View",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{ "data_source": "metrics", "name": "query1", "query": "sum:hospitality.rum.funnel_dropoff_total{region:$region} by {view_path}" }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 4, "y": 26, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "🔗 Network → RUM Error Correlation",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [{ "formula": "query1" }],
+            "queries": [{ "data_source": "metrics", "name": "query1", "query": "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap,property_type:extended_stay,region:apac}" }],
+            "response_format": "timeseries",
+            "display_type": "line",
+            "on_right_yaxis": false
+          },
+          {
+            "formulas": [{ "formula": "query2" }],
+            "queries": [{ "data_source": "metrics", "name": "query2", "query": "sum:hospitality.rum.errors_total{property_type:extended_stay,region:apac}" }],
+            "response_format": "timeseries",
+            "display_type": "bars",
+            "on_right_yaxis": true
+          }
+        ],
+        "right_yaxis": { "label": "Frontend Errors" },
+        "yaxis": { "label": "Signal (dBm)" }
+      },
+      "layout": { "x": 8, "y": 26, "width": 4, "height": 3 }
+    }
+  ],
+  "template_variables": [
+    { "name": "property_type", "prefix": "property_type", "default": "*" },
+    { "name": "region", "prefix": "region", "default": "*" }
+  ],
+  "layout_type": "ordered"
+}

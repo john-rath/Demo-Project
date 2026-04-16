@@ -1,0 +1,522 @@
+vertical:
+  name: hospitality
+  display_name: "Smart Hospitality Demo"
+  description: "Comprehensive smart hotel operations demonstrating IoT, network infrastructure, property management, guest experience, and revenue intelligence across a global Hospitality property portfolio"
+  env_prefix: hospitality
+  emit_interval_sec: 15
+
+locations:
+  dimensions:
+  - name: property_type
+    values: [Luxury Collection, Premium Resort, Full Service, Upscale Select, Select Service, Extended Stay]
+  - name: region
+    values: [Americas, EMEA, APAC]
+  # property_zone removed — inflated location space to 90 combos, causing
+  # small device categories to land on only 1-2 brands.  No dashboard uses it.
+
+device_categories:
+  connected_room_iot:
+    ip_base: '10.100'
+    department_pool:
+    - Guest Rooms
+    devices:
+    - type: connected_room_gateway
+      count: 48
+      description: "Edge controllers behind smart TVs managing room IoT ecosystem"
+      metrics:
+      - name: hospitality.iot.gateway_online
+        type: gauge
+        range: [0, 1]
+      - name: hospitality.iot.gateway_connected_devices
+        type: gauge
+        range: [0, 12]
+      - name: hospitality.iot.gateway_cpu_pct
+        type: gauge
+        range: [5, 85]
+      - name: hospitality.iot.gateway_memory_pct
+        type: gauge
+        range: [10, 75]
+      - name: hospitality.iot.gateway_uptime_hours
+        type: gauge
+        range: [0, 8760]
+      - name: hospitality.iot.room_temperature_f
+        type: gauge
+        range: [65, 80]
+      - name: hospitality.iot.room_occupied
+        type: gauge
+        range: [0, 1]
+      - name: hospitality.iot.lighting_level_pct
+        type: gauge
+        range: [0, 100]
+
+    - type: smart_lock
+      count: 48
+      description: "Smart door locks with battery monitoring and access event tracking"
+      metrics:
+      - name: hospitality.lock.battery_pct
+        type: gauge
+        range: [5, 100]
+      - name: hospitality.lock.access_events_total
+        type: counter
+        range: [0, 20]
+      - name: hospitality.lock.failures_total
+        type: counter
+        range: [0, 3]
+      - name: hospitality.device.online
+        type: gauge
+        range: [0, 1]
+
+    - type: smart_thermostat
+      count: 48
+      description: "In-room HVAC devices with energy monitoring"
+      metrics:
+      - name: hospitality.hvac.setpoint_f
+        type: gauge
+        range: [65, 78]
+      - name: hospitality.hvac.actual_f
+        type: gauge
+        range: [62, 82]
+      - name: hospitality.hvac.energy_kwh
+        type: gauge
+        range: [0.5, 15]
+      - name: hospitality.device.online
+        type: gauge
+        range: [0, 1]
+
+  network_infra:
+    ip_base: '10.200'
+    department_pool:
+    - Network
+    devices:
+    - type: meraki_ap
+      count: 32
+      manufacturer: Cisco
+      model: Meraki MR56
+      description: "Wireless access points providing guest and operational networks"
+      metrics:
+      - name: hospitality.device.online
+        type: gauge
+        range: [0, 1]
+      - name: hospitality.network.channel_utilization_pct
+        type: gauge
+        range: [5, 85]
+      - name: hospitality.network.connected_clients
+        type: gauge
+        range: [0, 80]
+      - name: hospitality.network.latency_ms
+        type: gauge
+        range: [1, 80]
+      - name: hospitality.network.retransmit_pct
+        type: gauge
+        range: [0, 10]
+      - name: hospitality.network.signal_strength_dbm
+        type: gauge
+        range: [-85, -20]
+
+    - type: cisco_switch
+      count: 18
+      manufacturer: Cisco
+      model: Catalyst 9300
+      description: "Enterprise network switches for infrastructure connectivity"
+      metrics:
+      - name: hospitality.device.online
+        type: gauge
+        range: [0, 1]
+      - name: hospitality.network.throughput_mbps
+        type: gauge
+        range: [50, 10000]
+      - name: hospitality.network.port_utilization_pct
+        type: gauge
+        range: [10, 90]
+
+  property_operations:
+    ip_base: '10.150'
+    department_pool:
+    - Operations
+    devices:
+    - type: energy_meter
+      count: 18
+      manufacturer: Schneider Electric
+      model: PowerLogic PM5300
+      description: "Building-wide energy consumption and demand monitoring"
+      metrics:
+      - name: hospitality.energy.consumption_kwh
+        type: gauge
+        range: [100, 5000]
+      - name: hospitality.energy.demand_kw
+        type: gauge
+        range: [50, 2000]
+      - name: hospitality.energy.power_factor
+        type: gauge
+        range: [0.85, 0.99]
+      - name: hospitality.device.online
+        type: gauge
+        range: [0, 1]
+
+    - type: hvac_controller
+      count: 18
+      manufacturer: Johnson Controls
+      model: Metasys CCT
+      description: "HVAC zone controllers for property climate management"
+      metrics:
+      - name: hospitality.hvac.zone_temperature_f
+        type: gauge
+        range: [65, 80]
+      - name: hospitality.hvac.zone_humidity_pct
+        type: gauge
+        range: [30, 65]
+      - name: hospitality.hvac.supply_air_temp_f
+        type: gauge
+        range: [50, 65]
+      - name: hospitality.device.online
+        type: gauge
+        range: [0, 1]
+
+  guest_experience:
+    ip_base: '10.180'
+    department_pool:
+    - Guest Services
+    devices:
+    - type: lobby_kiosk
+      count: 18
+      manufacturer: Samsung
+      model: Kiosk KM24A
+      description: "Digital check-in and concierge kiosks in lobby"
+      metrics:
+      - name: hospitality.checkin.digital_transactions_total
+        type: counter
+        range: [0, 30]
+      - name: hospitality.checkin.avg_time_sec
+        type: gauge
+        range: [15, 180]
+      - name: hospitality.checkin.failures_total
+        type: counter
+        range: [0, 5]
+      - name: hospitality.device.online
+        type: gauge
+        range: [0, 1]
+
+    - type: in_room_entertainment
+      count: 48
+      manufacturer: Samsung
+      model: HG65CU700
+      description: "Smart TVs with streaming and room control integration"
+      metrics:
+      - name: hospitality.entertainment.streaming_sessions
+        type: gauge
+        range: [0, 1]
+      - name: hospitality.entertainment.cast_events_total
+        type: counter
+        range: [0, 10]
+      - name: hospitality.device.online
+        type: gauge
+        range: [0, 1]
+
+  revenue_intelligence:
+    ip_base: '10.210'
+    department_pool:
+    - Revenue Management
+    devices:
+    - type: revenue_data_feed
+      count: 18
+      manufacturer: Internal
+      model: RevPAR Engine v3
+      description: "Real-time revenue metrics and occupancy analytics"
+      metrics:
+      - name: hospitality.revpar
+        type: gauge
+        range: [80, 350]
+        drift: 5.0
+        description: "KEY METRIC - Revenue Per Available Room"
+      - name: hospitality.occupancy_rate_pct
+        type: gauge
+        range: [55, 98]
+        drift: 2.0
+      - name: hospitality.adr
+        type: gauge
+        range: [100, 500]
+        drift: 3.0
+        description: "Average Daily Rate"
+      - name: hospitality.revenue.total_daily
+        type: gauge
+        range: [50000, 500000]
+        drift: 1000
+
+  it_operations:
+    ip_base: '10.220'
+    department_pool:
+    - IT Operations
+    devices:
+    - type: itsm_telemetry_feed
+      count: 18
+      manufacturer: Internal
+      model: ServiceNow Connector v2
+      firmware: '2.0.0'
+      description: "IT operations metrics from ServiceNow ITSM and self-healing automation"
+      metrics:
+      - name: hospitality.ops.zero_touch_resolution_rate
+        type: gauge
+        unit: '%'
+        range: [60, 95]
+        drift: 2.0
+        description: "KEY METRIC - Percentage of incidents resolved without on-site dispatch"
+      - name: hospitality.ops.onsite_dispatches_total
+        type: counter
+        unit: '1'
+        range: [0, 5]
+        drift: 0.3
+        description: "On-site technical visits dispatched (lower is better)"
+      - name: hospitality.ops.dispatches_avoided_total
+        type: counter
+        unit: '1'
+        range: [0, 15]
+        drift: 0.5
+        description: "On-site visits avoided via remote/self-healing resolution"
+      - name: hospitality.ops.mttr_minutes
+        type: gauge
+        unit: min
+        range: [5, 180]
+        drift: 5.0
+        description: "Mean Time To Resolution across all incident types"
+      - name: hospitality.ops.self_heal_success_total
+        type: counter
+        unit: '1'
+        range: [0, 12]
+        drift: 0.4
+      - name: hospitality.ops.self_heal_failure_total
+        type: counter
+        unit: '1'
+        range: [0, 3]
+        drift: 0.2
+      - name: hospitality.ops.incidents_total
+        type: counter
+        unit: '1'
+        range: [0, 20]
+        drift: 0.5
+      - name: hospitality.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.01
+
+  ai_services:
+    ip_base: '10.230'
+    department_pool:
+    - Digital
+    devices:
+    - type: ai_inference_endpoint
+      count: 18
+      manufacturer: Internal
+      model: Stay Planner AI v1
+      firmware: '1.0.0'
+      description: "AI model serving for stay planner, recommendations, and personalization"
+      metrics:
+      - name: hospitality.ai.inference_latency_ms
+        type: gauge
+        unit: ms
+        range: [50, 800]
+        drift: 20.0
+        description: "AI model inference latency for stay planning recommendations"
+      - name: hospitality.ai.requests_total
+        type: counter
+        unit: '1'
+        range: [0, 50]
+        drift: 2.0
+      - name: hospitality.ai.token_usage_total
+        type: counter
+        unit: '1'
+        range: [0, 5000]
+        drift: 100.0
+      - name: hospitality.ai.recommendation_acceptance_rate
+        type: gauge
+        unit: '%'
+        range: [30, 85]
+        drift: 3.0
+      - name: hospitality.ai.revenue_attributed_usd
+        type: gauge
+        unit: USD
+        range: [500, 15000]
+        drift: 200.0
+        description: "Revenue attributed to AI stay planner recommendations"
+      - name: hospitality.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.01
+
+services:
+  - name: reservations-portal
+    host: hospitality-web-01
+    language: java
+    framework: Spring Boot
+    description: "Main reservations portal web portal for reservations and loyalty"
+    operations:
+    - name: GET /api/search/availability
+      latency_base_ms: 80
+      latency_p99_ms: 400
+      error_rate: 0.02
+    - name: POST /api/reservations
+      latency_base_ms: 120
+      latency_p99_ms: 600
+      error_rate: 0.03
+    - name: GET /api/loyalty/profile
+      latency_base_ms: 60
+      latency_p99_ms: 300
+      error_rate: 0.015
+    - name: POST /api/ai/stay-planner
+      latency_base_ms: 200
+      latency_p99_ms: 1200
+      error_rate: 0.04
+      description: "AI-powered stay planner recommendation engine"
+    dependencies:
+    - service: revenue-management-engine
+      operation: GET /api/pricing/realtime
+      probability: 0.6
+    - service: loyalty-rewards-api
+      operation: GET /api/loyalty/member
+      probability: 0.4
+
+  - name: property-engagement-platform
+    host: pep-app-01
+    language: dotnet
+    framework: ".NET 8"
+    description: "Guest engagement and property operations platform"
+    operations:
+    - name: POST /api/checkin/digital
+      latency_base_ms: 90
+      latency_p99_ms: 450
+      error_rate: 0.02
+    - name: GET /api/excursions/available
+      latency_base_ms: 70
+      latency_p99_ms: 350
+      error_rate: 0.015
+    - name: POST /api/frontdesk/request
+      latency_base_ms: 50
+      latency_p99_ms: 250
+      error_rate: 0.01
+    - name: GET /api/property/status
+      latency_base_ms: 40
+      latency_p99_ms: 200
+      error_rate: 0.008
+    dependencies:
+    - service: connected-room-service
+      operation: POST /api/room/configure
+      probability: 0.5
+    - service: reservations-portal
+      operation: GET /api/loyalty/profile
+      probability: 0.3
+
+  - name: connected-room-service
+    host: cr-edge-01
+    language: go
+    framework: stdlib
+    description: "Edge service managing IoT devices and room controls"
+    operations:
+    - name: POST /api/room/configure
+      latency_base_ms: 20
+      latency_p99_ms: 100
+      error_rate: 0.01
+    - name: GET /api/room/status
+      latency_base_ms: 15
+      latency_p99_ms: 80
+      error_rate: 0.005
+    - name: POST /api/room/command
+      latency_base_ms: 25
+      latency_p99_ms: 120
+      error_rate: 0.015
+    - name: POST /api/iot/telemetry/ingest
+      latency_base_ms: 10
+      latency_p99_ms: 60
+      error_rate: 0.005
+
+  - name: revenue-management-engine
+    host: revmgmt-app-01
+    language: python
+    framework: FastAPI
+    description: "Real-time revenue management and pricing optimization"
+    operations:
+    - name: GET /api/pricing/realtime
+      latency_base_ms: 100
+      latency_p99_ms: 500
+      error_rate: 0.02
+    - name: POST /api/forecast/demand
+      latency_base_ms: 150
+      latency_p99_ms: 800
+      error_rate: 0.025
+    - name: GET /api/revpar/calculate
+      latency_base_ms: 80
+      latency_p99_ms: 400
+      error_rate: 0.01
+    dependencies:
+    - service: reservations-portal
+      operation: GET /api/search/availability
+      probability: 0.2
+
+  - name: servicenow-integration
+    host: snow-connector-01
+    language: python
+    framework: FastAPI
+    description: "ServiceNow integration for incident management and self-healing"
+    operations:
+    - name: POST /api/incidents/create
+      latency_base_ms: 60
+      latency_p99_ms: 300
+      error_rate: 0.02
+    - name: POST /api/incidents/auto-resolve
+      latency_base_ms: 45
+      latency_p99_ms: 200
+      error_rate: 0.01
+    - name: GET /api/cmdb/lookup
+      latency_base_ms: 35
+      latency_p99_ms: 150
+      error_rate: 0.008
+    - name: POST /api/self-heal/execute
+      latency_base_ms: 80
+      latency_p99_ms: 400
+      error_rate: 0.03
+    dependencies:
+    - service: connected-room-service
+      operation: GET /api/room/status
+      probability: 0.4
+
+  - name: loyalty-rewards-api
+    host: loyalty-app-01
+    language: java
+    framework: Spring Boot
+    description: "Guest Loyalty Program loyalty program API"
+    operations:
+    - name: GET /api/loyalty/member
+      latency_base_ms: 50
+      latency_p99_ms: 250
+      error_rate: 0.01
+    - name: POST /api/loyalty/earn
+      latency_base_ms: 70
+      latency_p99_ms: 350
+      error_rate: 0.015
+    - name: POST /api/loyalty/redeem
+      latency_base_ms: 90
+      latency_p99_ms: 450
+      error_rate: 0.02
+
+  - name: guest-wifi-portal
+    host: wifi-portal-01
+    language: python
+    framework: Django
+    description: "Guest WiFi authentication and management portal"
+    operations:
+    - name: POST /api/wifi/authenticate
+      latency_base_ms: 30
+      latency_p99_ms: 150
+      error_rate: 0.02
+    - name: GET /api/wifi/usage
+      latency_base_ms: 20
+      latency_p99_ms: 100
+      error_rate: 0.01
+    - name: POST /api/wifi/bandwidth/upgrade
+      latency_base_ms: 40
+      latency_p99_ms: 200
+      error_rate: 0.015
+    dependencies:
+    - service: loyalty-rewards-api
+      operation: GET /api/loyalty/member
+      probability: 0.5

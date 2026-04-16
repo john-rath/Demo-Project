@@ -137,7 +137,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.device.cpu_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.device.cpu_usage_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "scalar"
@@ -168,7 +168,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.device.memory_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.device.memory_usage_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "scalar"
@@ -199,7 +199,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.device.signal_dbm{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.device.signal_strength_dbm{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "scalar"
@@ -323,7 +323,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.device.cpu_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.device.cpu_usage_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -344,7 +344,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query2",
-                      "query": "avg:hospital.device.memory_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.device.memory_usage_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -390,7 +390,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.device.signal_dbm{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.device.signal_strength_dbm{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -880,7 +880,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.nurse_call.active_calls{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.nursecall.active_calls{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "scalar"
@@ -911,7 +911,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.nurse_call.response_time_sec{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.nursecall.response_time_sec{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "scalar"
@@ -957,7 +957,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.environment.room_temperature_f{$floor,$wing,$department}"
+                      "query": "avg:hospital.env.room_temperature_f{$floor,$wing,$department}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -1003,7 +1003,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.environment.humidity_pct{$floor,$wing,$department}"
+                      "query": "avg:hospital.env.humidity_pct{$floor,$wing,$department}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -1045,7 +1045,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.environment.air_quality_aqi{$floor,$wing,$department}"
+                      "query": "avg:hospital.env.air_quality_aqi{$floor,$wing,$department}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -1066,7 +1066,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query2",
-                      "query": "avg:hospital.environment.co2_ppm{$floor,$wing,$department}"
+                      "query": "avg:hospital.env.co2_ppm{$floor,$wing,$department}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -1107,7 +1107,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.environment.differential_pressure_pa{$floor,$wing,$department}"
+                      "query": "avg:hospital.env.differential_pressure_pa{$floor,$wing,$department}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -1142,7 +1142,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.environment.ups_load_pct{$floor,$wing,$department}"
+                      "query": "avg:hospital.env.ups_load_pct{$floor,$wing,$department}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -1163,7 +1163,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query2",
-                      "query": "avg:hospital.environment.ups_runtime_min{$floor,$wing,$department}"
+                      "query": "avg:hospital.env.ups_runtime_min{$floor,$wing,$department}"
                     }
                   ],
                   "response_format": "timeseries",

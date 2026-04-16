@@ -1,0 +1,495 @@
+{
+  "title": "Network Engineering (Cisco/Meraki) — Hospitality Demo",
+  "description": "Cisco Meraki wireless infrastructure: AP health, signal quality, client density, channel utilization, and incident correlation across all Hospitality properties. [dd-demo-toolkit:hospitality]",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Network Infrastructure\nCisco Meraki wireless, switching, and guest connectivity across all properties.",
+        "background_color": "vivid_green",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 0, "width": 12, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "APs Online",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.device.online{device_type:meraki_ap,property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 0, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Switches Online",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.device.online{device_type:cisco_switch,property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 3, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Total Clients",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.network.connected_clients{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 6, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Avg Latency",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.network.latency_ms{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0,
+        "custom_unit": "ms"
+      },
+      "layout": { "x": 9, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Channel Utilization by Property",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.network.channel_utilization_pct{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 4, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Connected Clients by Region",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.network.connected_clients{property_type:$property_type,region:$region} by {region}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 4, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Guest WiFi Latency",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.network.latency_ms{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 7, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Retransmission Rate",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.network.retransmit_pct{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 7, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Switch Throughput",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.network.throughput_mbps{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 10, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Signal Strength Distribution",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.network.signal_strength_dbm{property_type:$property_type,region:$region} by {region}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 10, "width": 6, "height": 3 }
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Meraki AP Deep Dive\nPer-property signal quality, client density analysis, and incident correlation with IoT and guest experience.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 13, "width": 12, "height": 2 }
+    },
+
+    {
+      "definition": {
+        "title": "Meraki AP — Signal Strength by Property (dBm)",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap,property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = -50", "display_type": "warning dashed", "label": "Degraded (<-50 dBm)" },
+          { "value": "y = -60", "display_type": "error dashed", "label": "Critical (<-60 dBm)" }
+        ]
+      },
+      "layout": { "x": 0, "y": 15, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Meraki AP — Client Density per AP",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.network.connected_clients{device_type:meraki_ap,property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 45", "display_type": "error dashed", "label": "Overload Threshold (>45)" },
+          { "value": "y = 35", "display_type": "warning dashed", "label": "High Density (>35)" }
+        ]
+      },
+      "layout": { "x": 6, "y": 15, "width": 6, "height": 3 }
+    },
+
+    {
+      "definition": {
+        "title": "Signal vs Clients — Inverse Correlation (HGI APAC)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [{ "formula": "query1" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query1",
+              "query": "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line",
+            "on_right_yaxis": false
+          },
+          {
+            "formulas": [{ "formula": "query2" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query2",
+              "query": "avg:hospitality.network.connected_clients{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line",
+            "on_right_yaxis": true
+          }
+        ],
+        "right_yaxis": { "label": "Connected Clients" },
+        "yaxis": { "label": "Signal (dBm)" }
+      },
+      "layout": { "x": 0, "y": 18, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Channel Utilization — Below Threshold Despite Overload",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.network.channel_utilization_pct{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 80", "display_type": "error dashed", "label": "Alert Threshold (80%)" }
+        ]
+      },
+      "layout": { "x": 6, "y": 18, "width": 6, "height": 3 }
+    },
+
+    {
+      "definition": {
+        "title": "Retransmit Rate vs Signal Degradation",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [{ "formula": "query1" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query1",
+              "query": "avg:hospitality.network.retransmit_pct{device_type:meraki_ap,property_type:$property_type,region:$region} by {property_type}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ],
+        "markers": [
+          { "value": "y = 5", "display_type": "warning dashed", "label": "Elevated (>5%)" },
+          { "value": "y = 10", "display_type": "error dashed", "label": "Critical (>10%)" }
+        ]
+      },
+      "layout": { "x": 0, "y": 21, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Switch Port Utilization by Property",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.network.port_utilization_pct{device_type:cisco_switch,property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 21, "width": 6, "height": 3 }
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "# IoT Impact Correlation\nWhen Meraki signal degrades, IoT gateways lose devices and guest-facing services fail.",
+        "background_color": "vivid_orange",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 24, "width": 12, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "WiFi Signal → IoT Gateway Devices (Cascade View)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [{ "formula": "query1" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query1",
+              "query": "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line",
+            "on_right_yaxis": false
+          },
+          {
+            "formulas": [{ "formula": "query2" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query2",
+              "query": "avg:hospitality.iot.gateway_connected_devices{property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line",
+            "on_right_yaxis": true
+          }
+        ],
+        "right_yaxis": { "label": "IoT Devices/Gateway" },
+        "yaxis": { "label": "Signal (dBm)" }
+      },
+      "layout": { "x": 0, "y": 26, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Network Signal → RUM Frontend Errors",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [{ "formula": "query1" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query1",
+              "query": "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line",
+            "on_right_yaxis": false
+          },
+          {
+            "formulas": [{ "formula": "query2" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query2",
+              "query": "sum:hospitality.rum.errors_total{property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "bars",
+            "on_right_yaxis": true
+          }
+        ],
+        "right_yaxis": { "label": "Frontend Errors" },
+        "yaxis": { "label": "Signal (dBm)" }
+      },
+      "layout": { "x": 6, "y": 26, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Luxury Collection APAC — Channel Saturation (Distinct Failure Mode)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [{ "formula": "query1" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query1",
+              "query": "avg:hospitality.network.channel_utilization_pct{device_type:meraki_ap,property_type:luxury_collection,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line"
+          },
+          {
+            "formulas": [{ "formula": "query2" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query2",
+              "query": "avg:hospitality.network.connected_clients{device_type:meraki_ap,property_type:luxury_collection,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line",
+            "on_right_yaxis": true
+          }
+        ],
+        "markers": [
+          { "value": "y = 80", "display_type": "error dashed", "label": "Saturation (80%)" }
+        ],
+        "right_yaxis": { "label": "Connected Clients" },
+        "yaxis": { "label": "Channel Util %" }
+      },
+      "layout": { "x": 0, "y": 29, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Gateway Hardware Health (CPU/Memory) — Ruling Out Hardware",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [{ "formula": "query1" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query1",
+              "query": "avg:hospitality.iot.gateway_cpu_pct{property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line"
+          },
+          {
+            "formulas": [{ "formula": "query2" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query2",
+              "query": "avg:hospitality.iot.gateway_memory_pct{property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": { "x": 6, "y": 29, "width": 6, "height": 3 }
+    }
+  ],
+  "template_variables": [
+    { "name": "property_type", "prefix": "property_type", "default": "*" },
+    { "name": "region", "prefix": "region", "default": "*" }
+  ],
+  "layout_type": "ordered"
+}

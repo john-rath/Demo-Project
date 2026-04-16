@@ -77,6 +77,7 @@ dd-demo simulate --vertical healthcare
 | **Finance** | 309+ | 10 | Database replication lag → payment processing timeout |
 | **Manufacturing** | 246+ | 8 | Robot servo degradation → assembly line halt |
 | **Insurance** | 290+ | 9 | Catastrophe event triggers claims processing surge |
+| **Hospitality** | 240+ | 7 | WiFi client overload → IoT gateway cascade → guest-experience impact |
 
 ### Healthcare: Smart Hospital Demo
 
@@ -101,6 +102,12 @@ Tesla/Toyota-scale automotive plant with industrial equipment, PLCs, robots, con
 Multi-state property and casualty plus life insurer with policy management, underwriting, telematics, claims processing, fraud detection, and billing systems. The incident: a major weather event (hurricane, hailstorm, tornado) creates a surge in claims submissions that cascades through the system.
 
 **Key Resources**: 9 services, 7 SLOs, 16+ monitors for claims processing, policy renewals, underwriting SLAs, and fraud signals.
+
+### Hospitality: Smart Hotel / Multi-Property Portfolio
+
+Global hospitality operator with connected-room IoT, property networks (Meraki APs, Cisco switches), energy/HVAC, revenue intelligence, a reservations portal, a guest loyalty program, ServiceNow ITSM integration, and an AI-powered stay planner. Property brands are genericized into tiers (Luxury Collection, Premium Resort, Full Service, Upscale Select, Select Service, Extended Stay). The incident: an anomalous WiFi client surge degrades AP signal strength, causing IoT gateways to lose connected room devices (smart locks, thermostats, TVs), which Datadog Workflows then auto-remediates via the Meraki API — demonstrating zero-touch resolution.
+
+**Key Resources**: 7 services, 7 SLOs, 14+ monitors covering RevPAR/occupancy, IoT gateway fleet uptime, digital check-in, WiFi, and self-healing automation.
 
 ---
 

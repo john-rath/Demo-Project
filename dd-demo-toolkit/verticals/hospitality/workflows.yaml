@@ -1,0 +1,175 @@
+workflows:
+  - name: "[Hospitality] WiFi Client Overload — Auto-Remediation via Meraki API"
+    description: "When Bits detects WiFi client overload degrading IoT connectivity, auto-remediates by rate-limiting rogue clients via the Meraki Dashboard API. Built from Bits investigation findings."
+    trigger:
+      type: monitor
+      monitor_tags: ["incident_domain:network-to-iot"]
+      conditions:
+        - metric: "hospitality.network.connected_clients"
+          threshold: "> 45"
+          scope: "property_type:extended_stay,region:apac"
+        - metric: "hospitality.network.signal_strength_dbm"
+          threshold: "< -52"
+          scope: "property_type:extended_stay,region:apac"
+    steps:
+      - name: identify_rogue_clients
+        type: http_request
+        description: "Query Meraki Dashboard API to identify anomalous clients (connected < 5min, high bandwidth consumers)"
+        parameters:
+          method: GET
+          url: "https://api.meraki.com/api/v1/networks/{{network_id}}/clients?timespan=300&perPage=100"
+          headers:
+            X-Cisco-Meraki-API-Key: "{{vault.meraki_api_key}}"
+      - name: filter_non_iot_clients
+        type: function
+        description: "Filter client list to non-IoT devices consuming disproportionate bandwidth (not in IoT MAC allowlist)"
+        parameters:
+          logic: |
+            rogue_clients = [c for c in steps.identify_rogue_clients.clients
+                            if c.mac not in iot_mac_allowlist
+                            and c.usage.sent + c.usage.recv > bandwidth_threshold]
+      - name: apply_rate_limit_policy
+        type: http_request
+        description: "Apply IoT-Priority group policy to rate-limit rogue clients via Meraki API"
+        parameters:
+          method: PUT
+          url: "https://api.meraki.com/api/v1/networks/{{network_id}}/clients/{{client_id}}/policy"
+          headers:
+            X-Cisco-Meraki-API-Key: "{{vault.meraki_api_key}}"
+          body:
+            devicePolicy: "Group"
+            groupPolicyId: "{{iot_priority_policy_id}}"
+          loop: "steps.filter_non_iot_clients.rogue_clients"
+      - name: wait_for_signal_recovery
+        type: sleep
+        description: "Wait 90 seconds for WiFi signal to recover after rate-limiting"
+        parameters:
+          duration_seconds: 90
+      - name: verify_signal_recovery
+        type: datadog_query
+        description: "Verify WiFi signal strength has recovered above -50 dBm"
+        parameters:
+          query: "avg(last_2m):avg:hospitality.network.signal_strength_dbm{property_type:extended_stay,region:apac} > -50"
+      - name: verify_iot_recovery
+        type: datadog_query
+        description: "Verify IoT gateway connected devices recovered above 5"
+        parameters:
+          query: "avg(last_2m):avg:hospitality.iot.gateway_connected_devices{property_type:extended_stay,region:apac} > 5"
+      - name: create_snow_incident
+        type: http_request
+        description: "Create ServiceNow incident with full RCA context from Bits"
+        parameters:
+          method: POST
+          url: "https://hospitality.service-now.com/api/now/table/incident"
+          headers:
+            Authorization: "Bearer {{vault.servicenow_token}}"
+          body:
+            short_description: "WiFi Client Overload — {{property_type}} {{region}} — Auto-Remediated"
+            urgency: "3"
+            category: "Network Infrastructure"
+            description: "Root cause: Anomalous WiFi client surge (42% increase) overloaded Meraki APs, degrading signal from -48 to -57 dBm. IoT gateways lost connected devices (8.0 → 1.9 avg). Auto-remediated via Meraki API client rate-limiting. Zero dispatches."
+            close_code: "Resolved by Automation"
+      - name: notify_team
+        type: slack_message
+        parameters:
+          channel: "#iot-ops"
+          message: |
+            :white_check_mark: **WiFi Client Overload Auto-Remediated** — {{property_type}} {{region}}
+
+            **Root Cause:** Anomalous client surge (33 → 47 clients, +42%) degraded WiFi signal by 9 dBm
+            **Impact:** IoT devices disconnected (8.0 → 1.9 avg/gateway), smart locks & HVAC offline
+            **Resolution:** Meraki API rate-limited {{steps.filter_non_iot_clients.count}} rogue clients
+            **Recovery:** Signal {{#if steps.verify_signal_recovery.success}}restored to -48 dBm{{else}}still degraded — escalating{{/if}}, devices {{#if steps.verify_iot_recovery.success}}reconnected (7.5 avg/gateway){{else}}still recovering{{/if}}
+            **Dispatches:** Zero — fully automated resolution
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "workflow-type:auto-remediation", "bits-derived:true"]
+
+  - name: "[Hospitality] IoT Gateway Self-Healing via ServiceNow"
+    description: "When IoT gateway goes offline, auto-creates ServiceNow incident, attempts remote restart via edge management API, and tracks zero-touch resolution."
+    trigger:
+      type: monitor
+      monitor_tags: ["incident_domain:iot-to-guest"]
+    steps:
+      - name: create_snow_incident
+        type: http_request
+        description: "Create ServiceNow incident for gateway offline"
+        parameters:
+          method: POST
+          url: "https://hospitality.service-now.com/api/now/table/incident"
+          headers:
+            Authorization: "Bearer {{vault.servicenow_token}}"
+          body:
+            short_description: "IoT Gateway Offline — {{property_type}} {{region}}"
+            urgency: "2"
+            category: "IoT Infrastructure"
+      - name: attempt_remote_restart
+        type: http_request
+        description: "Attempt remote gateway restart via edge management API"
+        parameters:
+          method: POST
+          url: "https://edge-mgmt.hospitality.demo/api/v1/gateways/{{device_id}}/restart"
+      - name: wait_for_recovery
+        type: sleep
+        description: "Wait 90 seconds for gateway to recover"
+        parameters:
+          duration_seconds: 90
+      - name: verify_recovery
+        type: datadog_query
+        description: "Verify gateway is back online"
+        parameters:
+          query: "sum(last_2m):sum:hospitality.iot.gateway_online{device_id:{{device_id}}} > 0"
+      - name: notify_team
+        type: slack_message
+        parameters:
+          channel: "#iot-ops"
+          message: "IoT gateway {{device_id}} at {{property_type}} {{region}}: Self-healing {{#if steps.verify_recovery.success}}SUCCEEDED — zero-touch resolution{{else}}FAILED — dispatching on-site tech{{/if}}."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "workflow-type:self-healing"]
+
+  - name: "[Hospitality] Meraki AP Channel Saturation — Auto-Optimization"
+    description: "Automatically triggers Meraki RF optimization when channel utilization exceeds 80% (Luxury Collection failure mode). Distinct from client overload remediation."
+    trigger:
+      type: monitor
+      monitor_tags: ["incident_domain:network"]
+    steps:
+      - name: check_meraki_status
+        type: http_request
+        description: "Query Meraki Dashboard API for AP status and channel analysis"
+        parameters:
+          method: GET
+          url: "https://api.meraki.com/api/v1/networks/{{network_id}}/wireless/rfProfiles"
+          headers:
+            X-Cisco-Meraki-API-Key: "{{vault.meraki_api_key}}"
+      - name: optimize_channel
+        type: http_request
+        description: "Trigger RF optimization via Meraki API to reassign saturated channels"
+        parameters:
+          method: POST
+          url: "https://api.meraki.com/api/v1/networks/{{network_id}}/wireless/rfProfiles/reassign"
+      - name: notify_network_team
+        type: slack_message
+        parameters:
+          channel: "#network-ops"
+          message: "Meraki AP channel optimization triggered at {{property_type}} {{region}}. Channel utilization was {{trigger_value}}%. This is the channel saturation failure mode (distinct from client overload)."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "workflow-type:auto-remediation"]
+
+  - name: "[Hospitality] RevPAR Alert — Revenue Team Notification"
+    description: "When RevPAR drops below target, notifies revenue management team with context and recommended actions."
+    trigger:
+      type: monitor
+      monitor_tags: ["impact:revenue"]
+    steps:
+      - name: gather_revenue_context
+        type: datadog_query
+        description: "Collect RevPAR, occupancy, and ADR data"
+        parameters:
+          query: "avg:hospitality.revpar{property_type:{{property_type}}}, avg:hospitality.occupancy_rate_pct{property_type:{{property_type}}}, avg:hospitality.adr{property_type:{{property_type}}}"
+      - name: check_booking_errors
+        type: datadog_query
+        description: "Check if booking errors are contributing to low RevPAR"
+        parameters:
+          query: "sum(last_1h):sum:hospitality.app.errors_total{service_name:reservations-portal}"
+      - name: notify_revenue_team
+        type: slack_message
+        parameters:
+          channel: "#revenue-management"
+          message: "RevPAR alert for {{property_type}}: ${{steps.gather_revenue_context.revpar}} (below target). Occupancy: {{steps.gather_revenue_context.occupancy}}%. ADR: ${{steps.gather_revenue_context.adr}}. Booking errors in last hour: {{steps.check_booking_errors.result}}. Review dynamic pricing immediately."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "workflow-type:notification"]

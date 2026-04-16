@@ -1,0 +1,374 @@
+{
+  "title": "IT Ops Command Center — Hospitality Demo",
+  "description": "IT Operations Command Center tracking Zero-Touch Resolution Rate, on-site dispatch avoidance, MTTR, ServiceNow self-healing automation, and incident volume across the Hospitality property portfolio. [dd-demo-toolkit:hospitality]",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# IT Operations Command Center\nZero-Touch Resolution, ServiceNow self-healing automation, on-site dispatch avoidance, and incident response across 7,000+ properties.",
+        "background_color": "vivid_red",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 0, "width": 12, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Zero-Touch Resolution Rate",
+        "title_size": "16",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.ops.zero_touch_resolution_rate{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": ">=", "value": 85, "palette": "white_on_green" },
+            { "comparator": ">=", "value": 70, "palette": "white_on_yellow" },
+            { "comparator": "<", "value": 70, "palette": "white_on_red" }
+          ]
+        }],
+        "autoscale": true,
+        "precision": 1,
+        "custom_unit": "%"
+      },
+      "layout": { "x": 0, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "MTTR (minutes)",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.ops.mttr_minutes{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": "<=", "value": 30, "palette": "white_on_green" },
+            { "comparator": "<=", "value": 60, "palette": "white_on_yellow" },
+            { "comparator": ">", "value": 60, "palette": "white_on_red" }
+          ]
+        }],
+        "autoscale": true,
+        "precision": 0,
+        "custom_unit": "min"
+      },
+      "layout": { "x": 3, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Dispatches Avoided",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.ops.dispatches_avoided_total{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": ">", "value": 0, "palette": "white_on_green" }
+          ]
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 6, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "On-site Dispatches",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.ops.onsite_dispatches_total{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": "<=", "value": 2, "palette": "white_on_green" },
+            { "comparator": "<=", "value": 5, "palette": "white_on_yellow" },
+            { "comparator": ">", "value": 5, "palette": "white_on_red" }
+          ]
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 9, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Self-Healing Automation\nServiceNow integration: auto-incident creation, remote restart, firmware rollback",
+        "background_color": "gray",
+        "font_size": "12",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 4, "width": 12, "height": 1 }
+    },
+    {
+      "definition": {
+        "title": "Self-Healing Success vs Failure",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }, { "formula": "query2" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.ops.self_heal_success_total{property_type:$property_type,region:$region}"
+          }, {
+            "data_source": "metrics",
+            "name": "query2",
+            "query": "sum:hospitality.ops.self_heal_failure_total{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "bars",
+          "style": {
+            "palette": "green"
+          }
+        }]
+      },
+      "layout": { "x": 0, "y": 5, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Zero-Touch Resolution Rate Over Time",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.ops.zero_touch_resolution_rate{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          {
+            "display_type": "error dashed",
+            "value": "y = 70",
+            "label": "Minimum Target (70%)"
+          },
+          {
+            "display_type": "ok dashed",
+            "value": "y = 90",
+            "label": "Stretch Goal (90%)"
+          }
+        ]
+      },
+      "layout": { "x": 6, "y": 5, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "type": "note",
+        "content": "## 💰 Dispatch Economics & Cost Avoidance\nTracking the business impact of observability-driven automation",
+        "background_color": "vivid_green",
+        "font_size": "12",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 8, "width": 12, "height": 1 }
+    },
+    {
+      "definition": {
+        "title": "💰 Estimated Cost Savings (Dispatch Avoidance)",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1 * 900" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.ops.dispatches_avoided_total{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": ">", "value": 0, "palette": "white_on_green" }
+          ]
+        }],
+        "autoscale": true,
+        "custom_unit": "$",
+        "precision": 0
+      },
+      "layout": { "x": 0, "y": 9, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "💰 Guest Comp Savings",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1 * 350" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.ops.self_heal_success_total{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": ">", "value": 0, "palette": "white_on_green" }
+          ]
+        }],
+        "autoscale": true,
+        "custom_unit": "$",
+        "precision": 0
+      },
+      "layout": { "x": 3, "y": 9, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "type": "note",
+        "content": "### Avg Cost per Dispatch ($900)\n\n**Cost model:**\n- 🚗 On-site dispatch: **$900** avg (travel + labor + downtime)\n- 🏨 Guest comp per incident: **$350** avg (room credit + loyalty points)\n- ⏱ Mean manual resolution: **47 min**\n- 🤖 Mean automated resolution: **6.2 min**\n- 📉 86.8% MTTR improvement",
+        "background_color": "white",
+        "font_size": "12",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 6, "y": 9, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "💰 Total Savings (30d Rolling)",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "(query1 * 900) + (query2 * 350)" }],
+          "queries": [
+            { "data_source": "metrics", "name": "query1", "query": "sum:hospitality.ops.dispatches_avoided_total{property_type:$property_type,region:$region}" },
+            { "data_source": "metrics", "name": "query2", "query": "sum:hospitality.ops.self_heal_success_total{property_type:$property_type,region:$region}" }
+          ],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": ">", "value": 0, "palette": "white_on_green" }
+          ]
+        }],
+        "autoscale": true,
+        "custom_unit": "$",
+        "precision": 0
+      },
+      "layout": { "x": 9, "y": 9, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Incident Volume by Region",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.ops.incidents_total{property_type:$property_type,region:$region} by {region}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 0, "y": 11, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "MTTR Trend by Brand",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.ops.mttr_minutes{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          {
+            "display_type": "warning dashed",
+            "value": "y = 30",
+            "label": "Target MTTR (30min)"
+          }
+        ]
+      },
+      "layout": { "x": 4, "y": 11, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Dispatches: Sent vs Avoided",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }, { "formula": "query2" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.ops.onsite_dispatches_total{property_type:$property_type,region:$region}"
+          }, {
+            "data_source": "metrics",
+            "name": "query2",
+            "query": "sum:hospitality.ops.dispatches_avoided_total{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 8, "y": 11, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "ServiceNow Connector Health",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "errors / requests * 100" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "errors",
+            "query": "sum:hospitality.app.errors_total{service_name:servicenow-integration}"
+          }, {
+            "data_source": "metrics",
+            "name": "requests",
+            "query": "sum:hospitality.app.requests_total{service_name:servicenow-integration}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 14, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "ServiceNow Connector Latency (max)",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "max:hospitality.app.latency_ms{service_name:servicenow-integration}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 14, "width": 6, "height": 3 }
+    }
+  ],
+  "template_variables": [
+    { "name": "property_type", "prefix": "property_type", "default": "*" },
+    { "name": "region", "prefix": "region", "default": "*" }
+  ],
+  "layout_type": "ordered"
+}

@@ -1,0 +1,443 @@
+{
+  "title": "Digital Experience & Loyalty (Guest Loyalty Program) — Hospitality Demo",
+  "description": "End-to-end guest digital experience: web vitals, funnel conversion, loyalty engagement, and revenue by tier. Correlates frontend RUM signals with backend infrastructure health. [dd-demo-toolkit:hospitality]",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Guest Loyalty Program Digital Experience\nWeb vitals, loyalty engagement, revenue, and funnel conversion across the Guest Loyalty Program web & mobile app.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 0, "width": 12, "height": 2 }
+    },
+
+    {
+      "definition": {
+        "title": "Active Sessions",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.rum.sessions_total{loyalty_tier:$loyalty_tier,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 0, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Page Views",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.rum.page_views_total{loyalty_tier:$loyalty_tier,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 3, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Frontend Error Rate",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "(query1 / query2) * 100" }],
+          "queries": [
+            { "data_source": "metrics", "name": "query1", "query": "sum:hospitality.rum.errors_total{loyalty_tier:$loyalty_tier,region:$region}" },
+            { "data_source": "metrics", "name": "query2", "query": "sum:hospitality.rum.page_views_total{loyalty_tier:$loyalty_tier,region:$region}" }
+          ],
+          "response_format": "scalar",
+          "conditional_formats": [
+            { "comparator": ">", "value": 3, "palette": "white_on_red" },
+            { "comparator": "<=", "value": 3, "palette": "white_on_green" }
+          ]
+        }],
+        "autoscale": true,
+        "custom_unit": "%",
+        "precision": 2
+      },
+      "layout": { "x": 6, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Avg Booking Revenue",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.rum.booking_revenue_usd{loyalty_tier:$loyalty_tier,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "custom_unit": "$",
+        "precision": 0
+      },
+      "layout": { "x": 9, "y": 2, "width": 3, "height": 2 }
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Core Web Vitals",
+        "background_color": "gray",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 4, "width": 12, "height": 1 }
+    },
+    {
+      "definition": {
+        "title": "Largest Contentful Paint (LCP) by View",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.rum.lcp_ms{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 2500", "display_type": "error dashed", "label": "Poor (>2.5s)" },
+          { "value": "y = 1800", "display_type": "warning dashed", "label": "Needs Improvement" }
+        ]
+      },
+      "layout": { "x": 0, "y": 5, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Time to First Byte (TTFB)",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.rum.ttfb_ms{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 800", "display_type": "error dashed", "label": "Slow (>800ms)" }
+        ]
+      },
+      "layout": { "x": 6, "y": 5, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "First Input Delay (FID)",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.rum.fid_ms{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 100", "display_type": "error dashed", "label": "Poor (>100ms)" }
+        ]
+      },
+      "layout": { "x": 0, "y": 8, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Cumulative Layout Shift (CLS)",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.rum.cls{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }],
+        "markers": [
+          { "value": "y = 0.1", "display_type": "error dashed", "label": "Poor (>0.1)" }
+        ]
+      },
+      "layout": { "x": 6, "y": 8, "width": 6, "height": 3 }
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Loyalty Tier Engagement & Revenue",
+        "background_color": "gray",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 11, "width": 12, "height": 1 }
+    },
+    {
+      "definition": {
+        "title": "Sessions by Loyalty Tier",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.rum.sessions_total{region:$region,flow:$flow} by {loyalty_tier}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 0, "y": 12, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Booking Revenue by Loyalty Tier",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.rum.booking_revenue_usd{region:$region} by {loyalty_tier}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 6, "y": 12, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Redemption Attempts vs Conversions",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }, { "formula": "query2" }],
+          "queries": [
+            { "data_source": "metrics", "name": "query1", "query": "sum:hospitality.rum.redemption_attempts_total{loyalty_tier:$loyalty_tier,region:$region}" },
+            { "data_source": "metrics", "name": "query2", "query": "sum:hospitality.rum.redemption_conversions_total{loyalty_tier:$loyalty_tier,region:$region}" }
+          ],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 0, "y": 15, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Upsell — Impressions vs Accepted",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }, { "formula": "query2" }],
+          "queries": [
+            { "data_source": "metrics", "name": "query1", "query": "sum:hospitality.rum.upsell_impressions_total{loyalty_tier:$loyalty_tier,region:$region}" },
+            { "data_source": "metrics", "name": "query2", "query": "sum:hospitality.rum.upsell_accepted_total{loyalty_tier:$loyalty_tier,region:$region}" }
+          ],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 6, "y": 15, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Points Balance Viewed (avg by Tier)",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.rum.points_balance_viewed{region:$region} by {loyalty_tier}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 18, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Ancillary Revenue (Spa, F&B, Services)",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.rum.ancillary_revenue_usd{loyalty_tier:$loyalty_tier,region:$region} by {loyalty_tier}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 18, "width": 6, "height": 3 }
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Funnel & Errors",
+        "background_color": "gray",
+        "font_size": "16",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 21, "width": 12, "height": 1 }
+    },
+    {
+      "definition": {
+        "title": "Funnel Step Completion by View",
+        "type": "toplist",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.rum.funnel_step_total{flow:$flow,loyalty_tier:$loyalty_tier,region:$region} by {view_path}"
+          }],
+          "response_format": "scalar"
+        }]
+      },
+      "layout": { "x": 0, "y": 22, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Funnel Drop-offs by View",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.rum.funnel_dropoff_total{loyalty_tier:$loyalty_tier,region:$region,flow:$flow} by {view_path}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 6, "y": 22, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Frontend Errors by View Path",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.rum.errors_total{loyalty_tier:$loyalty_tier,region:$region} by {view_path}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 0, "y": 25, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "RUM Errors vs WiFi Signal (Infra Correlation)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [{ "formula": "query1" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query1",
+              "query": "sum:hospitality.rum.errors_total{property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "bars",
+            "on_right_yaxis": true
+          },
+          {
+            "formulas": [{ "formula": "query2" }],
+            "queries": [{
+              "data_source": "metrics",
+              "name": "query2",
+              "query": "avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap,property_type:extended_stay,region:apac}"
+            }],
+            "response_format": "timeseries",
+            "display_type": "line",
+            "on_right_yaxis": false
+          }
+        ],
+        "right_yaxis": { "label": "Frontend Errors" },
+        "yaxis": { "label": "WiFi Signal (dBm)" }
+      },
+      "layout": { "x": 6, "y": 25, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Sessions by Device Type",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.rum.page_views_total{loyalty_tier:$loyalty_tier,region:$region} by {device_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 0, "y": 28, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Sessions by Flow Type",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.rum.sessions_total{loyalty_tier:$loyalty_tier,region:$region} by {flow}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "bars"
+        }]
+      },
+      "layout": { "x": 6, "y": 28, "width": 6, "height": 3 }
+    }
+  ],
+  "template_variables": [
+    { "name": "loyalty_tier", "prefix": "loyalty_tier", "default": "*", "available_values": ["*", "Member", "Silver", "Gold", "Diamond"] },
+    { "name": "region", "prefix": "region", "default": "*", "available_values": ["*", "Americas", "EMEA", "APAC"] },
+    { "name": "flow", "prefix": "flow", "default": "*", "available_values": ["*", "booking", "loyalty", "instay"] }
+  ],
+  "layout_type": "ordered"
+}

@@ -554,7 +554,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.packet_loss_pct{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.network.retransmit_pct{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
               }
             ],
             "response_format": "timeseries",
@@ -1072,12 +1072,12 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.app.request_duration_ms{$service} by {service.name}"
+                "query": "avg:hospital.app.latency_ms{$service} by {service.name}"
               },
               {
                 "data_source": "metrics",
                 "name": "query2",
-                "query": "max:hospital.app.request_duration_ms{$service} by {service.name}"
+                "query": "max:hospital.app.latency_ms{$service} by {service.name}"
               }
             ],
             "response_format": "timeseries",

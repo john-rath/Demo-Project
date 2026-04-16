@@ -130,6 +130,21 @@ device_categories:
         unit: '1'
         range: [0, 3]
         drift: 0.05
+      - name: hospital.pump.infusions_completed_total
+        type: counter
+        unit: '1'
+        range: [0, 10]
+        drift: 0.3
+      - name: hospital.pump.volume_infused_ml
+        type: gauge
+        unit: mL
+        range: [0, 1000]
+        drift: 5.0
+      - name: hospital.pump.channels_active
+        type: gauge
+        unit: '1'
+        range: [0, 4]
+        drift: 0.2
     - type: ventilator
       manufacturer: Medtronic
       model: PB980
@@ -209,6 +224,31 @@ device_categories:
         unit: '1'
         range: [0, 1]
         drift: 0.05
+      - name: hospital.bed.available_count
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.05
+      - name: hospital.bed.fall_risk_alerts_total
+        type: counter
+        unit: '1'
+        range: [0, 3]
+        drift: 0.1
+      - name: hospital.bed.exit_alerts_total
+        type: counter
+        unit: '1'
+        range: [0, 2]
+        drift: 0.1
+      - name: hospital.bed.turnover_time_min
+        type: gauge
+        unit: min
+        range: [15, 120]
+        drift: 3.0
+      - name: hospital.bed.cleaning_queue
+        type: gauge
+        unit: '1'
+        range: [0, 10]
+        drift: 0.5
     - type: medication_dispenser
       manufacturer: Omnicell
       model: XT
@@ -251,6 +291,16 @@ device_categories:
         unit: '1'
         range: [0, 20]
         drift: 0.5
+      - name: hospital.pharmacy.override_events_total
+        type: counter
+        unit: '1'
+        range: [0, 5]
+        drift: 0.2
+      - name: hospital.pharmacy.restock_needed
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.05
   network_infra:
     ip_base: '10.200'
     department_pool:
@@ -298,6 +348,16 @@ device_categories:
         unit: dBm
         range: [-90, -20]
         drift: 2.0
+      - name: hospital.network.noise_floor_dbm
+        type: gauge
+        unit: dBm
+        range: [-100, -70]
+        drift: 1.0
+      - name: hospital.network.auth_failures_total
+        type: counter
+        unit: '1'
+        range: [0, 5]
+        drift: 0.2
     - type: network_switch
       manufacturer: Cisco
       model: Catalyst 9300
@@ -431,8 +491,113 @@ device_categories:
         range: [0, 1]
         drift: 0.01
 
+  patient_services:
+    ip_base: '10.190'
+    department_pool:
+    - ED
+    - ICU
+    - OR
+    - MedSurg
+    devices:
+    - type: nurse_call_station
+      manufacturer: Hill-Rom
+      model: Nurse Call 800
+      firmware: '5.1.2'
+      count: 16
+      battery_powered: false
+      metrics:
+      - name: hospital.nursecall.response_time_sec
+        type: gauge
+        unit: s
+        range: [15, 300]
+        drift: 5.0
+      - name: hospital.nursecall.active_calls
+        type: gauge
+        unit: '1'
+        range: [0, 12]
+        drift: 1.0
+      - name: hospital.nursecall.calls_total
+        type: counter
+        unit: '1'
+        range: [0, 8]
+        drift: 0.5
+      - name: hospital.nursecall.calls_answered_in_sla
+        type: counter
+        unit: '1'
+        range: [0, 7]
+        drift: 0.4
+      - name: hospital.nursecall.escalations_total
+        type: counter
+        unit: '1'
+        range: [0, 2]
+        drift: 0.1
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.01
+
+  clinical_operations:
+    ip_base: '10.210'
+    department_pool:
+    - ED
+    - ICU
+    - OR
+    - MedSurg
+    devices:
+    - type: patient_survey_kiosk
+      manufacturer: GetWellNetwork
+      model: Bedside Terminal
+      firmware: '3.2.0'
+      count: 8
+      battery_powered: false
+      metrics:
+      - name: hospital.patient.satisfaction_score
+        type: gauge
+        unit: '1'
+        range: [60, 98]
+        drift: 1.0
+      - name: hospital.patient.wait_time_min
+        type: gauge
+        unit: min
+        range: [5, 90]
+        drift: 3.0
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.01
+    - type: telemetry_monitor_station
+      manufacturer: GE Healthcare
+      model: CARESCAPE Gateway
+      firmware: '2.1.0'
+      count: 6
+      battery_powered: false
+      metrics:
+      - name: hospital.telemetry.active_alarms
+        type: gauge
+        unit: '1'
+        range: [0, 20]
+        drift: 2.0
+      - name: hospital.telemetry.false_alarm_rate_pct
+        type: gauge
+        unit: '%'
+        range: [5, 40]
+        drift: 1.5
+      - name: hospital.telemetry.alarm_response_time_sec
+        type: gauge
+        unit: s
+        range: [10, 180]
+        drift: 5.0
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.01
+
 services:
 - name: patient-portal
+  host: portal-web-01
   language: java
   framework: Spring Boot
   operations:
@@ -457,6 +622,7 @@ services:
     operation: "POST /api/orders/route"
     probability: 0.3
 - name: clinical-workflow-engine
+  host: cwe-app-01
   language: dotnet
   framework: ".NET 8"
   operations:
@@ -477,6 +643,7 @@ services:
     operation: "POST /api/dispense/verify"
     probability: 0.4
 - name: nurse-call-integration
+  host: nursecall-api-01
   language: python
   framework: FastAPI
   operations:
@@ -497,6 +664,7 @@ services:
     operation: "GET /api/beds/status"
     probability: 0.5
 - name: pharmacy-dispensing-api
+  host: pharma-app-01
   language: java
   framework: Spring Boot
   operations:
@@ -517,6 +685,7 @@ services:
     operation: "POST /api/fhir/MedicationRequest"
     probability: 0.6
 - name: asset-management-platform
+  host: asset-mgmt-01
   language: go
   framework: stdlib
   operations:
@@ -533,6 +702,7 @@ services:
     latency_p99_ms: 300
     error_rate: 0.012
 - name: bed-management-service
+  host: bedmgmt-app-01
   language: python
   framework: Django
   operations:
@@ -549,6 +719,7 @@ services:
     latency_p99_ms: 400
     error_rate: 0.015
 - name: medical-device-gateway
+  host: mdgw-edge-01
   language: java
   framework: Spring Boot
   operations:
@@ -569,6 +740,7 @@ services:
     operation: "POST /api/hl7/translate"
     probability: 0.3
 - name: hl7-fhir-broker
+  host: fhir-broker-01
   language: dotnet
   framework: ".NET 8"
   operations:
@@ -585,6 +757,7 @@ services:
     latency_p99_ms: 200
     error_rate: 0.008
 - name: physician-mobile-app
+  host: physician-mobile-01
   language: swift
   framework: SwiftUI
   operations:

@@ -586,7 +586,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.network.wifi_channel_utilization_pct{$floor} by {hospital.floor}"
+                      "query": "avg:hospital.network.channel_utilization_pct{$floor} by {hospital.floor}"
                     }
                   ],
                   "response_format": "timeseries"
@@ -644,7 +644,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.network.wifi_retransmission_rate_pct{$floor}"
+                      "query": "avg:hospital.network.retransmit_pct{$floor}"
                     }
                   ],
                   "response_format": "timeseries"
@@ -673,7 +673,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "max:hospital.network.bandwidth_utilization_pct{$floor} by {hospital.floor}"
+                      "query": "max:hospital.network.throughput_mbps{$floor} by {hospital.floor}"
                     }
                   ],
                   "response_format": "timeseries"
@@ -734,7 +734,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "sum:hospital.app.error_rate{$floor,$wing} by {device.type}"
+                      "query": "sum:hospital.app.errors_total{$floor,$wing} by {device.type}"
                     }
                   ],
                   "response_format": "scalar",
@@ -851,7 +851,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.facility.temperature_celsius{$floor} by {hospital.floor}"
+                      "query": "avg:hospital.env.room_temperature_f{$floor} by {hospital.floor}"
                     }
                   ],
                   "response_format": "timeseries"
@@ -880,7 +880,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.facility.humidity_pct{$floor} by {hospital.floor}"
+                      "query": "avg:hospital.env.humidity_pct{$floor} by {hospital.floor}"
                     }
                   ],
                   "response_format": "timeseries"

@@ -1,0 +1,98 @@
+monitors:
+  - name: "[Hospitality] IoT Gateway Offline — Property Alert"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospitality.iot.gateway_online{*} by {property_type,region} < 1"
+    message: "IoT gateway offline at {{property_type}} property in {{region}}. Connected room features unavailable. ServiceNow ticket auto-created."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "incident_domain:iot-to-guest", "signal_chain:1-root-cause"]
+    priority: 1
+
+  - name: "[Hospitality] Connected Room Device Disconnections"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospitality.iot.gateway_connected_devices{*} by {property_type,region} < 3"
+    message: "Connected devices dropping on IoT gateways at {{property_type}} {{region}}. Guest room controls may be degraded."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "incident_domain:iot-to-guest", "signal_chain:2-leading-indicator"]
+    priority: 2
+
+  - name: "[Hospitality] WiFi Client Overload — Signal Degradation Risk"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospitality.network.connected_clients{device_type:meraki_ap} by {property_type,region} > 45"
+    message: "WiFi client count anomalously high at {{property_type}} {{region}} (>45 clients). Signal degradation likely — IoT devices at risk of disconnection. This is a CLIENT OVERLOAD condition (distinct from channel saturation). Check Meraki Dashboard for rogue clients."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "incident_domain:network-to-iot", "signal_chain:0-precursor"]
+    priority: 1
+
+  - name: "[Hospitality] WiFi Signal Strength Degraded"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospitality.network.signal_strength_dbm{device_type:meraki_ap} by {property_type,region} < -52"
+    message: "WiFi signal strength degraded below -52 dBm at {{property_type}} {{region}}. IoT gateway connectivity at risk."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "incident_domain:network-to-iot", "signal_chain:1-root-cause"]
+    priority: 1
+
+  - name: "[Hospitality] Meraki AP Channel Utilization Critical"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospitality.network.channel_utilization_pct{device_type:meraki_ap} by {property_type,region} > 80"
+    message: "WiFi channel saturation at {{property_type}} {{region}}. This is a CHANNEL SATURATION condition (distinct from client overload). Trigger RF optimization."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "incident_domain:network"]
+    priority: 2
+
+  - name: "[Hospitality] Guest WiFi Latency High"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospitality.network.latency_ms{device_type:meraki_ap} by {property_type,region} > 50"
+    message: "Guest WiFi latency elevated at {{property_type}} {{region}}. Check AP load and channel utilization."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:network"]
+    priority: 2
+
+  - name: "[Hospitality] Reservations Portal Error Rate Spike"
+    type: "query alert"
+    query: "avg(last_5m):sum:hospitality.app.errors_total{service_name:reservations-portal} / sum:hospitality.app.requests_total{service_name:reservations-portal} * 100 > 5"
+    message: "the Reservations Portal error rate elevated. Direct revenue impact. Check upstream services and database health."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:digital", "impact:revenue"]
+    priority: 1
+
+  - name: "[Hospitality] PEP Digital Check-in Failures"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospitality.checkin.failures_total{*} > 10"
+    message: "Digital check-in failures spiking. Guests may be redirected to front desk. Check PEP service health."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:property-tech"]
+    priority: 2
+
+  - name: "[Hospitality] RevPAR Below Target"
+    type: "query alert"
+    query: "avg(last_15m):avg:hospitality.revpar{*} by {property_type} < 120"
+    message: "RevPAR below target for {{property_type}} brand. Review pricing strategy and demand forecast."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:revenue", "impact:revenue"]
+    priority: 2
+
+  - name: "[Hospitality] Revenue Management Engine Latency"
+    type: "query alert"
+    query: "avg(last_5m):max:hospitality.app.latency_ms{service_name:revenue-management-engine} > 1500"
+    message: "Revenue engine max latency spiking. Dynamic pricing may be stale. Check model inference pipeline."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:revenue"]
+    priority: 2
+
+  - name: "[Hospitality] ServiceNow Self-Heal Failure Rate"
+    type: "query alert"
+    query: "avg(last_5m):sum:hospitality.app.errors_total{service_name:servicenow-integration} / sum:hospitality.app.requests_total{service_name:servicenow-integration} * 100 > 8"
+    message: "ServiceNow integration error rate high. Self-healing workflows may be failing. Manual intervention likely needed."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:it-ops"]
+    priority: 1
+
+  - name: "[Hospitality] Smart Lock Battery Critical"
+    type: "query alert"
+    query: "min(last_5m):min:hospitality.lock.battery_pct{*} by {property_type,region} < 15"
+    message: "Smart lock battery critically low at {{property_type}} {{region}}. Schedule immediate battery replacement to prevent guest lockouts."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:property-tech", "safety:guest-safety"]
+    priority: 1
+
+  - name: "[Hospitality] Energy Consumption Anomaly"
+    type: "query alert"
+    query: "avg(last_15m):avg:hospitality.energy.consumption_kwh{*} by {property_type} > 4000"
+    message: "Energy consumption anomaly at {{property_type}}. Check HVAC and lighting automation. Sustainability impact."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:facilities", "sustainability:true"]
+    priority: 3
+
+  - name: "[Hospitality] Loyalty API Error Rate — Loyalty Impact"
+    type: "query alert"
+    query: "avg(last_5m):sum:hospitality.app.errors_total{service_name:loyalty-rewards-api} / sum:hospitality.app.requests_total{service_name:loyalty-rewards-api} * 100 > 4"
+    message: "Loyalty loyalty API errors elevated. Points earning/redemption may be impacted. Direct brand loyalty risk."
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:loyalty"]
+    priority: 1

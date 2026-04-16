@@ -1,0 +1,56 @@
+services:
+  - dd-service: reservations-portal
+    display-name: "Reservations Portal"
+    description: "Guest-facing booking platform with AI-powered stay planner. Java Spring Boot."
+    owner: "Digital Commerce"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:digital"]
+
+  - dd-service: property-engagement-platform
+    display-name: "Property Engagement Platform (PEP)"
+    description: "Multi-use property application: digital check-in, excursions, front desk services. Rolling out to 7-9K properties. .NET 8."
+    owner: "Property Technology"
+    tier: "Tier 1"
+    languages: ["dotnet"]
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:property-tech"]
+
+  - dd-service: connected-room-service
+    display-name: "Connected Room Service"
+    description: "IoT gateway management for 7000+ edge controllers. Room controls, thermostat, lighting, entertainment. Go."
+    owner: "Connected Room Engineering"
+    tier: "Tier 1"
+    languages: ["go"]
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:iot"]
+
+  - dd-service: revenue-management-engine
+    display-name: "Revenue Management Engine"
+    description: "RevPAR optimization, demand forecasting, dynamic pricing. Python FastAPI."
+    owner: "Revenue Management"
+    tier: "Tier 1"
+    languages: ["python"]
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:revenue"]
+
+  - dd-service: servicenow-integration
+    display-name: "ServiceNow ITSM Connector"
+    description: "Incident management, CMDB sync, self-healing automation workflows. Python FastAPI."
+    owner: "IT Operations"
+    tier: "Tier 2"
+    languages: ["python"]
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:it-ops"]
+
+  - dd-service: loyalty-rewards-api
+    display-name: "Guest Loyalty API"
+    description: "Points earning, redemption, tier status management. Java Spring Boot."
+    owner: "Loyalty Engineering"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:loyalty"]
+
+  - dd-service: guest-wifi-portal
+    display-name: "Guest WiFi & Captive Portal"
+    description: "Guest network authentication, bandwidth management, Loyalty integration. Python Django."
+    owner: "Network Engineering"
+    tier: "Tier 2"
+    languages: ["python"]
+    tags: ["vertical:hospitality", "dd-demo-toolkit:true", "team:network"]

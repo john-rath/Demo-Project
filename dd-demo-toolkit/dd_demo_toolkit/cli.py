@@ -350,6 +350,44 @@ def cmd_list(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def _load_plugins(engine, vertical_name: str) -> None:
+    """
+    Dynamically discover and load incident plugins for a vertical.
+
+    Scans verticals/{vertical}/plugins/ for Python files, imports any class
+    that subclasses IncidentPlugin, and registers it with the engine.
+    """
+    import importlib.util
+    from dd_demo_toolkit.simulator.plugins import IncidentPlugin
+
+    plugins_dir = Path("verticals") / vertical_name / "plugins"
+    if not plugins_dir.is_dir():
+        return
+
+    for py_file in sorted(plugins_dir.glob("*.py")):
+        if py_file.name.startswith("_"):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"verticals.{vertical_name}.plugins.{py_file.stem}", py_file
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+
+            for attr_name in dir(mod):
+                attr = getattr(mod, attr_name)
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, IncidentPlugin)
+                    and attr is not IncidentPlugin
+                ):
+                    plugin = attr()
+                    engine.register_plugin(plugin)
+                    print_success(f"Loaded plugin: {plugin.get_incident_name()}")
+        except Exception as exc:
+            print_warning(f"Failed to load plugin {py_file.name}: {exc}")
+
+
 def cmd_simulate(args: argparse.Namespace) -> None:
     """Handle 'simulate' command."""
     print_banner(f"Simulate - {args.vertical}")
@@ -382,8 +420,8 @@ def cmd_simulate(args: argparse.Namespace) -> None:
         print(f"  Services: {len(engine.services)}")
         print()
 
-        # Load incident plugin if available
-        # (In real implementation, this would dynamically load plugins)
+        # Load incident plugins from vertical's plugins directory
+        _load_plugins(engine, args.vertical)
 
         print_info("Starting simulator... Press Ctrl+C to stop")
         print()

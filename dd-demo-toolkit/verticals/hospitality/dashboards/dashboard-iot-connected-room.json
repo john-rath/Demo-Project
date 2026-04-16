@@ -1,0 +1,215 @@
+{
+  "title": "IoT & Connected Room Operations — Hospitality Demo",
+  "description": "Connected Room and IoT Operations dashboard tracking 7,000+ edge gateways, smart locks, thermostats, and in-room entertainment across the hospitality portfolio. [dd-demo-toolkit:hospitality]",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Connected Room & IoT Operations\n7,000+ edge gateways, smart locks, thermostats, and in-room entertainment across the hospitality portfolio.",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 0, "width": 12, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Gateways Online",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.iot.gateway_online{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 0, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Avg Connected Devices",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.iot.gateway_connected_devices{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 3, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Smart Locks Online",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.device.online{device_type:smart_lock,property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 6, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Rooms Occupied",
+        "type": "query_value",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.iot.room_occupied{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "scalar"
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": { "x": 9, "y": 2, "width": 3, "height": 2 }
+    },
+    {
+      "definition": {
+        "title": "Gateway CPU by Property Type",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.iot.gateway_cpu_pct{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 4, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Connected Devices per Gateway",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.iot.gateway_connected_devices{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 4, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Smart Lock Battery Levels",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.lock.battery_pct{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 7, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Lock Access Events",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.lock.access_events_total{property_type:$property_type,region:$region}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 4, "y": 7, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Lock Failures",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.lock.failures_total{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 8, "y": 7, "width": 4, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "Room Temperature Distribution",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "avg:hospitality.iot.room_temperature_f{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 0, "y": 10, "width": 6, "height": 3 }
+    },
+    {
+      "definition": {
+        "title": "HVAC Energy Consumption",
+        "type": "timeseries",
+        "requests": [{
+          "formulas": [{ "formula": "query1" }],
+          "queries": [{
+            "data_source": "metrics",
+            "name": "query1",
+            "query": "sum:hospitality.hvac.energy_kwh{property_type:$property_type,region:$region} by {property_type}"
+          }],
+          "response_format": "timeseries",
+          "display_type": "line"
+        }]
+      },
+      "layout": { "x": 6, "y": 10, "width": 6, "height": 3 }
+    }
+  ],
+  "template_variables": [
+    { "name": "property_type", "prefix": "property_type", "default": "*" },
+    { "name": "region", "prefix": "region", "default": "*" }
+  ],
+  "layout_type": "ordered"
+}
