@@ -130,12 +130,15 @@ class MonitorManager:
             except RuntimeError as e:
                 error_str = str(e)
                 monitor_name = monitor_config.get("name", f"monitor-{idx}")
+                # Always log the raw API error for debugging
+                logger.error(f"Monitor '{monitor_name}' API error (raw): {error_str}")
                 if "query" in error_str and "invalid" in error_str.lower():
                     # Metrics likely don't exist in Datadog yet — not a config bug,
                     # just means the simulator needs to run first.
                     warn_msg = (
                         f"Skipped monitor '{monitor_name}': metric not yet in Datadog. "
-                        f"Start the simulator and re-run setup."
+                        f"Start the simulator and re-run setup. "
+                        f"(API response: {error_str})"
                     )
                     result["errors"].append(warn_msg)
                     result["total_errors"] += 1

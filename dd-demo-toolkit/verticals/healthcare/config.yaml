@@ -409,6 +409,21 @@ device_categories:
         unit: '%'
         range: [30, 70]
         drift: 0.5
+      - name: hospital.env.differential_pressure_pa
+        type: gauge
+        unit: Pa
+        range: [-5, 5]
+        drift: 0.2
+      - name: hospital.env.hvac_setpoint_delta_f
+        type: gauge
+        unit: Far
+        range: [-3, 3]
+        drift: 0.2
+      - name: hospital.env.water_leak_detected
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.01
       - name: hospital.device.battery_pct
         type: gauge
         unit: '%'
@@ -458,6 +473,11 @@ device_categories:
         unit: min
         range: [5, 120]
         drift: 0.5
+      - name: hospital.env.generator_fuel_pct
+        type: gauge
+        unit: '%'
+        range: [40, 100]
+        drift: 0.3
       - name: hospital.device.online
         type: gauge
         unit: '1'
@@ -562,6 +582,120 @@ device_categories:
         unit: min
         range: [5, 90]
         drift: 3.0
+      - name: hospital.patient.hcahps_score
+        type: gauge
+        unit: '1'
+        range: [55, 95]
+        drift: 0.8
+      - name: hospital.patient.satisfaction_nurse_communication
+        type: gauge
+        unit: '1'
+        range: [55, 98]
+        drift: 1.5
+      - name: hospital.patient.satisfaction_pain_management
+        type: gauge
+        unit: '1'
+        range: [50, 95]
+        drift: 1.5
+      - name: hospital.patient.satisfaction_responsiveness
+        type: gauge
+        unit: '1'
+        range: [50, 95]
+        drift: 1.5
+      - name: hospital.patient.satisfaction_discharge_info
+        type: gauge
+        unit: '1'
+        range: [55, 95]
+        drift: 1.5
+      - name: hospital.patient.pain_response_time_min
+        type: gauge
+        unit: min
+        range: [3, 45]
+        drift: 2.0
+      - name: hospital.patient.discharge_process_hours
+        type: gauge
+        unit: h
+        range: [1, 8]
+        drift: 0.3
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.01
+    - type: staffing_system
+      manufacturer: Kronos
+      model: Workforce Central
+      firmware: '8.1.14'
+      count: 4
+      battery_powered: false
+      metrics:
+      - name: hospital.staffing.nurses_on_duty
+        type: gauge
+        unit: '1'
+        range: [12, 45]
+        drift: 2.0
+      - name: hospital.staffing.nurse_to_patient_ratio
+        type: gauge
+        unit: '1'
+        range: [0.15, 0.5]
+        drift: 0.02
+      - name: hospital.staffing.open_positions
+        type: gauge
+        unit: '1'
+        range: [0, 15]
+        drift: 0.5
+      - name: hospital.staffing.overtime_hours
+        type: gauge
+        unit: h
+        range: [0, 40]
+        drift: 1.5
+      - name: hospital.staffing.turnover_rate_pct
+        type: gauge
+        unit: '%'
+        range: [5, 25]
+        drift: 0.3
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.01
+    - type: physician_mobile_terminal
+      manufacturer: Apple
+      model: iPad Pro
+      firmware: '17.4'
+      count: 12
+      battery_powered: true
+      metrics:
+      - name: hospital.physician.rounds_completed
+        type: counter
+        unit: '1'
+        range: [0, 8]
+        drift: 0.5
+      - name: hospital.physician.mobile_orders_placed
+        type: counter
+        unit: '1'
+        range: [0, 15]
+        drift: 1.0
+      - name: hospital.physician.mobile_results_viewed
+        type: counter
+        unit: '1'
+        range: [0, 20]
+        drift: 1.5
+      - name: hospital.physician.order_to_admin_min
+        type: gauge
+        unit: min
+        range: [2, 30]
+        drift: 1.5
+      - name: hospital.physician.patient_interaction_min
+        type: gauge
+        unit: min
+        range: [5, 45]
+        drift: 3.0
+      - name: hospital.device.battery_pct
+        type: gauge
+        unit: '%'
+        range: [5, 100]
+        drift: 0.5
       - name: hospital.device.online
         type: gauge
         unit: '1'
@@ -589,6 +723,11 @@ device_categories:
         unit: s
         range: [10, 180]
         drift: 5.0
+      - name: hospital.telemetry.monitoring_gap_events
+        type: counter
+        unit: '1'
+        range: [0, 5]
+        drift: 0.3
       - name: hospital.device.online
         type: gauge
         unit: '1'

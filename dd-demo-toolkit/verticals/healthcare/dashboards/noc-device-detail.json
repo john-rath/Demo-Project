@@ -1,5 +1,5 @@
 {
-  "title": "🔍 Healthcare NOC — Device Detail Drill-Down",
+  "title": "\ud83d\udd0d Healthcare NOC \u2014 Device Detail Drill-Down",
   "description": "Device-level detailed monitoring dashboard. Drill down from NOC Overview to inspect specific device metrics including health, network, medical device specifics, environmental data, and alert history.",
   "layout_type": "ordered",
   "tags": [],
@@ -31,7 +31,7 @@
     },
     {
       "name": "manufacturer",
-      "prefix": "manufacturer",
+      "prefix": "device_manufacturer",
       "available_values": []
     }
   ],
@@ -39,7 +39,7 @@
     {
       "definition": {
         "type": "note",
-        "content": "# 🔍 Device Detail Drill-Down\n\n**Select a device using the template variables above** (`device_id`, `device_type`, `floor`, `wing`, `department`, `manufacturer`), or **click through from the NOC Overview dashboard**.\n\nThis dashboard shows real-time health, network performance, medical device specifics, environmental context, and alert history for the selected device(s).",
+        "content": "# \ud83d\udd0d Device Detail Drill-Down\n\n**Select a device using the template variables above** (`device_id`, `device_type`, `floor`, `wing`, `department`, `manufacturer`), or **click through from the NOC Overview dashboard**.\n\nThis dashboard shows real-time health, network performance, medical device specifics, environmental context, and alert history for the selected device(s).",
         "background_color": "vivid_blue",
         "font_size": "14",
         "text_align": "left",
@@ -58,7 +58,7 @@
       "definition": {
         "type": "group",
         "layout_type": "ordered",
-        "title": "📋 Device Identity Header",
+        "title": "\ud83d\udccb Device Identity Header",
         "widgets": [
           {
             "definition": {
@@ -217,7 +217,7 @@
           },
           {
             "definition": {
-              "title": "Temperature °C",
+              "title": "Temperature \u00b0C",
               "type": "query_value",
               "requests": [
                 {
@@ -259,7 +259,7 @@
       "definition": {
         "type": "group",
         "layout_type": "ordered",
-        "title": "📈 Device Health Timeline",
+        "title": "\ud83d\udcc8 Device Health Timeline",
         "widgets": [
           {
             "definition": {
@@ -423,7 +423,7 @@
           },
           {
             "definition": {
-              "title": "Temperature °C",
+              "title": "Temperature \u00b0C",
               "type": "timeseries",
               "requests": [
                 {
@@ -482,7 +482,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "sum:hospital.device.heartbeat_total{$device_id,$device_type,$floor,$wing,$department,$manufacturer}.as_count()"
+                      "query": "sum:hospital.device.online{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "scalar"
@@ -511,7 +511,7 @@
       "definition": {
         "type": "group",
         "layout_type": "ordered",
-        "title": "🌐 Network Metrics",
+        "title": "\ud83c\udf10 Network Metrics",
         "widgets": [
           {
             "definition": {
@@ -604,7 +604,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.network.packet_loss_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.network.retransmit_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -625,7 +625,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query2",
-                      "query": "avg:hospital.network.retransmission_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
+                      "query": "avg:hospital.network.retransmit_pct{$device_id,$device_type,$floor,$wing,$department,$manufacturer}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -739,7 +739,7 @@
       "definition": {
         "type": "group",
         "layout_type": "ordered",
-        "title": "💊 Medical Device Specific Metrics",
+        "title": "\ud83d\udc8a Medical Device Specific Metrics",
         "widgets": [
           {
             "definition": {
@@ -940,11 +940,11 @@
       "definition": {
         "type": "group",
         "layout_type": "ordered",
-        "title": "🌡️ Environmental Metrics",
+        "title": "\ud83c\udf21\ufe0f Environmental Metrics",
         "widgets": [
           {
             "definition": {
-              "title": "Room Temperature °F",
+              "title": "Room Temperature \u00b0F",
               "type": "timeseries",
               "requests": [
                 {
@@ -1107,7 +1107,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "avg:hospital.env.differential_pressure_pa{$floor,$wing,$department}"
+                      "query": "avg:hospital.env.co2_ppm{$floor,$wing,$department}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -1202,7 +1202,7 @@
       "definition": {
         "type": "group",
         "layout_type": "ordered",
-        "title": "🚨 Alert History",
+        "title": "\ud83d\udea8 Alert History",
         "widgets": [
           {
             "definition": {
@@ -1220,7 +1220,7 @@
                     {
                       "data_source": "metrics",
                       "name": "query1",
-                      "query": "sum:hospital.device.alerts_total{$device_id,$device_type,$floor,$wing,$department,$manufacturer} by {device_id,device_type,floor,wing,severity}.as_count()"
+                      "query": "sum:hospital.network.auth_failures_total{$device_id,$device_type,$floor,$wing,$department,$manufacturer} by {device_id,device_type,floor,wing,severity}.as_count()"
                     }
                   ],
                   "response_format": "tabular"
@@ -1242,7 +1242,7 @@
       "definition": {
         "type": "group",
         "layout_type": "ordered",
-        "title": "🔗 Related Devices on Same Floor/Wing",
+        "title": "\ud83d\udd17 Related Devices on Same Floor/Wing",
         "widgets": [
           {
             "definition": {

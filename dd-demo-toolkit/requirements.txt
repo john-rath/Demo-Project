@@ -3,10 +3,10 @@ requests==2.31.0
 pyyaml==6.0.1
 python-dotenv==1.0.0
 
-# OpenTelemetry stack
-opentelemetry-api==1.22.0
-opentelemetry-sdk==1.22.0
-opentelemetry-exporter-otlp-proto-grpc==0.43b0
+# OpenTelemetry stack (>= 1.27 required for synchronous Gauge instrument)
+opentelemetry-api>=1.27.0
+opentelemetry-sdk>=1.27.0
+opentelemetry-exporter-otlp-proto-grpc>=0.48b0
 
 # gRPC and protocol buffers (required by OTLP exporter)
 grpcio==1.62.1

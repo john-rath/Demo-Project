@@ -1,5 +1,5 @@
 {
-  "title": "Infusion Pumps & Pharmacy — Healthcare Demo",
+  "title": "Infusion Pumps & Pharmacy \u2014 Healthcare Demo",
   "description": "Pharmacy Director & Nursing Ops: Pump fleet health, medication dispensing, occlusion alerts, flow monitoring.",
   "widgets": [
     {
@@ -35,7 +35,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.online{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer}"
+                "query": "sum:hospital.device.online{device_type:infusion_pump,$floor,$wing,$department,$device_type,$category,$manufacturer}"
               }
             ],
             "response_format": "scalar"
@@ -244,7 +244,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.pump.flow_rate_ml_hr{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.pump.flow_rate_ml_hr{device_type:infusion_pump,$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -261,7 +261,7 @@
     },
     {
       "definition": {
-        "title": "Time to Empty (min) by Floor",
+        "title": "Volume Infused (mL) (min) by Floor",
         "type": "timeseries",
         "requests": [
           {
@@ -274,7 +274,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.pump.time_to_empty_min{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.pump.volume_infused_ml{device_type:infusion_pump,$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -311,7 +311,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.pump.channels_active{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "sum:hospital.pump.channels_active{device_type:infusion_pump,$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -461,7 +461,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.pharmacy.restock_needed{*} by {device.id,hospital.floor}",
+                "query": "sum:hospital.pharmacy.restock_needed{*} by {device_id,floor}",
                 "aggregator": "last"
               }
             ],
@@ -491,7 +491,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.battery_pct{device.type:infusion_pump,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.device.battery_pct{device_type:infusion_pump,$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -521,32 +521,32 @@
   "template_variables": [
     {
       "name": "floor",
-      "prefix": "hospital.floor",
+      "prefix": "floor",
       "default": "*"
     },
     {
       "name": "wing",
-      "prefix": "hospital.wing",
+      "prefix": "wing",
       "default": "*"
     },
     {
       "name": "department",
-      "prefix": "hospital.department",
+      "prefix": "department",
       "default": "*"
     },
     {
       "name": "device_type",
-      "prefix": "device.type",
+      "prefix": "device_type",
       "default": "infusion_pump"
     },
     {
-      "name": "device_category",
-      "prefix": "device.category",
+      "name": "category",
+      "prefix": "category",
       "default": "*"
     },
     {
       "name": "manufacturer",
-      "prefix": "device.manufacturer",
+      "prefix": "device_manufacturer",
       "default": "*"
     }
   ],

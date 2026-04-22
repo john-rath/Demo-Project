@@ -1,5 +1,5 @@
 {
-  "title": "Nurse Call & Bed Management — Healthcare Demo",
+  "title": "Nurse Call & Bed Management \u2014 Healthcare Demo",
   "description": "CNO & Nursing Directors: Call response times, bed capacity, turnover efficiency, patient safety alerts.",
   "widgets": [
     {
@@ -245,7 +245,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.nursecall.response_time_sec{*} by {hospital.floor}"
+                "query": "avg:hospital.nursecall.response_time_sec{*} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -317,7 +317,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.nursecall.active_calls{*} by {hospital.floor,hospital.wing}"
+                "query": "sum:hospital.nursecall.active_calls{*} by {floor,wing}"
               }
             ],
             "response_format": "timeseries",
@@ -398,12 +398,12 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.bed.occupied_count{*} by {hospital.floor}"
+                "query": "sum:hospital.bed.occupied_count{*} by {floor}"
               },
               {
                 "data_source": "metrics",
                 "name": "query2",
-                "query": "sum:hospital.bed.available_count{*} by {hospital.floor}"
+                "query": "sum:hospital.bed.available_count{*} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -433,7 +433,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.bed.turnover_time_min{*} by {hospital.floor}"
+                "query": "avg:hospital.bed.turnover_time_min{*} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -475,7 +475,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.bed.cleaning_queue{*} by {hospital.floor}"
+                "query": "sum:hospital.bed.cleaning_queue{*} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -505,7 +505,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.bed.fall_risk_alerts_total{*} by {hospital.floor}.as_count()"
+                "query": "sum:hospital.bed.fall_risk_alerts_total{*} by {floor}.as_count()"
               }
             ],
             "response_format": "timeseries",
@@ -535,7 +535,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.bed.exit_alerts_total{*} by {hospital.floor}.as_count()"
+                "query": "sum:hospital.bed.exit_alerts_total{*} by {floor}.as_count()"
               }
             ],
             "response_format": "timeseries",
@@ -554,12 +554,12 @@
   "template_variables": [
     {
       "name": "floor",
-      "prefix": "hospital.floor",
+      "prefix": "floor",
       "default": "*"
     },
     {
       "name": "wing",
-      "prefix": "hospital.wing",
+      "prefix": "wing",
       "default": "*"
     }
   ],

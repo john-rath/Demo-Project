@@ -385,6 +385,13 @@ class SimulatorEngine:
                         self.instruments[metric_name] = self.meter.create_histogram(
                             name=metric_name, unit=unit, description=description,
                         )
+                    logger.info(
+                        f"  Registered instrument: {metric_name} ({metric_type})"
+                    )
+
+        logger.info(
+            f"Created {len(self.instruments)} OTel instruments from device config"
+        )
 
     def _create_service_instruments(self) -> None:
         """Create OTel instruments for application-level service metrics.

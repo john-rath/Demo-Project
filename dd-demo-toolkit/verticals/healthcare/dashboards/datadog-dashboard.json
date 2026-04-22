@@ -1,11 +1,11 @@
 {
-  "title": "Sensing Hospital — Device Command Center",
+  "title": "Sensing Hospital \u2014 Device Command Center",
   "description": "Real-time observability across all hospital IoT devices, network infrastructure, environmental sensors, and asset tracking systems.",
   "widgets": [
     {
       "definition": {
         "type": "note",
-        "content": "# Smart Hospital Demo\n### Real-time Device Observability Command Center\n\nMonitoring **Medical IoT** · **Network Infrastructure** · **Environmental Sensors** · **Asset Tracking**\n\nAll telemetry streamed via OpenTelemetry → Datadog",
+        "content": "# Smart Hospital Demo\n### Real-time Device Observability Command Center\n\nMonitoring **Medical IoT** \u00b7 **Network Infrastructure** \u00b7 **Environmental Sensors** \u00b7 **Asset Tracking**\n\nAll telemetry streamed via OpenTelemetry \u2192 Datadog",
         "background_color": "vivid_blue",
         "font_size": "14",
         "text_align": "center",
@@ -37,7 +37,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.heartbeats_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "query": "sum:hospital.device.online{$floor,$wing,$department,$device_type,$category,$manufacturer}",
                 "aggregator": "last"
               }
             ],
@@ -70,7 +70,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.heartbeats_total{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "query": "sum:hospital.device.online{category:medical_iot,$floor,$wing,$department,$device_type,$category,$manufacturer}",
                 "aggregator": "last"
               }
             ],
@@ -103,7 +103,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.heartbeats_total{device.category:network_infra,$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "query": "sum:hospital.device.online{category:network_infra,$floor,$wing,$department,$device_type,$category,$manufacturer}",
                 "aggregator": "last"
               }
             ],
@@ -135,13 +135,13 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.heartbeats_total{device.category:environmental,$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "query": "sum:hospital.device.online{category:environmental,$floor,$wing,$department,$device_type,$category,$manufacturer}",
                 "aggregator": "last"
               },
               {
                 "data_source": "metrics",
                 "name": "query2",
-                "query": "sum:hospital.device.heartbeats_total{device.category:asset_tracking,$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "query": "sum:hospital.device.online{category:asset_tracking,$floor,$wing,$department,$device_type,$category,$manufacturer}",
                 "aggregator": "last"
               }
             ],
@@ -173,7 +173,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.alerts_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer}.as_count()",
+                "query": "sum:hospital.network.auth_failures_total{$floor,$wing,$department,$device_type,$category,$manufacturer}.as_count()",
                 "aggregator": "sum"
               }
             ],
@@ -206,7 +206,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.alerts_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {alert.severity,alert.type}.as_count()",
+                "query": "sum:hospital.network.auth_failures_total{$floor,$wing,$department,$device_type,$category,$manufacturer} by {alert.severity,alert.type}.as_count()",
                 "aggregator": "sum"
               }
             ],
@@ -240,7 +240,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.alerts_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.id,device.type,alert.type,alert.severity,hospital.floor,hospital.wing}.as_count()",
+                "query": "sum:hospital.network.auth_failures_total{$floor,$wing,$department,$device_type,$category,$manufacturer} by {device_id,device_type,alert.type,alert.severity,floor,wing}.as_count()",
                 "aggregator": "sum"
               }
             ],
@@ -258,7 +258,7 @@
     {
       "definition": {
         "type": "note",
-        "content": "## 📡 Medical IoT Fleet",
+        "content": "## \ud83d\udce1 Medical IoT Fleet",
         "background_color": "blue",
         "font_size": "16",
         "text_align": "left",
@@ -288,7 +288,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.cpu_usage_pct{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+                "query": "avg:hospital.device.cpu_usage_pct{category:medical_iot,$floor,$wing,$department,$device_type,$category,$manufacturer} by {device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -322,7 +322,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.battery_pct{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+                "query": "avg:hospital.device.battery_pct{category:medical_iot,$floor,$wing,$department,$device_type,$category,$manufacturer} by {device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -368,7 +368,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.temperature_celsius{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+                "query": "avg:hospital.device.temperature_celsius{category:medical_iot,$floor,$wing,$department,$device_type,$category,$manufacturer} by {device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -405,7 +405,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.memory_usage_pct{device.category:medical_iot,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+                "query": "avg:hospital.device.memory_usage_pct{category:medical_iot,$floor,$wing,$department,$device_type,$category,$manufacturer} by {device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -427,7 +427,7 @@
     {
       "definition": {
         "type": "note",
-        "content": "## 🌐 Network Infrastructure",
+        "content": "## \ud83c\udf10 Network Infrastructure",
         "background_color": "green",
         "font_size": "16",
         "text_align": "left",
@@ -457,7 +457,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.throughput_mbps{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+                "query": "avg:hospital.network.throughput_mbps{$floor,$wing,$department,$device_type,$category,$manufacturer} by {device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -487,7 +487,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.connected_clients{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor,device.type}"
+                "query": "avg:hospital.network.connected_clients{$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor,device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -517,7 +517,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.latency_ms{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.network.latency_ms{$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -554,7 +554,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.retransmit_pct{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.network.retransmit_pct{$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -579,7 +579,7 @@
     {
       "definition": {
         "type": "note",
-        "content": "## 🌡️ Environmental Monitoring",
+        "content": "## \ud83c\udf21\ufe0f Environmental Monitoring",
         "background_color": "orange",
         "font_size": "16",
         "text_align": "left",
@@ -596,7 +596,7 @@
     },
     {
       "definition": {
-        "title": "Room Temperature (°F) by Floor",
+        "title": "Room Temperature (\u00b0F) by Floor",
         "type": "timeseries",
         "requests": [
           {
@@ -609,7 +609,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.room_temperature_f{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.env.room_temperature_f{$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -649,7 +649,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.humidity_pct{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.env.humidity_pct{$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -679,7 +679,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.air_quality_aqi{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.env.air_quality_aqi{$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -708,7 +708,7 @@
     },
     {
       "definition": {
-        "title": "Total Room Occupancy by Floor & Wing",
+        "title": "Room Temperature by Floor & Wing",
         "type": "timeseries",
         "requests": [
           {
@@ -721,7 +721,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.env.occupancy_count{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor,hospital.wing}"
+                "query": "avg:hospital.env.room_temperature_f{$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor,wing}"
               }
             ],
             "response_format": "timeseries",
@@ -742,7 +742,7 @@
     {
       "definition": {
         "type": "note",
-        "content": "## 📍 Asset Tracking (RTLS)",
+        "content": "## \ud83d\udccd Asset Tracking (RTLS)",
         "background_color": "purple",
         "font_size": "16",
         "text_align": "left",
@@ -772,7 +772,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.rtls.tag_rssi{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor}"
+                "query": "avg:hospital.rtls.tag_rssi{$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -802,7 +802,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.battery_pct{device.category:asset_tracking,$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.type}"
+                "query": "avg:hospital.device.battery_pct{category:asset_tracking,$floor,$wing,$department,$device_type,$category,$manufacturer} by {device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -831,7 +831,7 @@
     {
       "definition": {
         "type": "note",
-        "content": "## 🔍 Device Fleet Inventory",
+        "content": "## \ud83d\udd0d Device Fleet Inventory",
         "background_color": "gray",
         "font_size": "16",
         "text_align": "left",
@@ -861,7 +861,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "count:hospital.device.heartbeats_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.category,device.type}.as_count()",
+                "query": "avg:hospital.device.online{$floor,$wing,$department,$device_type,$category,$manufacturer} by {category,device_type}",
                 "aggregator": "sum"
               }
             ],
@@ -891,7 +891,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "count:hospital.device.heartbeats_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {hospital.floor,hospital.wing}.as_count()",
+                "query": "avg:hospital.device.online{$floor,$wing,$department,$device_type,$category,$manufacturer} by {floor,wing}",
                 "aggregator": "sum"
               }
             ],
@@ -908,7 +908,7 @@
     },
     {
       "definition": {
-        "title": "Device Uptime Distribution by Manufacturer",
+        "title": "Device CPU by Manufacturer",
         "type": "toplist",
         "requests": [
           {
@@ -925,7 +925,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.uptime_hours{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.manufacturer}",
+                "query": "avg:hospital.device.cpu_usage_pct{$floor,$wing,$department,$device_type,$category,$manufacturer} by {device_manufacturer}",
                 "aggregator": "avg"
               }
             ],
@@ -959,7 +959,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "count:hospital.device.heartbeats_total{$floor,$wing,$department,$device_type,$device_category,$manufacturer} by {device.manufacturer,device.firmware}.as_count()",
+                "query": "avg:hospital.device.online{$floor,$wing,$department,$device_type,$category,$manufacturer} by {device_manufacturer,device_firmware}",
                 "aggregator": "sum"
               }
             ],
@@ -977,7 +977,7 @@
     {
       "definition": {
         "type": "note",
-        "content": "## Hospital Application Services (Traced)\n\nThese services have full Datadog agents installed. View the live **Service Map** at **APM → Service Map** to see dependencies between these systems.",
+        "content": "## Hospital Application Services (Traced)\n\nThese services have full Datadog agents installed. View the live **Service Map** at **APM \u2192 Service Map** to see dependencies between these systems.",
         "background_color": "yellow",
         "font_size": "16",
         "text_align": "left",
@@ -1007,7 +1007,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.app.requests_total{$service} by {service.name}.as_count()"
+                "query": "sum:hospital.app.requests_total{$service} by {service_name}.as_count()"
               }
             ],
             "response_format": "timeseries",
@@ -1037,7 +1037,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.app.errors_total{$service} by {service.name}.as_count()"
+                "query": "sum:hospital.app.errors_total{$service} by {service_name}.as_count()"
               }
             ],
             "response_format": "timeseries",
@@ -1072,12 +1072,12 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.app.latency_ms{$service} by {service.name}"
+                "query": "avg:hospital.app.latency_ms{$service} by {service_name}"
               },
               {
                 "data_source": "metrics",
                 "name": "query2",
-                "query": "max:hospital.app.latency_ms{$service} by {service.name}"
+                "query": "max:hospital.app.latency_ms{$service} by {service_name}"
               }
             ],
             "response_format": "timeseries",
@@ -1094,7 +1094,7 @@
     },
     {
       "definition": {
-        "title": "Active Connections by Service",
+        "title": "Throughput by Service",
         "type": "timeseries",
         "requests": [
           {
@@ -1107,7 +1107,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.app.active_connections{$service} by {service.name}"
+                "query": "sum:hospital.app.requests_total{$service} by {service_name}.as_count()"
               }
             ],
             "response_format": "timeseries",
@@ -1124,7 +1124,7 @@
     },
     {
       "definition": {
-        "title": "App Host CPU by Service",
+        "title": "Network Device CPU",
         "type": "timeseries",
         "requests": [
           {
@@ -1137,7 +1137,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.app.host_cpu_pct{$service} by {service.name}"
+                "query": "avg:hospital.device.cpu_usage_pct{category:network_infra,$service} by {service_name}"
               }
             ],
             "response_format": "timeseries",
@@ -1158,7 +1158,7 @@
     },
     {
       "definition": {
-        "title": "App Host Memory by Service",
+        "title": "Network Device Memory",
         "type": "timeseries",
         "requests": [
           {
@@ -1171,7 +1171,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.app.host_memory_pct{$service} by {service.name}"
+                "query": "avg:hospital.device.memory_usage_pct{category:network_infra,$service} by {service_name}"
               }
             ],
             "response_format": "timeseries",
@@ -1192,7 +1192,7 @@
     },
     {
       "definition": {
-        "title": "Message Queue Depth by Service",
+        "title": "Connected Clients by Floor",
         "type": "timeseries",
         "requests": [
           {
@@ -1205,7 +1205,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.app.queue_depth{$service} by {service.name}"
+                "query": "avg:hospital.network.connected_clients{$service} by {service_name}"
               }
             ],
             "response_format": "timeseries",
@@ -1224,37 +1224,37 @@
   "template_variables": [
     {
       "name": "floor",
-      "prefix": "hospital.floor",
+      "prefix": "floor",
       "default": "*"
     },
     {
       "name": "wing",
-      "prefix": "hospital.wing",
+      "prefix": "wing",
       "default": "*"
     },
     {
       "name": "department",
-      "prefix": "hospital.department",
+      "prefix": "department",
       "default": "*"
     },
     {
       "name": "device_type",
-      "prefix": "device.type",
+      "prefix": "device_type",
       "default": "*"
     },
     {
-      "name": "device_category",
-      "prefix": "device.category",
+      "name": "category",
+      "prefix": "category",
       "default": "*"
     },
     {
       "name": "manufacturer",
-      "prefix": "device.manufacturer",
+      "prefix": "device_manufacturer",
       "default": "*"
     },
     {
       "name": "service",
-      "prefix": "service.name",
+      "prefix": "service_name",
       "default": "*"
     }
   ],

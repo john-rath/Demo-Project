@@ -85,7 +85,7 @@ monitors:
 
   - name: "[Healthcare] Infusion Pump Occlusion Alert Spike"
     type: "query alert"
-    query: "sum(last_5m):sum:hospital.pump.occlusion_alerts_total{} > 10"
+    query: "sum(last_5m):sum:hospital.pump.occlusion_alerts_total{*} > 10"
     message: "⚠️ Pump occlusion alerts spiking. Check network signal strength and tubing."
     tags:
       - "vertical:healthcare"
@@ -117,7 +117,7 @@ monitors:
 
   - name: "[Healthcare] Nurse Call Response Time Exceeding SLA"
     type: "query alert"
-    query: "avg(last_5m):avg:hospital.nursecall.response_time_sec{} > 180"
+    query: "avg(last_5m):avg:hospital.nursecall.response_time_sec{*} > 180"
     message: "📞 Nurse call response time exceeding 3-minute SLA. Check staffing levels and system status."
     tags:
       - "vertical:healthcare"
@@ -127,7 +127,7 @@ monitors:
 
   - name: "[Healthcare] UPS Battery Runtime Critically Low"
     type: "query alert"
-    query: "min(last_5m):min:hospital.env.ups_runtime_min{} < 15"
+    query: "min(last_5m):min:hospital.env.ups_runtime_min{*} < 15"
     message: "🔋 UPS battery runtime critically low (<15 min). Check charge level and load. Life-safety risk."
     tags:
       - "vertical:healthcare"

@@ -1,5 +1,5 @@
 {
-  "title": "Environmental & Facilities — Healthcare Demo",
+  "title": "Environmental & Facilities \u2014 Healthcare Demo",
   "description": "Facilities & Compliance: HVAC compliance, air quality, power systems, regulatory monitoring.",
   "widgets": [
     {
@@ -35,7 +35,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.online{device.category:environmental}"
+                "query": "sum:hospital.device.online{category:environmental}"
               }
             ],
             "response_format": "scalar"
@@ -53,7 +53,7 @@
     },
     {
       "definition": {
-        "title": "Avg Room Temp (°F)",
+        "title": "Avg Room Temp (\u00b0F)",
         "type": "query_value",
         "requests": [
           {
@@ -180,7 +180,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.room_temperature_f{$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.env.room_temperature_f{$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -209,7 +209,7 @@
     },
     {
       "definition": {
-        "title": "HVAC Setpoint Deviation (°F) by Floor",
+        "title": "HVAC Setpoint Deviation (\u00b0F) by Floor",
         "type": "timeseries",
         "requests": [
           {
@@ -222,7 +222,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.hvac_setpoint_delta_f{$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.env.hvac_setpoint_delta_f{$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -233,12 +233,12 @@
           {
             "value": "y = 2",
             "display_type": "warning dashed",
-            "label": "+2°F"
+            "label": "+2\u00b0F"
           },
           {
             "value": "y = -2",
             "display_type": "warning dashed",
-            "label": "-2°F"
+            "label": "-2\u00b0F"
           }
         ]
       },
@@ -264,7 +264,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.humidity_pct{$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.env.humidity_pct{$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -306,7 +306,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.co2_ppm{$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.env.co2_ppm{$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -366,7 +366,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.air_quality_aqi{$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.env.air_quality_aqi{$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -408,7 +408,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.differential_pressure_pa{hospital.department:or,$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.env.differential_pressure_pa{department:or,$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -468,7 +468,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.ups_load_pct{*} by {device.id}"
+                "query": "avg:hospital.env.ups_load_pct{*} by {device_id}"
               }
             ],
             "response_format": "timeseries",
@@ -514,7 +514,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.ups_runtime_min{*} by {device.id}"
+                "query": "avg:hospital.env.ups_runtime_min{*} by {device_id}"
               }
             ],
             "response_format": "timeseries",
@@ -556,7 +556,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.env.generator_fuel_pct{*} by {device.id}"
+                "query": "avg:hospital.env.generator_fuel_pct{*} by {device_id}"
               }
             ],
             "response_format": "timeseries",
@@ -586,12 +586,12 @@
   "template_variables": [
     {
       "name": "floor",
-      "prefix": "hospital.floor",
+      "prefix": "floor",
       "default": "*"
     },
     {
       "name": "wing",
-      "prefix": "hospital.wing",
+      "prefix": "wing",
       "default": "*"
     }
   ],

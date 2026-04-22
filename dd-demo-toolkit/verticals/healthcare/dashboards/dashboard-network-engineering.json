@@ -1,5 +1,5 @@
 {
-  "title": "Network & Clinical Engineering — Healthcare Demo",
+  "title": "Network & Clinical Engineering \u2014 Healthcare Demo",
   "description": "IT & Biomed Leadership: Wireless coverage, switch health, device connectivity, signal quality across the hospital.",
   "widgets": [
     {
@@ -35,7 +35,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.online{device.type:wireless_ap,$floor,$wing}"
+                "query": "sum:hospital.device.online{device_type:wireless_ap,$floor,$wing}"
               }
             ],
             "response_format": "scalar"
@@ -66,7 +66,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "sum:hospital.device.online{device.type:network_switch,$floor,$wing}"
+                "query": "sum:hospital.device.online{device_type:network_switch,$floor,$wing}"
               }
             ],
             "response_format": "scalar"
@@ -243,7 +243,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.connected_clients{device.type:wireless_ap,$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.network.connected_clients{device_type:wireless_ap,$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -273,7 +273,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.channel_utilization_pct{device.type:wireless_ap,$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.network.channel_utilization_pct{device_type:wireless_ap,$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -319,7 +319,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.signal_strength_dbm{device.category:network_infra,$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.device.signal_strength_dbm{category:network_infra,$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -361,7 +361,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.noise_floor_dbm{device.type:wireless_ap,$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.network.noise_floor_dbm{device_type:wireless_ap,$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -409,7 +409,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.throughput_mbps{device.category:network_infra,$floor,$wing} by {device.type}"
+                "query": "avg:hospital.network.throughput_mbps{category:network_infra,$floor,$wing} by {device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -439,7 +439,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.retransmit_pct{device.category:network_infra,$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.network.retransmit_pct{category:network_infra,$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -480,7 +480,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.latency_ms{device.category:network_infra,$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.network.latency_ms{category:network_infra,$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -521,7 +521,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.network.retransmit_pct{device.type:wireless_ap,$floor,$wing} by {hospital.floor}"
+                "query": "avg:hospital.network.retransmit_pct{device_type:wireless_ap,$floor,$wing} by {floor}"
               }
             ],
             "response_format": "timeseries",
@@ -580,7 +580,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.cpu_usage_pct{device.category:network_infra,$floor,$wing} by {device.type}"
+                "query": "avg:hospital.device.cpu_usage_pct{category:network_infra,$floor,$wing} by {device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -614,7 +614,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:hospital.device.temperature_celsius{device.category:network_infra,$floor,$wing} by {device.type}"
+                "query": "avg:hospital.device.temperature_celsius{category:network_infra,$floor,$wing} by {device_type}"
               }
             ],
             "response_format": "timeseries",
@@ -640,12 +640,12 @@
   "template_variables": [
     {
       "name": "floor",
-      "prefix": "hospital.floor",
+      "prefix": "floor",
       "default": "*"
     },
     {
       "name": "wing",
-      "prefix": "hospital.wing",
+      "prefix": "wing",
       "default": "*"
     }
   ],
