@@ -39,7 +39,20 @@ cp .env.template .env
 #   DD_SITE=datadoghq.com (or datadoghq.eu, etc.)
 ```
 
-### 2. Deploy Resources + Start Simulator (Docker)
+### 2. Deploy Resources + Start Simulator (Docker or Colima)
+
+The toolkit runs on any Docker-compatible runtime. [Colima](https://github.com/abiosoft/colima)
+is supported as a drop-in alternative to Docker Desktop on macOS — the same
+`docker compose` commands below work unchanged. To start Colima with enough
+headroom for the simulator stack:
+
+```bash
+brew install colima docker docker-compose
+colima start --cpu 4 --memory 8
+```
+
+`colima start` creates a "colima" Docker context and switches `docker` to it
+automatically; the VM persists across reboots, so this only needs to run once.
 
 ```bash
 # Start the full stack (OpenTelemetry Collector + Simulator)
