@@ -43,57 +43,165 @@ device_categories:
       firmware: 2.9.1
       count: 45
       metrics:
-      - cycle_time_ms
-      - cpu_load_pct
-      - program_errors
-      - io_module_status
-      - scan_time_ms
+      - name: mfg.device.cycle_time_ms
+        type: gauge
+        unit: ms
+        range: [15, 200]
+        drift: 5
+      - name: mfg.device.cpu_load_pct
+        type: gauge
+        unit: '%'
+        range: [10, 90]
+        drift: 2
+      - name: mfg.device.program_errors
+        type: counter
+        unit: errors
+        range: [0, 5]
+        drift: 0.3
+      - name: mfg.device.io_module_status
+        type: gauge
+        unit: status
+        range: [0, 1]
+        drift: 0.05
+      - name: mfg.device.scan_time_ms
+        type: gauge
+        unit: ms
+        range: [1, 50]
+        drift: 1
     - type: cnc_machine
       manufacturer: Fanuc
       model: RoboDrill
       firmware: 34.26.21
       count: 20
       metrics:
-      - spindle_speed_rpm
-      - feed_rate_mm_min
-      - tool_wear_pct
-      - vibration_mm_s
-      - coolant_temp_c
-      - part_count
+      - name: mfg.device.spindle_speed_rpm
+        type: gauge
+        unit: rpm
+        range: [800, 12000]
+        drift: 150
+      - name: mfg.device.feed_rate_mm_min
+        type: gauge
+        unit: mm/min
+        range: [50, 5000]
+        drift: 50
+      - name: mfg.device.tool_wear_pct
+        type: gauge
+        unit: '%'
+        range: [0, 100]
+        drift: 0.5
+      - name: mfg.device.vibration_mm_s
+        type: gauge
+        unit: mm/s
+        range: [0.1, 5.0]
+        drift: 0.2
+      - name: mfg.device.coolant_temp_c
+        type: gauge
+        unit: C
+        range: [15, 60]
+        drift: 0.5
+      - name: mfg.device.part_count
+        type: counter
+        unit: parts
+        range: [0, 1000]
+        drift: 1
     - type: robot_arm
       manufacturer: ABB
       model: IRB 6700
       firmware: 6.10.02
       count: 30
       metrics:
-      - joint_temperature_c
-      - servo_error_count
-      - cycle_time_ms
-      - payload_kg
-      - axis_position_deg
-      - collision_events
+      - name: mfg.device.joint_temperature_c
+        type: gauge
+        unit: C
+        range: [25, 85]
+        drift: 1
+      - name: mfg.device.servo_error_count
+        type: counter
+        unit: errors
+        range: [0, 10]
+        drift: 0.3
+      - name: mfg.device.cycle_time_ms
+        type: gauge
+        unit: ms
+        range: [200, 3000]
+        drift: 30
+      - name: mfg.device.payload_kg
+        type: gauge
+        unit: kg
+        range: [0, 200]
+        drift: 2
+      - name: mfg.device.axis_position_deg
+        type: gauge
+        unit: deg
+        range: [-180, 180]
+        drift: 5
+      - name: mfg.device.collision_events
+        type: counter
+        unit: events
+        range: [0, 2]
+        drift: 0.05
     - type: conveyor_system
       manufacturer: Bosch Rexroth
       model: TCI-4-Series
       firmware: 4.7.2
       count: 15
       metrics:
-      - belt_speed_m_min
-      - motor_current_a
-      - belt_tension_n
-      - jam_events
-      - items_per_min
+      - name: mfg.device.belt_speed_m_min
+        type: gauge
+        unit: m/min
+        range: [0, 60]
+        drift: 1
+      - name: mfg.device.motor_current_a
+        type: gauge
+        unit: A
+        range: [5, 80]
+        drift: 1
+      - name: mfg.device.belt_tension_n
+        type: gauge
+        unit: N
+        range: [500, 5000]
+        drift: 50
+      - name: mfg.device.jam_events
+        type: counter
+        unit: events
+        range: [0, 5]
+        drift: 0.1
+      - name: mfg.device.items_per_min
+        type: gauge
+        unit: items/min
+        range: [0, 200]
+        drift: 5
     - type: press_machine
       manufacturer: Schuler
       model: SERVO Press 4000
       firmware: 8.2.1
       count: 8
       metrics:
-      - tonnage_kn
-      - stroke_count
-      - die_temperature_c
-      - hydraulic_pressure_bar
-      - alignment_offset_mm
+      - name: mfg.device.tonnage_kn
+        type: gauge
+        unit: kN
+        range: [100, 4000]
+        drift: 30
+      - name: mfg.device.stroke_count
+        type: counter
+        unit: strokes
+        range: [0, 1000]
+        drift: 2
+      - name: mfg.device.die_temperature_c
+        type: gauge
+        unit: C
+        range: [20, 250]
+        drift: 2
+      - name: mfg.device.hydraulic_pressure_bar
+        type: gauge
+        unit: bar
+        range: [50, 300]
+        drift: 5
+      - name: mfg.device.alignment_offset_mm
+        type: gauge
+        unit: mm
+        range: [0, 0.5]
+        drift: 0.01
 
   quality_systems:
     ip_base: '10.201'
@@ -108,31 +216,83 @@ device_categories:
       firmware: 9.4.2
       count: 12
       metrics:
-      - inspection_rate_per_min
-      - defect_rate_ppm
-      - false_reject_pct
-      - image_capture_ms
-      - model_confidence_pct
+      - name: mfg.device.inspection_rate_per_min
+        type: gauge
+        unit: /min
+        range: [10, 200]
+        drift: 5
+      - name: mfg.device.defect_rate_ppm
+        type: gauge
+        unit: ppm
+        range: [0, 5000]
+        drift: 100
+      - name: mfg.device.false_reject_pct
+        type: gauge
+        unit: '%'
+        range: [0, 5]
+        drift: 0.1
+      - name: mfg.device.image_capture_ms
+        type: gauge
+        unit: ms
+        range: [10, 200]
+        drift: 3
+      - name: mfg.device.model_confidence_pct
+        type: gauge
+        unit: '%'
+        range: [80, 100]
+        drift: 0.5
     - type: cmm_station
       manufacturer: Zeiss
       model: CONTURA
       firmware: 7.5.0
       count: 6
       metrics:
-      - measurement_cycle_sec
-      - deviation_um
-      - probe_wear_pct
-      - calibration_drift_um
+      - name: mfg.device.measurement_cycle_sec
+        type: gauge
+        unit: s
+        range: [30, 600]
+        drift: 10
+      - name: mfg.device.deviation_um
+        type: gauge
+        unit: um
+        range: [0, 50]
+        drift: 1
+      - name: mfg.device.probe_wear_pct
+        type: gauge
+        unit: '%'
+        range: [0, 100]
+        drift: 0.3
+      - name: mfg.device.calibration_drift_um
+        type: gauge
+        unit: um
+        range: [0, 10]
+        drift: 0.2
     - type: laser_scanner
       manufacturer: Keyence
       model: LJ-X8300
       firmware: 3.11.3
       count: 10
       metrics:
-      - scan_rate_hz
-      - point_cloud_density
-      - surface_roughness_um
-      - measurement_accuracy_um
+      - name: mfg.device.scan_rate_hz
+        type: gauge
+        unit: Hz
+        range: [100, 5000]
+        drift: 50
+      - name: mfg.device.point_cloud_density
+        type: gauge
+        unit: points/cm2
+        range: [100, 10000]
+        drift: 100
+      - name: mfg.device.surface_roughness_um
+        type: gauge
+        unit: um
+        range: [0.1, 10]
+        drift: 0.2
+      - name: mfg.device.measurement_accuracy_um
+        type: gauge
+        unit: um
+        range: [0.5, 20]
+        drift: 0.3
 
   environmental_systems:
     ip_base: '10.202'
@@ -143,32 +303,88 @@ device_categories:
       firmware: 5.1.2
       count: 8
       metrics:
-      - particle_count_per_m3
-      - temperature_c
-      - humidity_pct
-      - differential_pressure_pa
-      - air_changes_per_hour
+      - name: mfg.device.particle_count_per_m3
+        type: gauge
+        unit: particles/m3
+        range: [0, 100000]
+        drift: 1000
+      - name: mfg.device.temperature_c
+        type: gauge
+        unit: C
+        range: [18, 24]
+        drift: 0.2
+      - name: mfg.device.humidity_pct
+        type: gauge
+        unit: '%'
+        range: [30, 70]
+        drift: 1
+      - name: mfg.device.differential_pressure_pa
+        type: gauge
+        unit: Pa
+        range: [5, 25]
+        drift: 0.5
+      - name: mfg.device.air_changes_per_hour
+        type: gauge
+        unit: ach
+        range: [10, 60]
+        drift: 1
     - type: hvac_unit
       manufacturer: Trane
       model: Sintesis
       firmware: 2.8.4
       count: 12
       metrics:
-      - supply_temp_c
-      - return_temp_c
-      - flow_rate_cfm
-      - filter_dp_pa
-      - energy_kwh
+      - name: mfg.device.supply_temp_c
+        type: gauge
+        unit: C
+        range: [10, 25]
+        drift: 0.5
+      - name: mfg.device.return_temp_c
+        type: gauge
+        unit: C
+        range: [18, 28]
+        drift: 0.5
+      - name: mfg.device.flow_rate_cfm
+        type: gauge
+        unit: cfm
+        range: [500, 10000]
+        drift: 100
+      - name: mfg.device.filter_dp_pa
+        type: gauge
+        unit: Pa
+        range: [50, 500]
+        drift: 5
+      - name: mfg.device.energy_kwh
+        type: counter
+        unit: kWh
+        range: [0, 50]
+        drift: 0.5
     - type: safety_sensor
       manufacturer: Sick
       model: SafetyLiDAR
       firmware: 1.4.0
       count: 40
       metrics:
-      - light_curtain_status
-      - emergency_stop_events
-      - gas_level_ppm
-      - noise_level_db
+      - name: mfg.device.light_curtain_status
+        type: gauge
+        unit: status
+        range: [0, 1]
+        drift: 0.02
+      - name: mfg.device.emergency_stop_events
+        type: counter
+        unit: events
+        range: [0, 1]
+        drift: 0.01
+      - name: mfg.device.gas_level_ppm
+        type: gauge
+        unit: ppm
+        range: [0, 100]
+        drift: 1
+      - name: mfg.device.noise_level_db
+        type: gauge
+        unit: dB
+        range: [40, 110]
+        drift: 2
 
   logistics:
     ip_base: '10.203'
@@ -180,22 +396,62 @@ device_categories:
       count: 25
       battery_powered: true
       metrics:
-      - battery_pct
-      - speed_m_s
-      - position_accuracy_cm
-      - obstacle_events
-      - trips_completed
-      - load_weight_kg
+      - name: mfg.device.battery_pct
+        type: gauge
+        unit: '%'
+        range: [5, 100]
+        drift: 0.5
+      - name: mfg.device.speed_m_s
+        type: gauge
+        unit: m/s
+        range: [0, 2]
+        drift: 0.1
+      - name: mfg.device.position_accuracy_cm
+        type: gauge
+        unit: cm
+        range: [0, 20]
+        drift: 1
+      - name: mfg.device.obstacle_events
+        type: counter
+        unit: events
+        range: [0, 5]
+        drift: 0.1
+      - name: mfg.device.trips_completed
+        type: counter
+        unit: trips
+        range: [0, 100]
+        drift: 1
+      - name: mfg.device.load_weight_kg
+        type: gauge
+        unit: kg
+        range: [0, 250]
+        drift: 5
     - type: warehouse_scanner
       manufacturer: Zebra
       model: DS3680
       firmware: 2.21.4
       count: 15
       metrics:
-      - scans_per_min
-      - read_rate_pct
-      - queue_depth
-      - wms_sync_lag_ms
+      - name: mfg.device.scans_per_min
+        type: gauge
+        unit: /min
+        range: [10, 100]
+        drift: 3
+      - name: mfg.device.read_rate_pct
+        type: gauge
+        unit: '%'
+        range: [85, 100]
+        drift: 0.3
+      - name: mfg.device.queue_depth
+        type: gauge
+        unit: items
+        range: [0, 100]
+        drift: 2
+      - name: mfg.device.wms_sync_lag_ms
+        type: gauge
+        unit: ms
+        range: [10, 5000]
+        drift: 50
 
 pinned_devices:
   # Primary demo story devices on Assembly-1, Plant-A-Detroit
