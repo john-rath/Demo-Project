@@ -208,3 +208,194 @@ pinned_devices:
   - device_type: conveyor_system
     plant: Plant-A-Detroit
     line: Assembly-1
+
+services:
+- name: mes-platform
+  host: mes-app-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "POST /api/workorders/create"
+    latency_base_ms: 80
+    latency_p99_ms: 400
+    error_rate: 0.015
+  - name: "GET /api/lines/schedule"
+    latency_base_ms: 50
+    latency_p99_ms: 220
+    error_rate: 0.01
+  - name: "POST /api/production/track"
+    latency_base_ms: 60
+    latency_p99_ms: 280
+    error_rate: 0.012
+  - name: "GET /api/workorders/status"
+    latency_base_ms: 40
+    latency_p99_ms: 180
+    error_rate: 0.008
+  dependencies:
+  - service: scada-gateway
+    operation: "GET /api/devices/telemetry"
+    probability: 0.5
+  - service: erp-integration-bridge
+    operation: "POST /api/sap/orders/sync"
+    probability: 0.3
+  - service: quality-management-system
+    operation: "POST /api/spc/sample"
+    probability: 0.25
+
+- name: scada-gateway
+  host: scada-gw-01
+  language: cpp
+  framework: Boost.Asio
+  operations:
+  - name: "POST /api/telemetry/ingest"
+    latency_base_ms: 12
+    latency_p99_ms: 60
+    error_rate: 0.004
+  - name: "GET /api/devices/telemetry"
+    latency_base_ms: 18
+    latency_p99_ms: 90
+    error_rate: 0.006
+  - name: "POST /api/alarms/raise"
+    latency_base_ms: 25
+    latency_p99_ms: 120
+    error_rate: 0.01
+  - name: "POST /api/historian/write"
+    latency_base_ms: 30
+    latency_p99_ms: 150
+    error_rate: 0.008
+
+- name: quality-management-system
+  host: qms-app-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "POST /api/spc/sample"
+    latency_base_ms: 55
+    latency_p99_ms: 240
+    error_rate: 0.012
+  - name: "POST /api/ncr/create"
+    latency_base_ms: 90
+    latency_p99_ms: 420
+    error_rate: 0.02
+  - name: "GET /api/capa/open"
+    latency_base_ms: 45
+    latency_p99_ms: 200
+    error_rate: 0.01
+  - name: "POST /api/vision/inspect"
+    latency_base_ms: 110
+    latency_p99_ms: 500
+    error_rate: 0.025
+  dependencies:
+  - service: scada-gateway
+    operation: "GET /api/devices/telemetry"
+    probability: 0.4
+
+- name: predictive-maintenance-api
+  host: predmaint-ml-01
+  language: python
+  framework: FastAPI
+  operations:
+  - name: "POST /api/predict/rul"
+    latency_base_ms: 180
+    latency_p99_ms: 850
+    error_rate: 0.02
+  - name: "GET /api/maintenance/schedule"
+    latency_base_ms: 70
+    latency_p99_ms: 320
+    error_rate: 0.012
+  - name: "POST /api/anomaly/score"
+    latency_base_ms: 130
+    latency_p99_ms: 600
+    error_rate: 0.025
+  dependencies:
+  - service: scada-gateway
+    operation: "GET /api/devices/telemetry"
+    probability: 0.7
+
+- name: supply-chain-tracker
+  host: scm-app-01
+  language: dotnet
+  framework: ".NET 8"
+  operations:
+  - name: "GET /api/inventory/levels"
+    latency_base_ms: 50
+    latency_p99_ms: 220
+    error_rate: 0.01
+  - name: "POST /api/jit/dispatch"
+    latency_base_ms: 95
+    latency_p99_ms: 450
+    error_rate: 0.022
+  - name: "GET /api/agv/fleet/status"
+    latency_base_ms: 35
+    latency_p99_ms: 160
+    error_rate: 0.008
+  - name: "POST /api/suppliers/notify"
+    latency_base_ms: 140
+    latency_p99_ms: 700
+    error_rate: 0.03
+  dependencies:
+  - service: erp-integration-bridge
+    operation: "POST /api/sap/bom/sync"
+    probability: 0.35
+
+- name: erp-integration-bridge
+  host: erp-bridge-01
+  language: java
+  framework: SAP JCo
+  operations:
+  - name: "POST /api/sap/orders/sync"
+    latency_base_ms: 220
+    latency_p99_ms: 1100
+    error_rate: 0.03
+  - name: "POST /api/sap/bom/sync"
+    latency_base_ms: 280
+    latency_p99_ms: 1400
+    error_rate: 0.035
+  - name: "POST /api/sap/finance/export"
+    latency_base_ms: 320
+    latency_p99_ms: 1600
+    error_rate: 0.04
+
+- name: energy-management-system
+  host: ems-app-01
+  language: python
+  framework: FastAPI
+  operations:
+  - name: "POST /api/grid/sample"
+    latency_base_ms: 25
+    latency_p99_ms: 110
+    error_rate: 0.008
+  - name: "GET /api/demand/forecast"
+    latency_base_ms: 80
+    latency_p99_ms: 380
+    error_rate: 0.015
+  - name: "POST /api/hvac/optimize"
+    latency_base_ms: 100
+    latency_p99_ms: 450
+    error_rate: 0.018
+  - name: "GET /api/carbon/footprint"
+    latency_base_ms: 60
+    latency_p99_ms: 280
+    error_rate: 0.012
+
+- name: digital-twin-engine
+  host: dtwin-sim-01
+  language: python
+  framework: FastAPI
+  operations:
+  - name: "POST /api/simulate/run"
+    latency_base_ms: 200
+    latency_p99_ms: 950
+    error_rate: 0.025
+  - name: "POST /api/whatif/analyze"
+    latency_base_ms: 240
+    latency_p99_ms: 1200
+    error_rate: 0.03
+  - name: "GET /api/twin/state"
+    latency_base_ms: 45
+    latency_p99_ms: 200
+    error_rate: 0.01
+  dependencies:
+  - service: scada-gateway
+    operation: "GET /api/devices/telemetry"
+    probability: 0.6
