@@ -1,0 +1,458 @@
+{
+  "title": "BD Pyxis MedStation — Connected Fleet",
+  "description": "Pyxis MedStation ES live IoT telemetry: cabinet health, drawer/cubie mechanics, dispensing workflow, BD Pharmogistics inventory sync, controlled-substance compliance, and the pyxis-inventory-api / pharmacy-ehr-bridge cascade view used for BitsSRE root-cause walks.",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# BD Pyxis MedStation ES — Live Fleet\n**Manufacturer:** Becton Dickinson · **Model:** MedStation ES · **Firmware:** 1.6.6\n\nAll metrics filter on `device_type:pyxis_medstation` and `device_manufacturer:BD`. Use the template variables to scope by floor / wing / department.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+
+    {
+      "definition": {
+        "title": "Cabinets Online",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.device.online{device_type:pyxis_medstation,$floor,$wing,$department}", "aggregator": "last"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 0, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Dispenses (5m)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.dispense_events_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count()", "aggregator": "sum"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 2, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Dispense max (ms)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 2500, "palette": "white_on_red"}, {"comparator": ">", "value": 1500, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 1500, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 4, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Sync Lag avg (ms)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.pyxis.sync_lag_to_inventory_ms{device_type:pyxis_medstation,$floor,$wing,$department}"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 4000, "palette": "white_on_red"}, {"comparator": ">", "value": 1500, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 1500, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 6, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Witness Countersign max (ms)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.pyxis.witness_countersign_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department}", "aggregator": "max"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 8, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Override Events (1h)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.override_events_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count()", "aggregator": "sum"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 10, "y": 2, "width": 2, "height": 2}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Inventory Sync — root-cause lane for the BD cascade",
+        "background_color": "yellow",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 4, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Inventory Poll Rate (per cabinet, /min)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.pyxis.inventory_poll_rate_per_min{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 60", "display_type": "warning dashed", "label": "Vendor recommended ceiling"}, {"value": "y = 150", "display_type": "error dashed", "label": "Storm threshold"}]
+      },
+      "layout": {"x": 0, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Sync Lag → pyxis-inventory-api (ms)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.pyxis.sync_lag_to_inventory_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 4000", "display_type": "error dashed", "label": "Cascade threshold"}]
+      },
+      "layout": {"x": 6, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Last Successful Sync Age (sec)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.pyxis.last_successful_sync_age_sec{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "area"}],
+        "markers": [{"value": "y = 180", "display_type": "warning dashed", "label": "Stale (3m)"}]
+      },
+      "layout": {"x": 0, "y": 8, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Sync Failures (5m)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.sync_failures_total{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 6, "y": 8, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Dispensing Workflow — nurse-visible symptom lane",
+        "background_color": "vivid_orange",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 11, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Dispense Latency avg by Department (ms)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "avg"}, {"formula": "max", "alias": "max"}], "queries": [{"data_source": "metrics", "name": "avg", "query": "avg:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}, {"data_source": "metrics", "name": "max", "query": "max:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 2500", "display_type": "error dashed", "label": "Critical SLA"}]
+      },
+      "layout": {"x": 0, "y": 12, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Dispense Failures (5m)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.dispense_failed_total{device_type:pyxis_medstation,$floor,$wing,$department} by {department}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 6, "y": 12, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Witness Countersign Latency avg by Department (ms)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "avg"}, {"formula": "max", "alias": "max"}], "queries": [{"data_source": "metrics", "name": "avg", "query": "avg:hospital.pyxis.witness_countersign_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}, {"data_source": "metrics", "name": "max", "query": "max:hospital.pyxis.witness_countersign_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 0, "y": 15, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Med-Order Match %",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.pyxis.med_order_match_pct{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}],
+        "yaxis": {"min": "80", "max": "100"}
+      },
+      "layout": {"x": 6, "y": 15, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Cabinet Mechanics & Compliance",
+        "background_color": "white",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 18, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Drawer Open Events (per device, /5m)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.drawer_open_events_total{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}.as_count()"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 0, "y": 19, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Cubie Lock Contention",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.cubie_lock_contention_total{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 4, "y": 19, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Drawer Jams",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.drawer_jam_events_total{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 8, "y": 19, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Biometric Auth Failure Rate",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "ratio * 100", "alias": "auth fail %"}], "queries": [{"data_source": "metrics", "name": "ratio", "query": "sum:hospital.pyxis.biometric_auth_failures_total{device_type:pyxis_medstation,$department} / sum:hospital.pyxis.biometric_auth_attempts_total{device_type:pyxis_medstation,$department}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 0, "y": 22, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Override Events by Department",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.override_events_total{device_type:pyxis_medstation,$floor,$wing,$department} by {department}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 4, "y": 22, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Controlled-Substance Discrepancies",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.controlled_substance_discrepancies_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count()", "aggregator": "sum"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 0, "palette": "white_on_red"}, {"comparator": "<=", "value": 0, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 8, "y": 22, "width": 4, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Inventory Levels & Restock Queue",
+        "background_color": "white",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 25, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Bin Fill % by Department",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.pyxis.bin_fill_pct{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}],
+        "yaxis": {"min": "0", "max": "100"},
+        "markers": [{"value": "y = 20", "display_type": "warning dashed", "label": "Restock"}]
+      },
+      "layout": {"x": 0, "y": 26, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Restock Queue Depth",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.pyxis.restock_queue_depth{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 6, "y": 26, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Expired Med Count (per cabinet)",
+        "type": "toplist",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.pyxis.expired_med_count{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id,department}", "aggregator": "max"}], "response_format": "scalar"}]
+      },
+      "layout": {"x": 0, "y": 29, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Unmatched Orders (last 5m)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.unmatched_orders_total{device_type:pyxis_medstation,$floor,$wing,$department} by {department}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 6, "y": 29, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Cascade trace — pyxis-inventory-api ⇄ pharmacy-ehr-bridge\nFor the BitsSRE walkthrough: Pyxis polling storm saturates pyxis-inventory-api, which then chokes pharmacy-ehr-bridge, then pharmacy-dispensing-api, then nurse-visible dispense delays.",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 32, "width": 12, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "pyxis-inventory-api Error Rate %",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "errs / reqs * 100", "alias": "error %"}], "queries": [{"data_source": "metrics", "name": "errs", "query": "sum:hospital.app.errors_total{service_name:pyxis-inventory-api}.as_count()"}, {"data_source": "metrics", "name": "reqs", "query": "sum:hospital.app.requests_total{service_name:pyxis-inventory-api}.as_count()"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 5", "display_type": "error dashed", "label": "Cascade"}]
+      },
+      "layout": {"x": 0, "y": 34, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "pharmacy-ehr-bridge Latency (ms) — avg & max",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "avg"}, {"formula": "max", "alias": "max"}], "queries": [{"data_source": "metrics", "name": "avg", "query": "avg:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge}"}, {"data_source": "metrics", "name": "max", "query": "max:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 1500", "display_type": "error dashed", "label": "Choke threshold"}]
+      },
+      "layout": {"x": 4, "y": 34, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "pharmacy-dispensing-api Latency (ms) — avg & max",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "avg"}, {"formula": "max", "alias": "max"}], "queries": [{"data_source": "metrics", "name": "avg", "query": "avg:hospital.app.latency_ms{service_name:pharmacy-dispensing-api}"}, {"data_source": "metrics", "name": "max", "query": "max:hospital.app.latency_ms{service_name:pharmacy-dispensing-api}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 8, "y": 34, "width": 4, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Cabinet Health (CPU / Memory / Disk / Battery)",
+        "background_color": "white",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 37, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "CPU %",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.device.cpu_usage_pct{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 0, "y": 38, "width": 3, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Memory %",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.device.memory_usage_pct{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 3, "y": 38, "width": 3, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Disk %",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.device.disk_usage_pct{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 6, "y": 38, "width": 3, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Battery %",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.device.battery_pct{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "yaxis": {"min": "0", "max": "100"}
+      },
+      "layout": {"x": 9, "y": 38, "width": 3, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## BD Wider Connected Fleet — BACTEC FX, Rowa Vmax, Phoenix M50, Veritor Plus",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 41, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "BACTEC Incubator Temp (°C)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.bactec.incubator_temp_celsius{device_type:bactec_blood_culture} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "yaxis": {"min": "33", "max": "38"},
+        "markers": [{"value": "y = 34.8", "display_type": "warning dashed"}, {"value": "y = 36.2", "display_type": "warning dashed"}]
+      },
+      "layout": {"x": 0, "y": 42, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "BACTEC LIS Queue Depth",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.bactec.lis_queue_depth{device_type:bactec_blood_culture} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 4, "y": 42, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "BACTEC Bottle Load Count",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.bactec.bottle_load_count{device_type:bactec_blood_culture} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 8, "y": 42, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Rowa Pick Throughput / hr",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.rowa.pick_throughput_per_hr{device_type:rowa_robot} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 0, "y": 45, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Rowa Pick Failure Rate %",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "fails / picks * 100", "alias": "fail %"}], "queries": [{"data_source": "metrics", "name": "fails", "query": "sum:hospital.rowa.pick_failures_total{device_type:rowa_robot}.as_count()"}, {"data_source": "metrics", "name": "picks", "query": "sum:hospital.rowa.picks_completed_total{device_type:rowa_robot}.as_count()"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 4, "y": 45, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Phoenix LIS Sync Lag (s)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.phoenix.lis_sync_lag_sec{device_type:phoenix_micro_id} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 8, "y": 45, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Veritor Cartridge Temp (°C)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.veritor.cartridge_temp_celsius{device_type:veritor_diagnostic} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 0, "y": 48, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Veritor Calibration Age (h)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.veritor.calibration_age_hr{device_type:veritor_diagnostic} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 720", "display_type": "warning dashed", "label": "30-day cal"}]
+      },
+      "layout": {"x": 6, "y": 48, "width": 6, "height": 3}
+    }
+  ],
+  "template_variables": [
+    {"name": "floor", "prefix": "floor", "default": "*"},
+    {"name": "wing", "prefix": "wing", "default": "*"},
+    {"name": "department", "prefix": "department", "default": "*"}
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

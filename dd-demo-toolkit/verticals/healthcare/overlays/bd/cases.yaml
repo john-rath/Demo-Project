@@ -1,0 +1,21 @@
+cases:
+
+  - title: "BD Pyxis Inventory Polling Storm — Vendor Firmware Rollback"
+    description: "Pyxis MedStation ES cabinets in Pharmacy on Floor 1 South began polling pyxis-inventory-api at >180/min after a vendor firmware config refresh, saturating the upstream service and causing nurse-visible dispense latency. Workflow auto-remediation has clamped polling at 60/min as a stop-gap. Action items: (1) confirm BD ticket and obtain fixed config, (2) capacity-plan pyxis-inventory-api thread pool, (3) add guardrail monitor for any future polling-rate drift."
+    priority: "P2"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+
+  - title: "Pyxis Cabinet Fleet Health & Compliance Review"
+    description: "Quarterly fleet review for the BD Pyxis MedStation ES population: uptime, dispense latency, override-event rate, controlled-substance discrepancies, biometric-auth failure trends. Cross-reference findings against DEA recordkeeping requirements and BD Pharmogistics inventory variance reports."
+    priority: "P3"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "compliance:dea"

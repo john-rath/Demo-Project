@@ -29,6 +29,7 @@ class SLOManager:
         api_client: DatadogAPIClient,
         tags: Optional[Dict[str, str]] = None,
         dry_run: bool = False,
+        vertical_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Deploy SLOs from a vertical.
@@ -65,7 +66,8 @@ class SLOManager:
             logger.info(f"No slos.yaml file found at {slos_file}")
             return result
 
-        vertical_name = vertical_path_obj.name
+        if vertical_name is None:
+            vertical_name = vertical_path_obj.name
 
         try:
             with open(slos_file, "r") as f:

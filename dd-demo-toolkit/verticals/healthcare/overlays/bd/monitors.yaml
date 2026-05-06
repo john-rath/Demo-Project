@@ -1,0 +1,181 @@
+# BD sub-vertical monitors — Pyxis MedStation cascade.
+#
+# Tag scheme strictly mirrors the healthcare vertical's existing standards
+# (see verticals/healthcare/monitors.yaml):
+#   - vertical:healthcare      auto-injected
+#   - dd-demo-toolkit:true     auto-injected
+#   - team:<role>              existing roles only (pharmacy-systems, biomed)
+#   - incident_domain:<name>   existing key, NEW value `pharmacy-automation`
+#                              (mirrors the pattern of the existing
+#                              `incident_domain:network-to-device`)
+#   - signal_chain:<position-name>  same scheme as base
+#
+# Query dimensions all reference EXISTING device-tag keys emitted by the
+# engine: device_type, device_manufacturer, device_category, floor, wing,
+# department, service_name. No new tag keys are introduced.
+
+monitors:
+
+  # ----- Signal chain for the Pyxis cascade -----------------------------
+  # 1-root-cause: poll-rate storm against pyxis-inventory-api
+  - name: "[Healthcare/BD] Pyxis Inventory Poll-Rate Storm"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.pyxis.inventory_poll_rate_per_min{device_type:pyxis_medstation,device_manufacturer:BD} by {device_id,floor,wing,department} > 150"
+    message: "📈 Pyxis cabinet polling pyxis-inventory-api at >150/min (normal: ~12/min). Likely vendor firmware config drift. Trace upstream into pyxis-inventory-api thread pool."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  # 2-leading-indicator: inventory sync lag climbing
+  - name: "[Healthcare/BD] Pyxis Inventory Sync Lag Elevated"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.pyxis.sync_lag_to_inventory_ms{device_type:pyxis_medstation} by {device_id,department} > 4000"
+    message: "🐢 Pyxis → pyxis-inventory-api sync lag >4s on {{department.name}}. Leading indicator for dispense-latency cascade. Check pharmacy-ehr-bridge thread pool."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # 2b-leading-indicator: stale sync age (paired confirmation)
+  - name: "[Healthcare/BD] Pyxis Last-Successful-Sync Age Stale"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.pyxis.last_successful_sync_age_sec{device_type:pyxis_medstation} by {device_id,department} > 180"
+    message: "⏱ Pyxis cabinet has not completed a successful inventory sync in >3min. Risk: stale bin counts, override-rate increase."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # 3-symptom: nurse-visible dispense latency
+  - name: "[Healthcare/BD] Pyxis Dispense Latency Critical"
+    type: "query alert"
+    query: "avg(last_5m):p95:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation} by {device_id,department,floor,wing} > 2500"
+    message: "🚨 Pyxis dispense p95 latency >2.5s on Floor {{floor.name}} {{wing.name}} {{department.name}}. Nurses experiencing delays at the cabinet. Check upstream sync lag and pharmacy-ehr-bridge."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+      - "signal_chain:3-symptom"
+      - "safety:patient-safety"
+    priority: 1
+
+  # 3b-symptom: dispense outright failures
+  - name: "[Healthcare/BD] Pyxis Dispense Failures Spike"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospital.pyxis.dispense_failed_total{device_type:pyxis_medstation} by {department} > 5"
+    message: "❌ More than 5 dispense failures in 5 min in {{department.name}}. Possible upstream order-validation timeout."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+      - "signal_chain:3-symptom"
+      - "safety:patient-safety"
+    priority: 1
+
+  # 3c-symptom: witness countersign delays (controlled-substance workflow)
+  - name: "[Healthcare/BD] Pyxis Witness Countersign Latency High"
+    type: "query alert"
+    query: "avg(last_5m):p95:hospital.pyxis.witness_countersign_latency_ms{device_type:pyxis_medstation} by {device_id,department} > 8000"
+    message: "👥 Witness countersign p95 >8s. Two-nurse controlled-substance workflow degraded. Check Pyxis ↔ pyxis-inventory-api round-trip."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+      - "signal_chain:3-symptom"
+    priority: 2
+
+  # 4-cascade: upstream service errors (the smoking gun for BitsSRE)
+  - name: "[Healthcare/BD] Pyxis Inventory API Error-Rate Spike"
+    type: "query alert"
+    query: "avg(last_5m):sum:hospital.app.errors_total{service_name:pyxis-inventory-api} / sum:hospital.app.requests_total{service_name:pyxis-inventory-api} * 100 > 5"
+    message: "🔥 pyxis-inventory-api error rate >5%. Thread pool likely saturated by Pyxis poll storm. Trace dependency into pharmacy-ehr-bridge."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+      - "signal_chain:4-cascade"
+    priority: 1
+
+  - name: "[Healthcare/BD] Pharmacy EHR Bridge Latency Anomaly"
+    type: "query alert"
+    query: "avg(last_5m):p99:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge} > 1500"
+    message: "🔗 pharmacy-ehr-bridge p99 latency >1.5s. Downstream of Pyxis polling burst. Validate FHIR broker MedicationRequest queue."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:integration"
+      - "incident_domain:pharmacy-automation"
+      - "signal_chain:4-cascade"
+    priority: 2
+
+  # ----- Standalone BD device-health monitors (not in cascade) ----------
+
+  - name: "[Healthcare/BD] Pyxis Cabinet Offline"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospital.device.online{device_type:pyxis_medstation} by {device_id,floor,wing,department} < 1"
+    message: "🚪 Pyxis cabinet offline on Floor {{floor.name}} {{wing.name}} {{department.name}}. Controlled-substance access blocked."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:biomed"
+      - "incident_domain:pharmacy-automation"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/BD] Pyxis Controlled-Substance Discrepancy Detected"
+    type: "query alert"
+    query: "sum(last_15m):sum:hospital.pyxis.controlled_substance_discrepancies_total{device_type:pyxis_medstation} by {device_id,department} > 0"
+    message: "⚖️ Controlled-substance discrepancy logged on Pyxis cabinet. Compliance escalation required."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "compliance:dea"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/BD] BACTEC Incubator Temp Too Low"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.bactec.incubator_temp_celsius{device_type:bactec_blood_culture} by {device_id} < 34.8"
+    message: "🌡️ BACTEC FX incubator below 34.8°C. Blood-culture validity at risk."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:biomed"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/BD] BACTEC Incubator Temp Too High"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.bactec.incubator_temp_celsius{device_type:bactec_blood_culture} by {device_id} > 36.2"
+    message: "🌡️ BACTEC FX incubator above 36.2°C. Blood-culture validity at risk."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:biomed"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/BD] Rowa Pick Failure Rate Elevated"
+    type: "query alert"
+    query: "avg(last_10m):sum:hospital.rowa.pick_failures_total{device_type:rowa_robot} / sum:hospital.rowa.picks_completed_total{device_type:rowa_robot} * 100 > 3"
+    message: "🤖 Rowa Vmax pick failure rate >3%. Possible bin calibration drift."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+    priority: 2

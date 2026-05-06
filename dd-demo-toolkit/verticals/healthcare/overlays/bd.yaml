@@ -1,0 +1,436 @@
+# Becton Dickinson (BD) sub-vertical overlay for the healthcare vertical.
+#
+# Adds BD's connected-fleet device set on top of the base "Smart Hospital
+# Demo": Pyxis MedStation ES (the centerpiece for the BitsSRE problem
+# pattern), plus BACTEC FX, Rowa Vmax, Phoenix M50, Veritor Plus, and an
+# expanded Alaris pump count. Everything emits under the existing
+# `hospital.*` metric namespace so dashboards, monitors, and SLOs that
+# already filter by `device_manufacturer:BD` keep working without any
+# query rewrites.
+#
+# Tagging — strictly the existing healthcare standards, no new keys:
+#   - `device_type:<value>` for new device-type values (pyxis_medstation, etc.)
+#   - `device_manufacturer:BD` (already emitted by the engine)
+#   - `device_category:medical_iot` / `pharmacy_automation` (existing key,
+#     pharmacy_automation is a new value of the existing category dim)
+#   - department `Pharmacy` (already in healthcare's department dimension)
+#
+# This file is loaded by ConfigLoader.load_vertical(..., sub_vertical="bd")
+# and merged into the base healthcare config: device lists are concatenated,
+# services are appended. Resource files (monitors, dashboards, etc.) live
+# next to this file under overlays/bd/.
+
+device_categories:
+
+  # New category. The existing `medical_iot` and `environmental` categories
+  # gain nothing from the BD-specific gear, so we put Pyxis + automation
+  # robots in their own category. The category name is queryable as
+  # `category:pharmacy_automation` from monitors and dashboards.
+  pharmacy_automation:
+    ip_base: '10.110'
+    department_pool:
+    - Pharmacy
+    devices:
+
+    # ----- Pyxis MedStation ES (the headline device) ------------------
+    # 18 cabinets distributed across satellite pharmacies + central pharmacy.
+    # Telemetry below is everything that's actually capturable from a real
+    # Pyxis ES: cubie/drawer mechanics, controlled-substance audit, BD
+    # Pharmogistics inventory sync, biometric auth, witness countersign.
+    - type: pyxis_medstation
+      manufacturer: BD
+      model: MedStation ES
+      firmware: '1.6.6'
+      count: 18
+      battery_powered: true
+      metrics:
+      # --- Common device health (matches base healthcare conventions) ---
+      - name: hospital.device.battery_pct
+        type: gauge
+        unit: '%'
+        range: [40, 100]
+        drift: 0.3
+      - name: hospital.device.cpu_usage_pct
+        type: gauge
+        unit: '%'
+        range: [3, 90]
+        drift: 1.5
+      - name: hospital.device.memory_usage_pct
+        type: gauge
+        unit: '%'
+        range: [15, 85]
+        drift: 0.8
+      - name: hospital.device.disk_usage_pct
+        type: gauge
+        unit: '%'
+        range: [20, 90]
+        drift: 0.4
+      - name: hospital.device.signal_strength_dbm
+        type: gauge
+        unit: dBm
+        range: [-85, -25]
+        drift: 1.5
+      - name: hospital.device.temperature_celsius
+        type: gauge
+        unit: Cel
+        range: [22, 38]
+        drift: 0.2
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.005
+
+      # --- Cabinet mechanics (drawers, cubies, locks) ---
+      - name: hospital.pyxis.drawer_open_events_total
+        type: counter
+        unit: '1'
+        range: [0, 25]
+        drift: 0.4
+      - name: hospital.pyxis.cubie_lock_contention_total
+        type: counter
+        unit: '1'
+        range: [0, 2]
+        drift: 0.05
+      - name: hospital.pyxis.drawer_jam_events_total
+        type: counter
+        unit: '1'
+        range: [0, 1]
+        drift: 0.02
+      - name: hospital.pyxis.lid_open_seconds
+        type: gauge
+        unit: s
+        range: [1, 60]
+        drift: 1.0
+
+      # --- Inventory & dispensing (the workflow heartbeat) ---
+      - name: hospital.pyxis.dispense_events_total
+        type: counter
+        unit: '1'
+        range: [0, 30]
+        drift: 0.5
+      - name: hospital.pyxis.dispense_latency_ms
+        type: gauge
+        unit: ms
+        range: [200, 3500]
+        drift: 30.0
+      - name: hospital.pyxis.dispense_failed_total
+        type: counter
+        unit: '1'
+        range: [0, 2]
+        drift: 0.04
+      - name: hospital.pyxis.bin_fill_pct
+        type: gauge
+        unit: '%'
+        range: [0, 100]
+        drift: 1.0
+      - name: hospital.pyxis.restock_queue_depth
+        type: gauge
+        unit: '1'
+        range: [0, 20]
+        drift: 0.5
+      - name: hospital.pyxis.expired_med_count
+        type: gauge
+        unit: '1'
+        range: [0, 10]
+        drift: 0.1
+
+      # --- Inventory sync (THE root-cause signal in the BD cascade) ---
+      # When Pyxis polling spikes against pyxis-inventory-api, sync_lag
+      # climbs and pharmacy-ehr-bridge thread pool saturates downstream.
+      - name: hospital.pyxis.sync_lag_to_inventory_ms
+        type: gauge
+        unit: ms
+        range: [50, 8000]
+        drift: 25.0
+      - name: hospital.pyxis.inventory_poll_rate_per_min
+        type: gauge
+        unit: '1'
+        range: [4, 240]
+        drift: 2.0
+      - name: hospital.pyxis.last_successful_sync_age_sec
+        type: gauge
+        unit: s
+        range: [0, 600]
+        drift: 5.0
+      - name: hospital.pyxis.sync_failures_total
+        type: counter
+        unit: '1'
+        range: [0, 3]
+        drift: 0.05
+
+      # --- Authentication, override, and controlled-substance audit ---
+      - name: hospital.pyxis.biometric_auth_attempts_total
+        type: counter
+        unit: '1'
+        range: [0, 20]
+        drift: 0.4
+      - name: hospital.pyxis.biometric_auth_failures_total
+        type: counter
+        unit: '1'
+        range: [0, 3]
+        drift: 0.1
+      - name: hospital.pyxis.override_events_total
+        type: counter
+        unit: '1'
+        range: [0, 4]
+        drift: 0.1
+      - name: hospital.pyxis.controlled_substance_discrepancies_total
+        type: counter
+        unit: '1'
+        range: [0, 1]
+        drift: 0.02
+      - name: hospital.pyxis.witness_countersign_latency_ms
+        type: gauge
+        unit: ms
+        range: [500, 15000]
+        drift: 50.0
+
+      # --- BD Pharmogistics / EHR linkage health ---
+      - name: hospital.pyxis.med_order_match_pct
+        type: gauge
+        unit: '%'
+        range: [85, 100]
+        drift: 0.3
+      - name: hospital.pyxis.unmatched_orders_total
+        type: counter
+        unit: '1'
+        range: [0, 5]
+        drift: 0.1
+
+    # ----- BACTEC FX blood-culture instrument -------------------------
+    - type: bactec_blood_culture
+      manufacturer: BD
+      model: BACTEC FX
+      firmware: '4.84'
+      count: 4
+      battery_powered: false
+      metrics:
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.005
+      - name: hospital.device.cpu_usage_pct
+        type: gauge
+        unit: '%'
+        range: [2, 70]
+        drift: 0.8
+      - name: hospital.device.signal_strength_dbm
+        type: gauge
+        unit: dBm
+        range: [-80, -25]
+        drift: 1.5
+      - name: hospital.bactec.bottle_load_count
+        type: gauge
+        unit: '1'
+        range: [0, 400]
+        drift: 3.0
+      - name: hospital.bactec.incubator_temp_celsius
+        type: gauge
+        unit: Cel
+        range: [34.5, 36.5]
+        drift: 0.05
+      - name: hospital.bactec.positive_flag_latency_sec
+        type: gauge
+        unit: s
+        range: [10, 120]
+        drift: 2.0
+      - name: hospital.bactec.lis_queue_depth
+        type: gauge
+        unit: '1'
+        range: [0, 50]
+        drift: 0.5
+      - name: hospital.bactec.bottle_loaded_total
+        type: counter
+        unit: '1'
+        range: [0, 10]
+        drift: 0.2
+      - name: hospital.bactec.positive_flag_total
+        type: counter
+        unit: '1'
+        range: [0, 3]
+        drift: 0.05
+
+    # ----- Rowa Vmax pharmacy robot -----------------------------------
+    - type: rowa_robot
+      manufacturer: BD
+      model: Rowa Vmax
+      firmware: '5.4'
+      count: 2
+      battery_powered: false
+      metrics:
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.005
+      - name: hospital.device.cpu_usage_pct
+        type: gauge
+        unit: '%'
+        range: [5, 80]
+        drift: 1.0
+      - name: hospital.device.signal_strength_dbm
+        type: gauge
+        unit: dBm
+        range: [-75, -30]
+        drift: 1.0
+      - name: hospital.rowa.pick_throughput_per_hr
+        type: gauge
+        unit: '1'
+        range: [50, 500]
+        drift: 5.0
+      - name: hospital.rowa.arm_cycle_time_sec
+        type: gauge
+        unit: s
+        range: [3, 12]
+        drift: 0.2
+      - name: hospital.rowa.bin_error_rate_pct
+        type: gauge
+        unit: '%'
+        range: [0, 5]
+        drift: 0.1
+      - name: hospital.rowa.stock_inventory_drift_pct
+        type: gauge
+        unit: '%'
+        range: [0, 8]
+        drift: 0.1
+      - name: hospital.rowa.picks_completed_total
+        type: counter
+        unit: '1'
+        range: [0, 30]
+        drift: 0.5
+      - name: hospital.rowa.pick_failures_total
+        type: counter
+        unit: '1'
+        range: [0, 2]
+        drift: 0.05
+
+    # ----- Phoenix M50 microbiology ID/AST ----------------------------
+    - type: phoenix_micro_id
+      manufacturer: BD
+      model: Phoenix M50
+      firmware: '8.0'
+      count: 2
+      battery_powered: false
+      metrics:
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.005
+      - name: hospital.device.cpu_usage_pct
+        type: gauge
+        unit: '%'
+        range: [3, 75]
+        drift: 0.9
+      - name: hospital.phoenix.panel_completion_time_min
+        type: gauge
+        unit: min
+        range: [180, 720]
+        drift: 4.0
+      - name: hospital.phoenix.plate_jam_events_total
+        type: counter
+        unit: '1'
+        range: [0, 1]
+        drift: 0.02
+      - name: hospital.phoenix.lis_sync_lag_sec
+        type: gauge
+        unit: s
+        range: [1, 120]
+        drift: 1.5
+      - name: hospital.phoenix.panels_completed_total
+        type: counter
+        unit: '1'
+        range: [0, 5]
+        drift: 0.1
+
+    # ----- Veritor Plus rapid diagnostic analyzer ---------------------
+    - type: veritor_diagnostic
+      manufacturer: BD
+      model: Veritor Plus
+      firmware: '2.3'
+      count: 8
+      battery_powered: true
+      metrics:
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.005
+      - name: hospital.device.battery_pct
+        type: gauge
+        unit: '%'
+        range: [30, 100]
+        drift: 0.3
+      - name: hospital.device.signal_strength_dbm
+        type: gauge
+        unit: dBm
+        range: [-80, -30]
+        drift: 1.5
+      - name: hospital.veritor.cartridge_temp_celsius
+        type: gauge
+        unit: Cel
+        range: [18, 28]
+        drift: 0.2
+      - name: hospital.veritor.calibration_age_hr
+        type: gauge
+        unit: h
+        range: [0, 720]
+        drift: 1.0
+      - name: hospital.veritor.tests_completed_total
+        type: counter
+        unit: '1'
+        range: [0, 6]
+        drift: 0.1
+      - name: hospital.veritor.invalid_results_total
+        type: counter
+        unit: '1'
+        range: [0, 1]
+        drift: 0.02
+
+# Service catalog additions for the simulator engine. These services
+# anchor the BD problem pattern: Pyxis MedStation polls
+# `pyxis-inventory-api`, which talks to `pharmacy-ehr-bridge` (the choke
+# point during the cascade). Both are tagged onto the existing
+# pharmacy-dispensing-api flow so the trace topology stays connected.
+services:
+- name: pyxis-inventory-api
+  host: pyxis-inv-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "GET /api/inventory/cabinets"
+    latency_base_ms: 60
+    latency_p99_ms: 350
+    error_rate: 0.012
+  - name: "POST /api/inventory/sync"
+    latency_base_ms: 110
+    latency_p99_ms: 600
+    error_rate: 0.018
+  - name: "GET /api/inventory/discrepancies"
+    latency_base_ms: 75
+    latency_p99_ms: 320
+    error_rate: 0.01
+  dependencies:
+  - service: pharmacy-ehr-bridge
+    operation: "POST /api/ehr/medication-orders"
+    probability: 0.85
+
+- name: pharmacy-ehr-bridge
+  host: pharma-bridge-01
+  language: dotnet
+  framework: ".NET 8"
+  operations:
+  - name: "POST /api/ehr/medication-orders"
+    latency_base_ms: 90
+    latency_p99_ms: 480
+    error_rate: 0.02
+  - name: "GET /api/ehr/patient-meds"
+    latency_base_ms: 70
+    latency_p99_ms: 320
+    error_rate: 0.012
+  dependencies:
+  - service: hl7-fhir-broker
+    operation: "POST /api/fhir/MedicationRequest"
+    probability: 0.7

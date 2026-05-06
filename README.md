@@ -64,6 +64,28 @@ docker compose --profile setup up setup
 
 Metrics and logs will begin flowing to Datadog within 30 seconds. Pre-built dashboards will populate automatically.
 
+#### Including a sub-vertical overlay (e.g. BD on top of healthcare)
+
+Set `DD_DEMO_SUB_VERTICAL` in your `.env` file to layer an overlay on
+top of the base vertical. The simulator and setup containers both
+honor it.
+
+```bash
+# In .env
+DD_DEMO_VERTICAL=healthcare
+DD_DEMO_SUB_VERTICAL=bd
+
+# Then the same commands deploy + simulate base + overlay
+docker compose --profile setup up setup    # deploys healthcare + BD
+docker compose up                           # simulates healthcare + BD plugins
+```
+
+> **Rebuild after adding/changing the env var.** Both containers read
+> `DD_DEMO_SUB_VERTICAL` at runtime, but the Dockerfile CMD that
+> appends `--sub-vertical` only changes if the image was built with the
+> updated Dockerfile. After upgrading from a pre-overlay image, run
+> `docker compose build` to refresh the simulator and setup images.
+
 #### Cleaning up (Docker)
 
 Two profile-scoped services are provided for cleanup. Both are one-shot
@@ -98,15 +120,27 @@ docker compose --profile teardown-all run --rm teardown-all \
 # Install the package
 pip install -e .
 
-# List available verticals
+# List available verticals (also lists sub-vertical overlays per vertical)
 dd-demo list
+dd-demo list --vertical healthcare
 
 # Create Datadog resources (dashboards, monitors, SLOs)
 dd-demo setup --vertical healthcare
 
-# Start the simulator
-dd-demo simulate --vertical healthcare
+# Layer a customer/sub-segment overlay on top of the base vertical
+dd-demo setup --vertical healthcare --sub-vertical bd
+
+# Start the simulator (with the overlay's plugins active)
+dd-demo simulate --vertical healthcare --sub-vertical bd
 ```
+
+> **What's a sub-vertical?** A reusable, additive overlay that layers
+> customer- or segment-specific devices, services, dashboards,
+> monitors, and incident plugins onto an existing base vertical
+> *without forking it*. The base vertical's metric namespace and tag
+> standards are preserved, so overlays cost nothing in dashboard
+> rewrites. Healthcare ships with the **BD** overlay — see
+> [Sub-Vertical Overlays](#sub-vertical-overlays).
 
 ---
 
@@ -125,6 +159,14 @@ dd-demo simulate --vertical healthcare
 Multi-floor hospital with medical IoT (patient monitors, infusion pumps, ventilators), network infrastructure, environmental sensors, and clinical application services. The demo includes a phased WiFi outage that cascades to device failures—perfect for showing how Datadog correlates infrastructure and application metrics.
 
 **Key Resources**: 9 services, 6 SLOs, 15+ monitors covering patient safety, device reliability, and network health.
+
+**Available sub-vertical overlays:**
+
+| Overlay | Customer profile | What it adds |
+|---------|------------------|--------------|
+| `bd` | **Becton Dickinson** | Pyxis MedStation ES (18 cabinets) + BACTEC FX, Rowa Vmax, Phoenix M50, Veritor Plus. New services `pyxis-inventory-api` and `pharmacy-ehr-bridge`. Pyxis inventory-sync polling-storm cascade plugin (Pharmacy / Floor 1 South), 47-widget Pyxis MedStation dashboard, BitsSRE walkthrough notebook, and a poll-rate-limit auto-remediation workflow. Bifurcated from the base WiFi cascade by department, metric namespace, `incident_domain` tag, and a 90-130 tick startup delay. |
+
+Run with: `dd-demo setup --vertical healthcare --sub-vertical bd && dd-demo simulate --vertical healthcare --sub-vertical bd`
 
 ### Finance: Global Financial Services Platform
 
@@ -155,27 +197,37 @@ Global hospitality operator with connected-room IoT, property networks (Meraki A
 ## CLI Reference
 
 ### `dd-demo list`
-List all available verticals with descriptions and stats.
+List all available verticals with descriptions and stats. With
+`--vertical <name>`, also lists sub-vertical overlays available for
+that vertical.
 
 ```bash
 dd-demo list
+dd-demo list --vertical healthcare
 ```
 
-Output:
+Output (per-vertical view, abbreviated):
 ```
-Available Verticals:
-  healthcare      Smart Hospital Demo (56 devices, 9 services)
-  finance         Global Financial Services Platform (309 devices, 10 services)
-  manufacturing   Automotive Manufacturing Plant (246 devices, 8 services)
-  insurance       Multi-State P&C/Life Insurer (290 devices, 9 services)
+Smart Hospital Demo
+  Name: healthcare
+  ...
+Sub-vertical overlays:
+  • bd  (use --sub-vertical bd)
 ```
 
 ### `dd-demo setup`
-Create Datadog resources for a vertical: dashboards, monitors, SLOs, service catalog entries, notebooks.
+Create Datadog resources for a vertical: dashboards, monitors, SLOs, service catalog entries, notebooks. Optionally layer a sub-vertical overlay on top.
 
 ```bash
 # Create healthcare demo resources
 dd-demo setup --vertical healthcare
+
+# Layer the BD (Becton Dickinson) sub-vertical overlay on top — adds
+# Pyxis MedStation devices, services, dashboard, monitors, notebook,
+# SLOs, workflow, and the Pyxis cascade plugin. Tags inherit from the
+# base vertical (vertical:healthcare, dd-demo-toolkit:true) so
+# teardown sweeps base + overlay together.
+dd-demo setup --vertical healthcare --sub-vertical bd
 
 # With custom display name
 dd-demo setup --vertical finance --display-name "Goldman Sachs Global Operations"
@@ -185,11 +237,17 @@ dd-demo setup --vertical manufacturing > setup_output.txt
 ```
 
 ### `dd-demo simulate`
-Start the simulator and emit metrics, logs, and traces for a vertical.
+Start the simulator and emit metrics, logs, and traces for a vertical. With `--sub-vertical`, the overlay's devices/services are merged into the simulated fleet and the overlay's incident plugins are loaded alongside the base vertical's plugins.
 
 ```bash
 # Start healthcare simulator (metrics every 15 seconds)
 dd-demo simulate --vertical healthcare
+
+# Run with the BD overlay merged in: extra devices (Pyxis, BACTEC,
+# Rowa, Phoenix, Veritor), extra services (pyxis-inventory-api,
+# pharmacy-ehr-bridge), and the Pyxis inventory-sync cascade plugin
+# fire alongside the existing WiFi cascade.
+dd-demo simulate --vertical healthcare --sub-vertical bd
 
 # Faster emit rate (metrics every 5 seconds)
 dd-demo simulate --vertical finance --emit-interval 5
@@ -227,6 +285,141 @@ dashboards, production monitors, etc. — is never touched.
 
 Exactly one of `--vertical <name>` or `--all-verticals` must be
 provided; passing both or neither exits with an error.
+
+---
+
+## Sub-Vertical Overlays
+
+Sub-vertical overlays are reusable, additive customizations that layer
+customer- or segment-specific content onto an existing base vertical.
+They are how the toolkit ships per-customer art-of-the-possible demos
+(BD on top of healthcare today; Medtronic, Stryker, Abbott, etc. on
+the same pattern tomorrow) without forking the base.
+
+### Why an overlay instead of a new vertical?
+
+A new vertical means a coordinated rename of the metric namespace,
+duplicated dashboards, drifting plugins, and a whole second teardown
+target. An overlay sidesteps all of that: it shares the base
+vertical's `env_prefix` (e.g. `hospital.*`), its tag standards
+(`vertical:healthcare`, `team:`, `incident_domain:`, `signal_chain:`),
+and its lifecycle (deploy and teardown follow the base vertical).
+
+### Layout
+
+Each base vertical can host any number of overlays under
+`verticals/<vertical>/overlays/`:
+
+```
+verticals/healthcare/
+  config.yaml                         # base vertical
+  monitors.yaml
+  ...
+  overlays/
+    bd.yaml                           # additive simulator config
+                                      #   (devices, services merged
+                                      #   into base on load)
+    bd/                               # overlay resources (each file
+                                      #   is optional)
+      monitors.yaml
+      notebooks.yaml
+      slos.yaml
+      workflows.yaml
+      cases.yaml
+      services.yaml                   # Service Catalog entries
+      dashboards/
+        bd-pyxis-medstation.json
+      plugins/
+        bd_pyxis_outage.py            # IncidentPlugin subclass
+```
+
+The YAML file and the directory are independent; an overlay can be
+config-only, resource-only, or both.
+
+### How they merge
+
+`dd-demo setup --vertical <vert> --sub-vertical <name>` does, in order:
+
+1. Loads the base config and merges `<name>.yaml` on top: device
+   lists are concatenated per category, top-level `services` is
+   concatenated, location dimensions are appended. The `vertical`
+   block (name, `env_prefix`, `display_name`) is **never** modified —
+   overlays cannot rename the vertical or change the metric namespace.
+2. Deploys the base vertical's resources.
+3. Deploys the overlay directory's resources (monitors, dashboards,
+   notebooks, SLOs, services, workflows, cases) tagged with the base
+   vertical's name (`vertical:healthcare`, not `vertical:bd`), so the
+   overlay rides on the base vertical's lifecycle.
+
+`dd-demo simulate --vertical <vert> --sub-vertical <name>` merges the
+config the same way and additionally loads any
+`overlays/<name>/plugins/*.py` modules so their incident scenarios
+fire alongside base-vertical incidents.
+
+### Tag standards (strict)
+
+Overlays MUST stay inside the base vertical's existing tag keyspace.
+Auto-injected: `vertical:<base>`, `dd-demo-toolkit:true`. Reusable
+keys: `team:<role>`, `incident_domain:<value>` (new values fine, key
+stays the same), `signal_chain:<position-name>`, `safety:<level>`,
+`compliance:<framework>`. Query-side dimensions emitted by the engine
+(`device_type`, `device_manufacturer`, `floor`, `wing`, `department`,
+`service_name`) are freely usable. **Do not** add overlay-specific
+keys like `sub_vertical:`, `customer:`, or `overlay:` — overlays are
+identified by *values* under existing keys (e.g.
+`device_manufacturer:BD`).
+
+### Bifurcating overlay incidents from base incidents
+
+When an overlay introduces its own incident plugin, it must be
+disjoint from any base-vertical plugin so AI-driven RCA tools (Bits
+AI SRE) can isolate one story from the other. The BD overlay's Pyxis
+cascade is disjoint from the base WiFi cascade along all four axes:
+
+| Axis | Base WiFi cascade | BD Pyxis cascade |
+|------|-------------------|------------------|
+| Floor / Wing | 3 / East | 1 / South |
+| Department | ED / ICU | Pharmacy |
+| Metric namespace | `hospital.network.*`, pump signals | `hospital.pyxis.*` only |
+| `incident_domain` | `network-to-device` | `pharmacy-automation` |
+| Initial idle | 20–40 ticks | 90–130 ticks |
+
+Filtering by `incident_domain:pharmacy-automation` (or by
+`device_type:pyxis_medstation`) yields a clean signal chain with zero
+overlap with the WiFi story.
+
+### Common commands
+
+```bash
+# Discover overlays available for a vertical
+dd-demo list --vertical healthcare
+
+# Deploy base + overlay
+dd-demo setup --vertical healthcare --sub-vertical bd
+
+# Simulate with overlay (extra devices, services, plugins)
+dd-demo simulate --vertical healthcare --sub-vertical bd
+
+# Teardown is NOT overlay-scoped — overlays ride the base lifecycle
+dd-demo teardown --vertical healthcare        # removes base + bd
+```
+
+### Adding a new overlay
+
+1. Pick the base vertical (e.g. `healthcare`).
+2. Create `verticals/<vertical>/overlays/<name>.yaml` for additive
+   simulator config (extra device categories, devices, services).
+   Use the existing `env_prefix` for all metric names so dashboards
+   that already filter by `device_manufacturer:` keep working.
+3. Create `verticals/<vertical>/overlays/<name>/` and add any of:
+   `monitors.yaml`, `dashboards/*.json`, `notebooks.yaml`, `slos.yaml`,
+   `workflows.yaml`, `cases.yaml`, `services.yaml`,
+   `plugins/<incident>.py`.
+4. If you add an `IncidentPlugin`, make it disjoint from base-vertical
+   plugins along spatial, namespace, `incident_domain`, and temporal
+   axes (see the BD overlay's plugin docstring for a template).
+5. Verify with `dd-demo list --vertical <vertical>` (your overlay
+   should appear) and `dd-demo setup --vertical <vertical> --sub-vertical <name> --dry-run`.
 
 ---
 
@@ -432,8 +625,21 @@ dd-demo-toolkit/
 │   │   │   ├── overview.json
 │   │   │   ├── devices.json
 │   │   │   └── services.json
-│   │   └── plugins/                  # Incident scenarios
-│   │       └── wifi_cascade.py
+│   │   ├── plugins/                  # Base-vertical incident scenarios
+│   │   │   └── wifi_cascade.py
+│   │   └── overlays/                 # Sub-vertical overlays (additive)
+│   │       ├── bd.yaml               # additive simulator config
+│   │       └── bd/                   # additive resources
+│   │           ├── monitors.yaml
+│   │           ├── notebooks.yaml
+│   │           ├── slos.yaml
+│   │           ├── workflows.yaml
+│   │           ├── cases.yaml
+│   │           ├── services.yaml
+│   │           ├── dashboards/
+│   │           │   └── bd-pyxis-medstation.json
+│   │           └── plugins/
+│   │               └── bd_pyxis_outage.py
 │   │
 │   ├── finance/
 │   ├── manufacturing/
@@ -500,10 +706,13 @@ matches what you want to clean up.
 
 ### Scoped to one vertical
 
-Removes everything tagged `vertical:<name>` for the named vertical:
+Removes everything tagged `vertical:<name>` for the named vertical.
+This includes any sub-vertical overlay resources, since overlays are
+intentionally tagged with the base vertical's name and ride on its
+lifecycle.
 
 ```bash
-# Local CLI
+# Local CLI (also removes any deployed overlays for this vertical)
 dd-demo teardown --vertical healthcare
 
 # Docker
@@ -555,6 +764,31 @@ docker compose --profile teardown-all run --rm teardown-all \
 ---
 
 ## Contributing
+
+### Style guide (read first)
+
+Before authoring any new dashboard, monitor, notebook, SLO, workflow,
+plugin, service, or sub-vertical overlay, read
+[**dd-demo-toolkit/STYLE_GUIDE.md**](dd-demo-toolkit/STYLE_GUIDE.md). It
+captures the Datadog query gotchas, tag standards, naming conventions,
+layout patterns, and incident-bifurcation rules that prevent the
+production-demo bugs we've shipped before.
+
+Highlights of the highest-bug-density rules:
+
+- Percentile aggregators (`p95:`, `p99:`) work only on histogram
+  metrics, not gauges. Use `max:` for KPI strips.
+- `by {dim}` must come BEFORE `.as_count()`, not after.
+- Monitor query alerts do not support `||`. Split into two monitors.
+- Notebook timeseries cells require `formulas:` on every request or
+  the chart renders empty.
+- Workflow descriptions have a 300-character limit.
+- Never invent new tag keys; use existing values under existing keys.
+- New incident plugins must be 4-axis disjoint (spatial, metric
+  namespace, `incident_domain` tag, temporal).
+
+The style guide includes a pre-commit checklist (§11) — run through it
+before opening a PR with new assets.
 
 ### Adding a New Vertical
 

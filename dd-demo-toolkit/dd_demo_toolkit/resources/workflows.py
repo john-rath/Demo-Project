@@ -29,6 +29,7 @@ class WorkflowManager:
         api_client: DatadogAPIClient,
         tags: Optional[Dict[str, str]] = None,
         dry_run: bool = False,
+        vertical_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Deploy workflows from a vertical.
@@ -65,7 +66,8 @@ class WorkflowManager:
             logger.info(f"No workflows.yaml file found at {workflows_file}")
             return result
 
-        vertical_name = vertical_path_obj.name
+        if vertical_name is None:
+            vertical_name = vertical_path_obj.name
 
         try:
             with open(workflows_file, "r") as f:

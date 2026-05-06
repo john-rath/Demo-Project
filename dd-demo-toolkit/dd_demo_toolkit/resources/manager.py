@@ -124,6 +124,106 @@ class ResourceManager:
 
         return results
 
+    def deploy_overlay_selected(
+        self,
+        vertical_name: str,
+        sub_vertical: str,
+        api_client: DatadogAPIClient,
+        resource_types: List[str],
+        tags: Optional[Dict[str, str]] = None,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        Deploy resources from a sub-vertical overlay directory.
+
+        Resolves to ``verticals/<vertical_name>/overlays/<sub_vertical>/`` and
+        deploys any resource files found there as additive resources for the
+        base vertical. Tag injection still uses ``vertical:<vertical_name>``
+        (not the overlay's directory name) so overlay resources cohere with
+        the base vertical's existing tag standards. Use this *after*
+        ``deploy_selected`` for the base vertical when ``--sub-vertical`` is
+        passed on the CLI.
+        """
+        overlay_path = self.verticals_dir / vertical_name / "overlays" / sub_vertical
+        logger.info(
+            f"Deploying overlay '{sub_vertical}' for vertical "
+            f"'{vertical_name}' from {overlay_path}"
+        )
+
+        if not overlay_path.exists():
+            logger.warning(f"Overlay path does not exist: {overlay_path}")
+            return {
+                "summary": {"total_created": 0, "total_errors": 0},
+            }
+
+        results: Dict[str, Any] = {}
+        total_created = 0
+        total_errors = 0
+
+        for resource_type in resource_types:
+            if resource_type not in self.RESOURCE_TYPES:
+                continue
+            try:
+                if resource_type == "dashboards":
+                    result = self.dashboard_manager.deploy(
+                        str(overlay_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+                elif resource_type == "monitors":
+                    result = self.monitor_manager.deploy(
+                        str(overlay_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+                elif resource_type == "notebooks":
+                    result = self.notebook_manager.deploy(
+                        str(overlay_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+                elif resource_type == "slos":
+                    result = self.slo_manager.deploy(
+                        str(overlay_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+                elif resource_type == "services":
+                    result = self.service_manager.deploy(
+                        str(overlay_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+                elif resource_type == "workflows":
+                    result = self.workflow_manager.deploy(
+                        str(overlay_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+                elif resource_type == "incidents":
+                    result = {"total_created": 0, "total_errors": 0}
+                elif resource_type == "cases":
+                    result = self.case_manager.deploy(
+                        str(overlay_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+
+                results[resource_type] = result
+                total_created += result.get("total_created", 0)
+                total_errors += result.get("total_errors", 0)
+
+            except Exception as e:
+                error_msg = f"Error deploying overlay {resource_type}: {str(e)}"
+                logger.error(error_msg)
+                results[resource_type] = {"error": error_msg}
+                total_errors += 1
+
+        results["summary"] = {
+            "total_created": total_created,
+            "total_errors": total_errors,
+        }
+
+        logger.info(
+            f"Overlay deployment complete: {total_created} resources created, "
+            f"{total_errors} errors"
+        )
+
+        return results
+
     def deploy_selected(
         self,
         vertical_name: str,

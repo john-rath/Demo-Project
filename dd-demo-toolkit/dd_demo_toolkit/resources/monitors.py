@@ -30,6 +30,7 @@ class MonitorManager:
         api_client: DatadogAPIClient,
         tags: Optional[Dict[str, str]] = None,
         dry_run: bool = False,
+        vertical_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Deploy monitors from a vertical.
@@ -42,6 +43,12 @@ class MonitorManager:
             api_client: Datadog API client instance.
             tags: Additional tags to inject (vertical and dd-demo-toolkit tags added automatically).
             dry_run: If True, skip API calls and return what would be created.
+            vertical_name: Override the vertical name used in tag injection. When
+                ``None`` (default), the name is derived from the directory name of
+                ``vertical_path``. Pass an explicit value when deploying overlay
+                resources from a sub-directory so they remain tagged with the
+                base vertical (e.g. ``vertical:healthcare``) rather than the
+                overlay's directory name.
 
         Returns:
             Dictionary with keys:
@@ -66,7 +73,8 @@ class MonitorManager:
             logger.info(f"No monitors.yaml file found at {monitors_file}")
             return result
 
-        vertical_name = vertical_path_obj.name
+        if vertical_name is None:
+            vertical_name = vertical_path_obj.name
 
         try:
             with open(monitors_file, "r") as f:

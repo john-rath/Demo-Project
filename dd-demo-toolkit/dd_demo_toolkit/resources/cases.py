@@ -361,6 +361,7 @@ class CaseManager:
         api_client: DatadogAPIClient,
         tags: Optional[Dict[str, str]] = None,
         dry_run: bool = False,
+        vertical_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Deploy cases from a vertical's cases.yaml configuration.
@@ -394,7 +395,8 @@ class CaseManager:
             logger.info(f"No cases.yaml file found at {cases_file}")
             return result
 
-        vertical_name = vertical_path_obj.name
+        if vertical_name is None:
+            vertical_name = vertical_path_obj.name
 
         try:
             with open(cases_file, "r") as f:

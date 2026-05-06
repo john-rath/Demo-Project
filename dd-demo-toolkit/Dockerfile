@@ -20,4 +20,7 @@ USER simulator
 ENV DD_DEMO_VERTICAL=healthcare
 ENV PYTHONUNBUFFERED=1
 
-CMD dd-demo simulate --vertical $DD_DEMO_VERTICAL
+# When DD_DEMO_SUB_VERTICAL is set (e.g. "bd"), append --sub-vertical so
+# the overlay's devices, services, and incident plugins are loaded into
+# the simulator. Empty / unset → base vertical only.
+CMD ["sh", "-c", "dd-demo simulate --vertical $DD_DEMO_VERTICAL ${DD_DEMO_SUB_VERTICAL:+--sub-vertical $DD_DEMO_SUB_VERTICAL}"]

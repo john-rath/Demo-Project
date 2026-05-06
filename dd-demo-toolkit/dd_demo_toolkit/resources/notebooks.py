@@ -29,6 +29,7 @@ class NotebookManager:
         api_client: DatadogAPIClient,
         tags: Optional[Dict[str, str]] = None,
         dry_run: bool = False,
+        vertical_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Deploy notebooks from a vertical.
@@ -65,7 +66,8 @@ class NotebookManager:
             logger.info(f"No notebooks.yaml file found at {notebooks_file}")
             return result
 
-        vertical_name = vertical_path_obj.name
+        if vertical_name is None:
+            vertical_name = vertical_path_obj.name
 
         try:
             with open(notebooks_file, "r") as f:
