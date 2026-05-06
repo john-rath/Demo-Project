@@ -28,10 +28,8 @@ services:
     env_file:
       - .env
     environment:
-      - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-healthcare}
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-      - EMIT_INTERVAL=${EMIT_INTERVAL:-15}
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
 
@@ -40,11 +38,11 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: dd-demo-setup
-    command: ["dd-demo", "setup", "--vertical", "${DD_DEMO_VERTICAL:-healthcare}", "--clean"]
+    entrypoint: ["sh", "-c"]
+    command: ['dd-demo setup --vertical "$$DD_DEMO_VERTICAL" --clean']
     env_file:
       - .env
     environment:
-      - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-healthcare}
       - PYTHONUNBUFFERED=1
     restart: "no"
     profiles:
@@ -58,11 +56,11 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: dd-demo-teardown
-    command: ["dd-demo", "teardown", "--vertical", "${DD_DEMO_VERTICAL:-healthcare}", "--force"]
+    entrypoint: ["sh", "-c"]
+    command: ['dd-demo teardown --vertical "$$DD_DEMO_VERTICAL" --force']
     env_file:
       - .env
     environment:
-      - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-healthcare}
       - PYTHONUNBUFFERED=1
     restart: "no"
     profiles:
