@@ -6,8 +6,16 @@ designed to be DIAGNOSABLE in isolation from the existing Floor 3 East
 WiFi/pump cascade (`wifi_cascade.py`) by being explicitly disjoint along
 four axes:
 
-  1. **Spatial** — fires in `department=Pharmacy` on Floor 1 South, well
-     away from the WiFi cascade's Floor 3 East ED/ICU footprint.
+  1. **Spatial** — affects every Pyxis cabinet in `department=Pharmacy`
+     across all floors and wings. The Pharmacy department is disjoint
+     from the WiFi cascade's ED/ICU footprint on Floor 3 East. We
+     intentionally do NOT restrict to a single floor/wing because the
+     plugin would only mutate ~1 of 18 cabinets in that case, leaving
+     the cascade signal drowned out by gauss-random-walk drift on the
+     17 unaffected cabinets — which AI RCA tools then misread as an
+     ~10–15% volume anomaly instead of the 15× polling spike it
+     actually is. Pharmacy-wide scope makes the cascade a clear
+     fleet-level anomaly across `department:Pharmacy` aggregates.
   2. **Metric namespace** — only mutates `hospital.pyxis.*` signals, never
      `hospital.device.signal_strength_dbm`, `hospital.network.*`, or any
      pump telemetry. There is zero metric overlap with `wifi_cascade.py`.
@@ -15,11 +23,20 @@ four axes:
      under `bd_pyxis_outage` with `incident_domain=pharmacy-automation`
      (vs. the WiFi cascade's `network-to-device`). Bits AI SRE filtering
      by that tag will not pick up any WiFi-cascade signal.
-  4. **Time delta** — initial idle is 90–130 ticks (vs. WiFi cascade's
-     20–40), so on a fresh simulator start the WiFi cascade fires and
-     fully recovers BEFORE the Pyxis cascade begins. After the Pyxis
-     event ends, idle is 80–120 ticks before the next fire — this keeps
-     the two stories temporally separated cycle after cycle.
+  4. **Time delta** — for SE demo cadence, initial idle is 2–6 ticks
+     (~30–90 sec) so the cascade fires shortly after simulator start
+     instead of forcing the SE to wait 22+ minutes. WiFi cascade idle
+     is 20–40 ticks; the BD cascade's 30–50 inter-event idle plus its
+     ~10-min active phase keeps it temporally distinct. If you need
+     longer separation for an autonomous run, raise the idle bounds.
+
+The plugin also HOLDS BASELINE VALUES during the 'normal' phase on
+every Pyxis cabinet in Pharmacy. Without this, gauss random walk pulls
+each cabinet's metrics toward its declared range midpoint (e.g.,
+inventory_poll_rate_per_min midpoint = 122/min, which is close to the
+cascade peak of ~190/min — making the spike invisible). Holding the
+baseline at ~12/min keeps the noise floor low and the cascade
+unambiguous.
 
 Cascade narrative (see notebook `bd-pyxis-cascade-rca.yaml` for the
 full BitsSRE walkthrough):
@@ -96,10 +113,28 @@ class BDPyxisInventorySyncCascade(IncidentPlugin):
         + RECOVERY_TICKS
     )
 
-    # Spatial scope — disjoint from WiFi cascade (Floor 3 East ED/ICU)
-    INCIDENT_FLOOR = "1"
-    INCIDENT_WING = "South"
+    # Spatial scope — disjoint from WiFi cascade by DEPARTMENT.
+    # Originally restricted to Floor 1 South Pharmacy, which only
+    # captured ~1 of 18 Pyxis cabinets and let the cascade signal get
+    # drowned out by random-walk drift on the unaffected 17. Now hits
+    # ALL Pyxis cabinets in Pharmacy (all floors / all wings) so
+    # department-aggregated views show the full 15× poll-rate spike
+    # rather than a 10–15% blip. Bifurcation from WiFi cascade is
+    # preserved via department + metric namespace + incident_domain
+    # tag + temporal offset.
     INCIDENT_DEPARTMENT = "Pharmacy"
+
+    # Baseline values held during the "normal" phase so the cabinets
+    # don't random-walk back toward each metric's midpoint between
+    # cascades. Without this, the cascade spike is invisible against
+    # a noisy baseline. Compare to metric ranges in bd.yaml — these
+    # baselines anchor the LOWER end of each range so the cascade
+    # peak (set during active phases) reads as a clear anomaly.
+    BASELINE_POLL_PER_MIN = 12.0
+    BASELINE_SYNC_LAG_MS = 120.0
+    BASELINE_SYNC_AGE_SEC = 8.0
+    BASELINE_DISPENSE_LAT_MS = 800.0
+    BASELINE_WITNESS_LAT_MS = 1500.0
 
     # Metric namespace — Pyxis-only, no overlap with WiFi cascade
     POLL_METRIC = "hospital.pyxis.inventory_poll_rate_per_min"
@@ -111,29 +146,31 @@ class BDPyxisInventorySyncCascade(IncidentPlugin):
     WITNESS_LAT_METRIC = "hospital.pyxis.witness_countersign_latency_ms"
 
     def __init__(self) -> None:
-        # Initial idle deliberately longer than WiFi cascade's 20–40 so
-        # the two stories don't co-occur on the first run.
-        self._ticks_until_next = random.randint(90, 130)
+        # Demo-friendly initial idle: cascade fires within ~1 minute of
+        # simulator start so SE demos don't have to wait 20+ min. WiFi
+        # cascade's 20–40 idle keeps the two stories temporally
+        # separated on a fresh start because the WiFi cascade fires
+        # AFTER the BD cascade completes its first event (BD active
+        # phases ~10min total, then 30–50 ticks idle before next event).
+        self._ticks_until_next = random.randint(2, 6)
         self._active_tick: Optional[int] = None
         self._incident_pyxis: List[Dict[str, Any]] = []
 
         logger.info(
-            "BD Pyxis cascade initialized. First event in ~%d min "
-            "(department=%s, floor=%s, wing=%s)",
-            self._ticks_until_next * 15 // 60,
+            "BD Pyxis cascade initialized. First event in ~%d sec "
+            "(department=%s, all floors/wings)",
+            self._ticks_until_next * 15,
             self.INCIDENT_DEPARTMENT,
-            self.INCIDENT_FLOOR,
-            self.INCIDENT_WING,
         )
 
     def get_incident_name(self) -> str:
         return (
-            "BD Pyxis Inventory-Sync Polling Storm → Dispense Latency Cascade "
-            "(Pharmacy / Floor 1 South)"
+            "BD Pyxis Inventory-Sync Polling Storm → Dispense Latency "
+            "Cascade (Pharmacy department, fleet-wide)"
         )
 
     def reset(self) -> None:
-        self._ticks_until_next = random.randint(90, 130)
+        self._ticks_until_next = random.randint(2, 6)
         self._active_tick = None
         self._incident_pyxis = []
 
@@ -157,11 +194,10 @@ class BDPyxisInventorySyncCascade(IncidentPlugin):
                     self._incident_pyxis.append(d)
             if self._incident_pyxis:
                 logger.info(
-                    "Indexed %d Pyxis MedStation cabinets in %s on Floor %s %s",
+                    "Indexed %d Pyxis MedStation cabinets in %s "
+                    "(fleet-wide, all floors/wings)",
                     len(self._incident_pyxis),
                     self.INCIDENT_DEPARTMENT,
-                    self.INCIDENT_FLOOR,
-                    self.INCIDENT_WING,
                 )
 
         self._advance_clock()
@@ -180,12 +216,16 @@ class BDPyxisInventorySyncCascade(IncidentPlugin):
                     "incident_domain": "pharmacy-automation",
                     "signal_chain_root": "pyxis-poll-storm",
                     "department": self.INCIDENT_DEPARTMENT,
-                    "floor": self.INCIDENT_FLOOR,
-                    "wing": self.INCIDENT_WING,
                 }
 
+        # Apply overrides EVERY tick — including during 'normal' phase.
+        # During normal we hold metrics at clean baselines so the
+        # subsequent cascade spike reads as an obvious anomaly to AI
+        # RCA tools. Without this, the engine's gauss random walk pulls
+        # values toward each metric's range midpoint and the
+        # cascade-vs-baseline delta vanishes into noise.
+        self._apply_overrides(phase, phase_tick)
         if phase != "normal":
-            self._apply_overrides(phase, phase_tick)
             logger.info(
                 "PYXIS CASCADE [%s t=%d] cabinets=%d (department=%s)",
                 phase,
@@ -199,7 +239,11 @@ class BDPyxisInventorySyncCascade(IncidentPlugin):
     # ------------------------------------------------------------------
 
     def _matches_target(self, device: Any) -> bool:
-        """Return True iff `device` is a Pyxis cabinet at the incident site."""
+        """Return True iff `device` is a Pyxis cabinet in the Pharmacy
+        department. We deliberately do NOT filter by floor/wing — the
+        polling-storm cascade affects the entire pharmacy fleet
+        because the firmware config refresh is global to BD's
+        Pharmogistics integration, not site-specific."""
         # DeviceProfile (dataclass) — attribute access
         dtype = getattr(device, "type", None) or (
             device.get("device_type") if isinstance(device, dict) else None
@@ -209,17 +253,11 @@ class BDPyxisInventorySyncCascade(IncidentPlugin):
         loc = getattr(device, "location", None)
         if loc is None and isinstance(device, dict):
             loc = {
-                "floor": device.get("floor"),
-                "wing": device.get("wing"),
                 "department": device.get("department"),
             }
         if not loc:
             return False
-        return (
-            loc.get("floor") == self.INCIDENT_FLOOR
-            and loc.get("wing") == self.INCIDENT_WING
-            and loc.get("department") == self.INCIDENT_DEPARTMENT
-        )
+        return loc.get("department") == self.INCIDENT_DEPARTMENT
 
     def _current_phase(self) -> tuple:
         if self._active_tick is None:
@@ -270,7 +308,35 @@ class BDPyxisInventorySyncCascade(IncidentPlugin):
 
     def _apply_overrides(self, phase: str, phase_tick: int) -> None:
         for pyxis in self._incident_pyxis:
-            if phase == "drift_up":
+            if phase == "normal":
+                # Hold clean baselines on every Pyxis cabinet in
+                # Pharmacy so the next cascade reads as a clear
+                # anomaly. Without this, the engine's gauss random
+                # walk drifts each cabinet toward its metric range
+                # midpoint (which for poll_rate is 122 — almost the
+                # cascade peak — so the spike disappears into noise).
+                self._set_state(
+                    pyxis, self.POLL_METRIC,
+                    _clamp(_drift(self.BASELINE_POLL_PER_MIN, 1.5), 6, 22),
+                )
+                self._set_state(
+                    pyxis, self.SYNC_LAG_METRIC,
+                    _clamp(_drift(self.BASELINE_SYNC_LAG_MS, 25), 60, 250),
+                )
+                self._set_state(
+                    pyxis, self.SYNC_AGE_METRIC,
+                    _clamp(_drift(self.BASELINE_SYNC_AGE_SEC, 2), 0, 25),
+                )
+                self._set_state(
+                    pyxis, self.DISPENSE_LAT_METRIC,
+                    _clamp(_drift(self.BASELINE_DISPENSE_LAT_MS, 60), 500, 1100),
+                )
+                self._set_state(
+                    pyxis, self.WITNESS_LAT_METRIC,
+                    _clamp(_drift(self.BASELINE_WITNESS_LAT_MS, 200), 800, 2500),
+                )
+
+            elif phase == "drift_up":
                 progress = phase_tick / self.DRIFT_UP_TICKS
                 # Poll rate ramps from ~12/min baseline up to ~180/min
                 self._set_state(
