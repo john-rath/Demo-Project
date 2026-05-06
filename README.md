@@ -266,6 +266,141 @@ provided; passing both or neither exits with an error.
 
 ---
 
+## Sub-Vertical Overlays
+
+Sub-vertical overlays are reusable, additive customizations that layer
+customer- or segment-specific content onto an existing base vertical.
+They are how the toolkit ships per-customer art-of-the-possible demos
+(BD on top of healthcare today; Medtronic, Stryker, Abbott, etc. on
+the same pattern tomorrow) without forking the base.
+
+### Why an overlay instead of a new vertical?
+
+A new vertical means a coordinated rename of the metric namespace,
+duplicated dashboards, drifting plugins, and a whole second teardown
+target. An overlay sidesteps all of that: it shares the base
+vertical's `env_prefix` (e.g. `hospital.*`), its tag standards
+(`vertical:healthcare`, `team:`, `incident_domain:`, `signal_chain:`),
+and its lifecycle (deploy and teardown follow the base vertical).
+
+### Layout
+
+Each base vertical can host any number of overlays under
+`verticals/<vertical>/overlays/`:
+
+```
+verticals/healthcare/
+  config.yaml                         # base vertical
+  monitors.yaml
+  ...
+  overlays/
+    bd.yaml                           # additive simulator config
+                                      #   (devices, services merged
+                                      #   into base on load)
+    bd/                               # overlay resources (each file
+                                      #   is optional)
+      monitors.yaml
+      notebooks.yaml
+      slos.yaml
+      workflows.yaml
+      cases.yaml
+      services.yaml                   # Service Catalog entries
+      dashboards/
+        bd-pyxis-medstation.json
+      plugins/
+        bd_pyxis_outage.py            # IncidentPlugin subclass
+```
+
+The YAML file and the directory are independent; an overlay can be
+config-only, resource-only, or both.
+
+### How they merge
+
+`dd-demo setup --vertical <vert> --sub-vertical <name>` does, in order:
+
+1. Loads the base config and merges `<name>.yaml` on top: device
+   lists are concatenated per category, top-level `services` is
+   concatenated, location dimensions are appended. The `vertical`
+   block (name, `env_prefix`, `display_name`) is **never** modified —
+   overlays cannot rename the vertical or change the metric namespace.
+2. Deploys the base vertical's resources.
+3. Deploys the overlay directory's resources (monitors, dashboards,
+   notebooks, SLOs, services, workflows, cases) tagged with the base
+   vertical's name (`vertical:healthcare`, not `vertical:bd`), so the
+   overlay rides on the base vertical's lifecycle.
+
+`dd-demo simulate --vertical <vert> --sub-vertical <name>` merges the
+config the same way and additionally loads any
+`overlays/<name>/plugins/*.py` modules so their incident scenarios
+fire alongside base-vertical incidents.
+
+### Tag standards (strict)
+
+Overlays MUST stay inside the base vertical's existing tag keyspace.
+Auto-injected: `vertical:<base>`, `dd-demo-toolkit:true`. Reusable
+keys: `team:<role>`, `incident_domain:<value>` (new values fine, key
+stays the same), `signal_chain:<position-name>`, `safety:<level>`,
+`compliance:<framework>`. Query-side dimensions emitted by the engine
+(`device_type`, `device_manufacturer`, `floor`, `wing`, `department`,
+`service_name`) are freely usable. **Do not** add overlay-specific
+keys like `sub_vertical:`, `customer:`, or `overlay:` — overlays are
+identified by *values* under existing keys (e.g.
+`device_manufacturer:BD`).
+
+### Bifurcating overlay incidents from base incidents
+
+When an overlay introduces its own incident plugin, it must be
+disjoint from any base-vertical plugin so AI-driven RCA tools (Bits
+AI SRE) can isolate one story from the other. The BD overlay's Pyxis
+cascade is disjoint from the base WiFi cascade along all four axes:
+
+| Axis | Base WiFi cascade | BD Pyxis cascade |
+|------|-------------------|------------------|
+| Floor / Wing | 3 / East | 1 / South |
+| Department | ED / ICU | Pharmacy |
+| Metric namespace | `hospital.network.*`, pump signals | `hospital.pyxis.*` only |
+| `incident_domain` | `network-to-device` | `pharmacy-automation` |
+| Initial idle | 20–40 ticks | 90–130 ticks |
+
+Filtering by `incident_domain:pharmacy-automation` (or by
+`device_type:pyxis_medstation`) yields a clean signal chain with zero
+overlap with the WiFi story.
+
+### Common commands
+
+```bash
+# Discover overlays available for a vertical
+dd-demo list --vertical healthcare
+
+# Deploy base + overlay
+dd-demo setup --vertical healthcare --sub-vertical bd
+
+# Simulate with overlay (extra devices, services, plugins)
+dd-demo simulate --vertical healthcare --sub-vertical bd
+
+# Teardown is NOT overlay-scoped — overlays ride the base lifecycle
+dd-demo teardown --vertical healthcare        # removes base + bd
+```
+
+### Adding a new overlay
+
+1. Pick the base vertical (e.g. `healthcare`).
+2. Create `verticals/<vertical>/overlays/<name>.yaml` for additive
+   simulator config (extra device categories, devices, services).
+   Use the existing `env_prefix` for all metric names so dashboards
+   that already filter by `device_manufacturer:` keep working.
+3. Create `verticals/<vertical>/overlays/<name>/` and add any of:
+   `monitors.yaml`, `dashboards/*.json`, `notebooks.yaml`, `slos.yaml`,
+   `workflows.yaml`, `cases.yaml`, `services.yaml`,
+   `plugins/<incident>.py`.
+4. If you add an `IncidentPlugin`, make it disjoint from base-vertical
+   plugins along spatial, namespace, `incident_domain`, and temporal
+   axes (see the BD overlay's plugin docstring for a template).
+5. Verify with `dd-demo list --vertical <vertical>` (your overlay
+   should appear) and `dd-demo setup --vertical <vertical> --sub-vertical <name> --dry-run`.
+
+---
+
 ## Architecture
 
 ### Config-Driven Engine
@@ -468,8 +603,21 @@ dd-demo-toolkit/
 │   │   │   ├── overview.json
 │   │   │   ├── devices.json
 │   │   │   └── services.json
-│   │   └── plugins/                  # Incident scenarios
-│   │       └── wifi_cascade.py
+│   │   ├── plugins/                  # Base-vertical incident scenarios
+│   │   │   └── wifi_cascade.py
+│   │   └── overlays/                 # Sub-vertical overlays (additive)
+│   │       ├── bd.yaml               # additive simulator config
+│   │       └── bd/                   # additive resources
+│   │           ├── monitors.yaml
+│   │           ├── notebooks.yaml
+│   │           ├── slos.yaml
+│   │           ├── workflows.yaml
+│   │           ├── cases.yaml
+│   │           ├── services.yaml
+│   │           ├── dashboards/
+│   │           │   └── bd-pyxis-medstation.json
+│   │           └── plugins/
+│   │               └── bd_pyxis_outage.py
 │   │
 │   ├── finance/
 │   ├── manufacturing/
@@ -536,10 +684,13 @@ matches what you want to clean up.
 
 ### Scoped to one vertical
 
-Removes everything tagged `vertical:<name>` for the named vertical:
+Removes everything tagged `vertical:<name>` for the named vertical.
+This includes any sub-vertical overlay resources, since overlays are
+intentionally tagged with the base vertical's name and ride on its
+lifecycle.
 
 ```bash
-# Local CLI
+# Local CLI (also removes any deployed overlays for this vertical)
 dd-demo teardown --vertical healthcare
 
 # Docker
