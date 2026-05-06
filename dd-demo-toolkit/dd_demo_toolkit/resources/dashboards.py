@@ -28,6 +28,7 @@ class DashboardManager:
         api_client: DatadogAPIClient,
         tags: Optional[Dict[str, str]] = None,
         dry_run: bool = False,
+        vertical_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Deploy dashboards from a vertical.
@@ -70,7 +71,8 @@ class DashboardManager:
             logger.info(f"No dashboard JSON files found in {dashboards_dir}")
             return result
 
-        vertical_name = vertical_path_obj.name
+        if vertical_name is None:
+            vertical_name = vertical_path_obj.name
         logger.info(f"Deploying {len(json_files)} dashboard(s) for vertical '{vertical_name}'")
 
         for json_file in json_files:

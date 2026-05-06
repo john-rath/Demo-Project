@@ -1,0 +1,266 @@
+notebooks:
+
+  - id: "bd-pyxis-cascade-rca"
+    name: "💊 BD Pyxis Inventory-Sync Cascade — Bits AI SRE Walkthrough"
+    type: investigation
+    description: "Symptom: nurses report Pyxis dispensing delays in Pharmacy on Floor 1 South. Root cause: vendor-pushed firmware bumped Pyxis inventory polling rate, saturating pyxis-inventory-api → pharmacy-ehr-bridge thread pool → upstream of nurse-visible dispense latency. This notebook walks through the four phases the way Bits AI SRE narrows it down."
+    time_range: "1h"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+      - "signal_chain_root:pyxis-poll-storm"
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # BD Pyxis MedStation — Inventory-Sync Cascade RCA
+
+              **Symptom report:** Pharmacy ops desk pages: *"Nurses on 1S
+              are seeing 3-second waits at the Pyxis cabinet. Some dispenses
+              are timing out outright."*
+
+              **Where to look first?** The intuitive answer is the cabinet.
+              The cabinet looks fine. CPU normal, drawers cycling, network
+              signal healthy. This is the diagnostic gap that Bits AI SRE
+              closes by walking *upstream* of the dispense workflow.
+
+              ---
+              ## Step 1 — Confirm the symptom
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "p95"
+                    query: "p95:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,department:Pharmacy} by {floor,wing}"
+                display_type: "line"
+            yaxis:
+              scale: "linear"
+            markers:
+              - value: "y = 2500"
+                display_type: "error dashed"
+                label: "Critical SLA"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Symptom is real and localized to **Pharmacy / Floor 1 South**.
+              The other Pyxis-bearing departments (ICU, ED, MedSurg, Radiology)
+              are fine, ruling out a global EHR or HL7 broker problem.
+
+              ---
+              ## Step 2 — Cabinet-level health (the obvious-but-wrong lane)
+
+              On-cabinet health is normal. CPU, memory, signal strength,
+              drawer mechanics — none of these explain the latency:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "cpu"
+                    query: "avg:hospital.device.cpu_usage_pct{device_type:pyxis_medstation,department:Pharmacy} by {device_id}"
+                display_type: "line"
+                style:
+                  palette: "cool"
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "rssi"
+                    query: "avg:hospital.device.signal_strength_dbm{device_type:pyxis_medstation,department:Pharmacy} by {device_id}"
+                display_type: "line"
+                style:
+                  palette: "warm"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ✅ Cabinet itself is healthy. **The cabinet is the messenger,
+              not the cause.**
+
+              ---
+              ## Step 3 — Walk upstream: BD Pharmogistics inventory sync
+
+              Bits AI SRE prompts: *"What changed before the dispense
+              latency started rising?"*  The answer is two metrics
+              upstream — both **leading indicators** of the cascade.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "poll"
+                    query: "avg:hospital.pyxis.inventory_poll_rate_per_min{device_type:pyxis_medstation,department:Pharmacy} by {device_id}"
+                display_type: "line"
+            markers:
+              - value: "y = 60"
+                display_type: "warning dashed"
+                label: "Vendor recommended"
+              - value: "y = 150"
+                display_type: "error dashed"
+                label: "Storm threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lag"
+                    query: "avg:hospital.pyxis.sync_lag_to_inventory_ms{device_type:pyxis_medstation,department:Pharmacy} by {device_id}"
+                display_type: "line"
+            markers:
+              - value: "y = 4000"
+                display_type: "error dashed"
+                label: "Cascade threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              **Smoking gun.** Inventory polling rate jumped from a steady
+              ~12/min baseline up past 180/min about *two minutes before*
+              dispense latency degraded. That two-minute lead is what
+              tells Bits AI SRE the polling burst is **causal**, not
+              coincidental.
+
+              ---
+              ## Step 4 — Confirm the upstream service is choking
+
+              If the polling storm is real, `pyxis-inventory-api` should
+              show error/latency spikes, and its downstream
+              `pharmacy-ehr-bridge` should follow.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "errs"
+                    query: "sum:hospital.app.errors_total{service_name:pyxis-inventory-api}.as_count()"
+                  - data_source: "metrics"
+                    name: "reqs"
+                    query: "sum:hospital.app.requests_total{service_name:pyxis-inventory-api}.as_count()"
+                formulas:
+                  - formula: "errs / reqs * 100"
+                    alias: "error %"
+                display_type: "line"
+            markers:
+              - value: "y = 5"
+                display_type: "error dashed"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "p99"
+                    query: "p99:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge}"
+                display_type: "line"
+            markers:
+              - value: "y = 1500"
+                display_type: "error dashed"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Both confirmed.  Service-map view shows:
+              **Pyxis cabinet → pyxis-inventory-api → pharmacy-ehr-bridge → hl7-fhir-broker**
+              with errors compounding at the second hop.
+
+              ---
+              ## Step 5 — Why it's NOT the WiFi cascade
+
+              The Floor 3 East WiFi/pump cascade (`incident_domain:network-to-device`)
+              is a different story.  Quick disambiguation:
+
+              | Signal                                           | WiFi cascade        | Pyxis cascade       |
+              |--------------------------------------------------|---------------------|---------------------|
+              | `device_type` filter                             | infusion_pump, wireless_ap | pyxis_medstation |
+              | Department                                       | ED / ICU            | Pharmacy            |
+              | Floor / Wing                                     | 3 / East            | 1 / South           |
+              | Signal strength dBm                              | Degrades            | **Unchanged**       |
+              | Channel utilization %                            | Saturates           | **Unchanged**       |
+              | `incident_domain` tag                            | network-to-device   | pharmacy-automation |
+              | Root-cause metric                                | `hospital.network.channel_utilization_pct` | `hospital.pyxis.inventory_poll_rate_per_min` |
+
+              The two stories are *spatially* (different floor + wing +
+              department), *temporally* (offset by ≥50 ticks at startup),
+              and *namespace* (zero metric overlap) disjoint.  Bits AI SRE
+              filtering by `incident_domain:pharmacy-automation` will not
+              pull WiFi-cascade signals into the chain.
+
+              ---
+              ## Step 6 — Remediation
+
+              The self-heal workflow `bd-pyxis-rate-limit-recovery`
+              throttles the Pyxis polling rate via the pyxis-inventory-api
+              admin endpoint.  Watch the recovery:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lat"
+                    query: "p95:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,department:Pharmacy}"
+                  - data_source: "metrics"
+                    name: "lag"
+                    query: "avg:hospital.pyxis.sync_lag_to_inventory_ms{device_type:pyxis_medstation,department:Pharmacy}"
+                  - data_source: "metrics"
+                    name: "poll"
+                    query: "avg:hospital.pyxis.inventory_poll_rate_per_min{device_type:pyxis_medstation,department:Pharmacy}"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Once polling is back at ≤60/min, sync lag drains within 90s
+              and dispense p95 returns to baseline.
+
+              ---
+              ## Follow-ups
+
+              1. File a ticket with BD to roll back the firmware config
+                 (or pin the polling rate at a saner default).
+              2. Add a guardrail monitor for any future polling-rate drift
+                 on `hospital.pyxis.inventory_poll_rate_per_min`.
+              3. Capacity-plan `pyxis-inventory-api` thread-pool sizing
+                 against worst-case poll burst from full Pyxis fleet.
+        type: "notebook_cells"

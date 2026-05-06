@@ -260,7 +260,116 @@ the toolkit resources (including orphans) and nothing else.
 
 ---
 
-## 6. Working-on-this-project tips
+## 6. Sub-vertical overlays (2026-05-06)
+
+A vertical can have customer-specific or sub-segment "overlays" that
+add devices, services, dashboards, monitors, notebooks, SLOs,
+workflows, cases, and incident plugins on top of the base vertical
+*without* forking it. This is how the BD (Becton Dickinson) art-of-
+the-possible demo is shipped on top of `healthcare` — it adds a Pyxis
+MedStation IoT fleet plus a Pyxis-inventory-sync cascade story to the
+existing Smart Hospital demo, while sharing the `hospital.*` metric
+namespace and tag standards.
+
+### 6.1 Layout
+
+```
+verticals/<vertical>/
+  config.yaml               # base
+  ...
+  overlays/
+    <name>.yaml             # additive simulator config (devices, services)
+    <name>/
+      monitors.yaml
+      notebooks.yaml
+      slos.yaml
+      workflows.yaml
+      cases.yaml
+      services.yaml         # Service Catalog entries
+      dashboards/*.json
+      plugins/*.py          # IncidentPlugin subclasses
+```
+
+Both the YAML file and the directory are optional; an overlay can be
+config-only, resource-only, or both. Overlays are auto-discovered by
+`ConfigLoader.list_overlays(vertical)` and surfaced via
+`dd-demo list --vertical <vertical>`.
+
+### 6.2 CLI surface
+
+```
+dd-demo setup    --vertical healthcare --sub-vertical bd
+dd-demo simulate --vertical healthcare --sub-vertical bd
+dd-demo teardown --vertical healthcare              # sweeps base + overlay
+```
+
+Setup deploys the base vertical first, then layers overlay resources on
+top. Teardown is intentionally NOT overlay-scoped — overlays ride on
+the base vertical's `vertical:<base>` and `dd-demo-toolkit:true` tags
+and are removed alongside the base on teardown. This keeps the
+"demo, reset, redemo" loop simple. If a future overlay needs scoped
+teardown, prefer adding a customer-specific *value* under an existing
+tag dimension (e.g. `incident_domain:pharmacy-automation`) rather than
+inventing a new tag key.
+
+### 6.3 Tagging rules (strict)
+
+Overlay resources MUST stay inside the base vertical's existing tag
+keyspace:
+
+- `vertical:<base>` and `dd-demo-toolkit:true` are auto-injected by
+  the resource managers — do not add them to YAML.
+- `team:<role>` — reuse existing roles (biomed, pharmacy-systems,
+  digital-health, integration, operations, facilities, ...).
+- `incident_domain:<value>` — new *values* are fine (e.g.
+  `pharmacy-automation` alongside the existing `network-to-device`),
+  but the key stays `incident_domain`.
+- `signal_chain:<position-name>` — same.
+- Query-side dimensions (`device_type`, `device_manufacturer`,
+  `floor`, `wing`, `department`, `service_name`, etc.) are emitted by
+  the engine and freely usable in queries.
+- Do NOT add overlay-specific tag keys (`sub_vertical:`, `customer:`,
+  `overlay:`). The overlay is identified by its `device_manufacturer:`
+  value (e.g. `BD`) and `incident_domain:` value, not by a new key.
+
+### 6.4 Config-merge semantics
+
+`ConfigLoader.load_vertical(name, sub_vertical=...)` merges the
+overlay YAML onto the base config:
+
+- `device_categories.<cat>.devices` lists are concatenated.
+- `services` list is concatenated.
+- `locations.dimensions`: overlay-only dimensions are appended; existing
+  dimension values stay as-is.
+- The `vertical` block (name, env_prefix, display_name) is *never*
+  modified — overlays cannot rename the vertical or change the metric
+  namespace.
+
+### 6.5 Plugin discovery
+
+`cli._load_overlay_plugins` walks `verticals/<v>/overlays/<sv>/plugins/`
+and registers every `IncidentPlugin` subclass. Overlay plugins run
+alongside base-vertical plugins; both use `engine.incident_state` to
+publish phase info. Overlay plugins must be **disjoint** from base
+plugins along *spatial* (location), *namespace* (metric), and
+*temporal* (idle/active offset) axes so AI-driven RCA tools (Bits AI
+SRE) can isolate one story from the other. The BD Pyxis cascade
+follows this — see the docstring in
+`verticals/healthcare/overlays/bd/plugins/bd_pyxis_outage.py`.
+
+### 6.6 Resource-manager threading
+
+Each resource manager's `deploy()` accepts an optional `vertical_name=`
+kwarg. `ResourceManager.deploy_overlay_selected()` calls each manager
+with the overlay's path but explicitly passes the BASE vertical's
+name, so overlay-deployed resources are tagged with `vertical:<base>`
+(not the overlay directory name). This is what makes overlay
+resources show up in the base vertical's status and clean up on its
+teardown.
+
+---
+
+## 7. Working-on-this-project tips
 
 - After any vertical rename, run a case-insensitive grep for the old name
   across the whole repo — dashboards JSON, YAML, Python plugins, core

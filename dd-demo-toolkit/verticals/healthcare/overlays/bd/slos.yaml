@@ -1,0 +1,42 @@
+slos:
+
+  - name: "Pyxis Dispense Workflow Latency (p95 <2s)"
+    description: "Pyxis MedStation dispense operations must complete in under 2 seconds at p95 to keep nurse cabinet wait times within ops target. Rolling 30-day window."
+    type: metric
+    target: 95.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.pyxis.dispense_events_total{device_type:pyxis_medstation}.as_count() - sum:hospital.pyxis.dispense_failed_total{device_type:pyxis_medstation}.as_count()"
+      denominator: "sum:hospital.pyxis.dispense_events_total{device_type:pyxis_medstation}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+
+  - name: "Pyxis Cabinet Fleet Uptime"
+    description: "Pyxis cabinets must remain online so nurses can access controlled substances. Target 99.5%."
+    type: metric
+    target: 99.5
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.device.online{device_type:pyxis_medstation}.as_count()"
+      denominator: "sum:hospital.device.heartbeats_total{device_type:pyxis_medstation}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:biomed"
+
+  - name: "pyxis-inventory-api Availability"
+    description: "The inventory API is the choke point for the Pyxis dispense workflow. Target 99.9%."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.app.requests_total{service_name:pyxis-inventory-api}.as_count() - sum:hospital.app.errors_total{service_name:pyxis-inventory-api}.as_count()"
+      denominator: "sum:hospital.app.requests_total{service_name:pyxis-inventory-api}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"

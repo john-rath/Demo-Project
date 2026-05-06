@@ -110,13 +110,19 @@ def get_dd_client(env_path: str = ".env") -> DatadogAPIClient:
 
 def cmd_setup(args: argparse.Namespace) -> None:
     """Handle 'setup' command."""
-    print_banner(f"Setup - {args.vertical}")
+    sub_vertical = getattr(args, "sub_vertical", None)
+    label = args.vertical + (f" + {sub_vertical}" if sub_vertical else "")
+    print_banner(f"Setup - {label}")
 
     try:
-        # Load config to validate vertical exists
+        # Load config to validate vertical exists. Overlay is loaded only
+        # for validation here; the resource managers re-discover overlay
+        # resource files separately by directory scan.
         config_loader = ConfigLoader("verticals")
-        config = config_loader.load_vertical(args.vertical)
+        config = config_loader.load_vertical(args.vertical, sub_vertical=sub_vertical)
         print_success(f"Loaded config for vertical '{args.vertical}'")
+        if sub_vertical:
+            print_success(f"Loaded sub-vertical overlay '{sub_vertical}'")
 
         # Get resources to set up
         if args.resources:
@@ -160,6 +166,39 @@ def cmd_setup(args: argparse.Namespace) -> None:
         result = mgr.deploy_selected(
             args.vertical, client, resources, dry_run=args.dry_run
         )
+
+        # If a sub-vertical overlay was specified, layer its resources on
+        # top of the base vertical's deployment. Overlay resources reuse
+        # the base vertical's tag standards (vertical:<base>,
+        # dd-demo-toolkit:true) — see ResourceManager.deploy_overlay_selected.
+        if sub_vertical:
+            print_header(f"Deploying overlay '{sub_vertical}' resources...")
+            overlay_result = mgr.deploy_overlay_selected(
+                args.vertical, sub_vertical, client, resources,
+                dry_run=args.dry_run,
+            )
+            for rtype, details in overlay_result.items():
+                if rtype == "summary" or not isinstance(details, dict):
+                    continue
+                count = details.get("total_created", 0)
+                errors = details.get("total_errors", 0)
+                if count > 0 or errors > 0:
+                    status = f"{Colors.GREEN}{count} created{Colors.RESET}"
+                    if errors:
+                        status += f", {Colors.RED}{errors} errors{Colors.RESET}"
+                    print(f"  overlay/{rtype:10s}  {status}")
+            ov_summary = overlay_result.get("summary", {})
+            ov_total = ov_summary.get("total_created", 0)
+            ov_errors = ov_summary.get("total_errors", 0)
+            # Roll overlay totals into the top-level summary so the
+            # "Setup Summary" panel is accurate.
+            summary = result.setdefault("summary", {})
+            summary["total_created"] = (
+                summary.get("total_created", 0) + ov_total
+            )
+            summary["total_errors"] = (
+                summary.get("total_errors", 0) + ov_errors
+            )
 
         # Print results per resource type
         summary = result.get("summary", {})
@@ -357,6 +396,14 @@ def cmd_list(args: argparse.Namespace) -> None:
                         for item in items:
                             print(f"  • {item}")
 
+            # Surface available sub-vertical overlays so a user running
+            # 'dd-demo list --vertical healthcare' can discover them.
+            overlays = config_loader.list_overlays(args.vertical)
+            if overlays:
+                print(f"\n{Colors.BOLD}Sub-vertical overlays:{Colors.RESET}")
+                for ov in overlays:
+                    print(f"  • {ov}  (use --sub-vertical {ov})")
+
         else:
             # List all verticals
             print(f"Found {len(verticals)} available vertical(s):\n")
@@ -429,6 +476,54 @@ def _load_plugins(engine, vertical_name: str) -> None:
             print_warning(f"Failed to load plugin {py_file.name}: {exc}")
 
 
+def _load_overlay_plugins(
+    engine, vertical_name: str, sub_vertical: str
+) -> None:
+    """
+    Discover and load incident plugins from a sub-vertical overlay.
+
+    Scans ``verticals/<vertical>/overlays/<sub_vertical>/plugins/*.py`` for
+    Python modules that contain ``IncidentPlugin`` subclasses and registers
+    them with the engine. Mirrors ``_load_plugins`` but rooted at the
+    overlay directory.
+    """
+    import importlib.util
+    from dd_demo_toolkit.simulator.plugins import IncidentPlugin
+
+    plugins_dir = (
+        Path("verticals") / vertical_name / "overlays" / sub_vertical / "plugins"
+    )
+    if not plugins_dir.is_dir():
+        return
+
+    for py_file in sorted(plugins_dir.glob("*.py")):
+        if py_file.name.startswith("_"):
+            continue
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"verticals.{vertical_name}.overlays.{sub_vertical}.plugins.{py_file.stem}",
+                py_file,
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            for attr_name in dir(mod):
+                attr = getattr(mod, attr_name)
+                if (
+                    isinstance(attr, type)
+                    and issubclass(attr, IncidentPlugin)
+                    and attr is not IncidentPlugin
+                ):
+                    plugin = attr()
+                    engine.register_plugin(plugin)
+                    print_success(
+                        f"Loaded overlay plugin: {plugin.get_incident_name()}"
+                    )
+        except Exception as exc:
+            print_warning(
+                f"Failed to load overlay plugin {py_file.name}: {exc}"
+            )
+
+
 def cmd_simulate(args: argparse.Namespace) -> None:
     """Handle 'simulate' command."""
     print_banner(f"Simulate - {args.vertical}")
@@ -437,10 +532,15 @@ def cmd_simulate(args: argparse.Namespace) -> None:
         # Lazy import SimulatorEngine to avoid requiring OTel for other commands
         from dd_demo_toolkit.simulator.engine import SimulatorEngine
 
-        # Load config
+        # Load config (with optional sub-vertical overlay merged in)
+        sub_vertical = getattr(args, "sub_vertical", None)
         config_loader = ConfigLoader("verticals")
-        config = config_loader.load_vertical(args.vertical)
+        config = config_loader.load_vertical(
+            args.vertical, sub_vertical=sub_vertical
+        )
         print_success(f"Loaded config for vertical '{args.vertical}'")
+        if sub_vertical:
+            print_success(f"Merged sub-vertical overlay '{sub_vertical}'")
 
         # Setup OTel (via environment)
         load_env_file(args.env)
@@ -461,8 +561,13 @@ def cmd_simulate(args: argparse.Namespace) -> None:
         print(f"  Services: {len(engine.services)}")
         print()
 
-        # Load incident plugins from vertical's plugins directory
+        # Load incident plugins from vertical's plugins directory.  When a
+        # sub-vertical overlay is active, also load the overlay's plugins
+        # so its scripted incidents (e.g. the BD Pyxis cascade) run on top
+        # of the base vertical's existing plugins.
         _load_plugins(engine, args.vertical)
+        if sub_vertical:
+            _load_overlay_plugins(engine, args.vertical, sub_vertical)
 
         print_info("Starting simulator... Press Ctrl+C to stop")
         print()
@@ -576,6 +681,19 @@ Examples:
         help="Vertical name to setup",
     )
     setup_parser.add_argument(
+        "--sub-vertical",
+        dest="sub_vertical",
+        default=None,
+        help=(
+            "Optional sub-vertical overlay name. Loads "
+            "verticals/<vertical>/overlays/<name>.yaml (additive simulator "
+            "config) and verticals/<vertical>/overlays/<name>/ (additional "
+            "monitors, dashboards, notebooks, plugins, etc.). Overlay "
+            "resources are tagged with the BASE vertical's name to cohere "
+            "with existing tag standards."
+        ),
+    )
+    setup_parser.add_argument(
         "--resources",
         help="Comma-separated resource types: dashboards,monitors,notebooks,slos,services,workflows,incidents,cases",
     )
@@ -636,6 +754,16 @@ Examples:
         "--vertical",
         required=True,
         help="Vertical name to simulate",
+    )
+    simulate_parser.add_argument(
+        "--sub-vertical",
+        dest="sub_vertical",
+        default=None,
+        help=(
+            "Optional sub-vertical overlay. Merges overlay devices/services "
+            "into the base config and loads overlay plugins (e.g. the BD "
+            "Pyxis cascade). Same name as on 'dd-demo setup'."
+        ),
     )
     simulate_parser.add_argument(
         "--interval",

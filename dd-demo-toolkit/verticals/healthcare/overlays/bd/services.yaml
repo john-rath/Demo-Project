@@ -1,0 +1,33 @@
+# BD overlay — Service Catalog entries for the two services that
+# anchor the Pyxis cascade.  Tag scheme matches the base healthcare
+# services.yaml: vertical:healthcare, dd-demo-toolkit:true, plus
+# compliance/team where relevant.
+
+services:
+
+  - dd-service: pyxis-inventory-api
+    display-name: "BD Pyxis Inventory API"
+    description: "Inventory sync and authorization endpoint that all Pyxis MedStation ES cabinets poll. Java Spring Boot. Choke point during the BD cascade demo — saturating its thread pool drives the entire dispense workflow latency cliff."
+    owner: "Pharmacy Systems"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:hipaa"
+      - "compliance:dea"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+
+  - dd-service: pharmacy-ehr-bridge
+    display-name: "Pharmacy ↔ EHR Bridge"
+    description: "Translates Pyxis inventory + dispense events into EHR MedicationRequest updates. Downstream of pyxis-inventory-api, upstream of hl7-fhir-broker. .NET 8."
+    owner: "Integration Services"
+    tier: "Tier 1"
+    languages: ["dotnet"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:hipaa"
+      - "team:integration"
+      - "incident_domain:pharmacy-automation"

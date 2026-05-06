@@ -1,0 +1,76 @@
+workflows:
+
+  - name: "[Healthcare/BD] Pyxis Inventory Poll-Rate Limit Recovery"
+    description: "Self-heal for the BD Pyxis inventory-sync polling storm. Triggered when the Pyxis Inventory Poll-Rate Storm monitor fires (signal_chain:1-root-cause + incident_domain:pharmacy-automation). Calls the pyxis-inventory-api admin endpoint to clamp polling at the vendor-recommended ceiling, watches for sync-lag recovery, and notifies pharmacy ops."
+    trigger:
+      type: monitor
+      monitor_tags:
+        - "incident_domain:pharmacy-automation"
+        - "signal_chain:1-root-cause"
+    steps:
+
+      - name: gather_context
+        type: datadog_query
+        description: "Confirm the storm scope and capture current poll rate per cabinet."
+        parameters:
+          query: "avg:hospital.pyxis.inventory_poll_rate_per_min{device_type:pyxis_medstation,department:Pharmacy} by {device_id}"
+
+      - name: rate_limit_polling
+        type: http_request
+        description: "Clamp polling rate at 60/min via pyxis-inventory-api admin."
+        parameters:
+          method: POST
+          url: "https://pyxis-inv.hospital.internal/admin/poll-rate-limit"
+          headers:
+            X-Auth-Token: "{{vault.pyxis_admin_token}}"
+            Content-Type: "application/json"
+          body:
+            cabinet_filter: "department:Pharmacy"
+            max_polls_per_min: 60
+            ttl_seconds: 1800
+
+      - name: wait_for_sync_drain
+        type: sleep
+        description: "Allow ~90s for the sync queue to drain."
+        parameters:
+          duration_seconds: 90
+
+      - name: verify_sync_lag_recovered
+        type: datadog_query
+        description: "Verify sync lag has dropped below the cascade threshold."
+        parameters:
+          query: "avg(last_5m):avg:hospital.pyxis.sync_lag_to_inventory_ms{device_type:pyxis_medstation,department:Pharmacy} < 1500"
+
+      - name: verify_dispense_latency_recovered
+        type: datadog_query
+        description: "Verify nurse-visible dispense latency is back under the SLA."
+        parameters:
+          query: "avg(last_5m):p95:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,department:Pharmacy} < 1500"
+
+      - name: notify_pharmacy_ops
+        type: slack_message
+        description: "Notify the pharmacy ops channel that the rate limit and recovery are confirmed."
+        parameters:
+          channel: "#pharmacy-ops"
+          message: "✅ BD Pyxis poll-rate clamp applied. Sync lag and dispense latency back inside thresholds. Open BD ticket to roll back firmware config."
+
+      - name: open_bd_ticket
+        type: http_request
+        description: "File a vendor ticket with BD to roll back the firmware-pushed polling config."
+        parameters:
+          method: POST
+          url: "https://api.bd.example/support/tickets"
+          headers:
+            Authorization: "Bearer {{vault.bd_support_token}}"
+            Content-Type: "application/json"
+          body:
+            product: "Pyxis MedStation ES"
+            severity: "P2"
+            summary: "Firmware-pushed polling-rate increase saturating inventory API"
+
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:pharmacy-systems"
+      - "incident_domain:pharmacy-automation"
+      - "workflow-type:auto-remediation"
