@@ -98,15 +98,27 @@ docker compose --profile teardown-all run --rm teardown-all \
 # Install the package
 pip install -e .
 
-# List available verticals
+# List available verticals (also lists sub-vertical overlays per vertical)
 dd-demo list
+dd-demo list --vertical healthcare
 
 # Create Datadog resources (dashboards, monitors, SLOs)
 dd-demo setup --vertical healthcare
 
-# Start the simulator
-dd-demo simulate --vertical healthcare
+# Layer a customer/sub-segment overlay on top of the base vertical
+dd-demo setup --vertical healthcare --sub-vertical bd
+
+# Start the simulator (with the overlay's plugins active)
+dd-demo simulate --vertical healthcare --sub-vertical bd
 ```
+
+> **What's a sub-vertical?** A reusable, additive overlay that layers
+> customer- or segment-specific devices, services, dashboards,
+> monitors, and incident plugins onto an existing base vertical
+> *without forking it*. The base vertical's metric namespace and tag
+> standards are preserved, so overlays cost nothing in dashboard
+> rewrites. Healthcare ships with the **BD** overlay — see
+> [Sub-Vertical Overlays](#sub-vertical-overlays).
 
 ---
 
@@ -125,6 +137,14 @@ dd-demo simulate --vertical healthcare
 Multi-floor hospital with medical IoT (patient monitors, infusion pumps, ventilators), network infrastructure, environmental sensors, and clinical application services. The demo includes a phased WiFi outage that cascades to device failures—perfect for showing how Datadog correlates infrastructure and application metrics.
 
 **Key Resources**: 9 services, 6 SLOs, 15+ monitors covering patient safety, device reliability, and network health.
+
+**Available sub-vertical overlays:**
+
+| Overlay | Customer profile | What it adds |
+|---------|------------------|--------------|
+| `bd` | **Becton Dickinson** | Pyxis MedStation ES (18 cabinets) + BACTEC FX, Rowa Vmax, Phoenix M50, Veritor Plus. New services `pyxis-inventory-api` and `pharmacy-ehr-bridge`. Pyxis inventory-sync polling-storm cascade plugin (Pharmacy / Floor 1 South), 47-widget Pyxis MedStation dashboard, BitsSRE walkthrough notebook, and a poll-rate-limit auto-remediation workflow. Bifurcated from the base WiFi cascade by department, metric namespace, `incident_domain` tag, and a 90-130 tick startup delay. |
+
+Run with: `dd-demo setup --vertical healthcare --sub-vertical bd && dd-demo simulate --vertical healthcare --sub-vertical bd`
 
 ### Finance: Global Financial Services Platform
 
@@ -155,27 +175,37 @@ Global hospitality operator with connected-room IoT, property networks (Meraki A
 ## CLI Reference
 
 ### `dd-demo list`
-List all available verticals with descriptions and stats.
+List all available verticals with descriptions and stats. With
+`--vertical <name>`, also lists sub-vertical overlays available for
+that vertical.
 
 ```bash
 dd-demo list
+dd-demo list --vertical healthcare
 ```
 
-Output:
+Output (per-vertical view, abbreviated):
 ```
-Available Verticals:
-  healthcare      Smart Hospital Demo (56 devices, 9 services)
-  finance         Global Financial Services Platform (309 devices, 10 services)
-  manufacturing   Automotive Manufacturing Plant (246 devices, 8 services)
-  insurance       Multi-State P&C/Life Insurer (290 devices, 9 services)
+Smart Hospital Demo
+  Name: healthcare
+  ...
+Sub-vertical overlays:
+  • bd  (use --sub-vertical bd)
 ```
 
 ### `dd-demo setup`
-Create Datadog resources for a vertical: dashboards, monitors, SLOs, service catalog entries, notebooks.
+Create Datadog resources for a vertical: dashboards, monitors, SLOs, service catalog entries, notebooks. Optionally layer a sub-vertical overlay on top.
 
 ```bash
 # Create healthcare demo resources
 dd-demo setup --vertical healthcare
+
+# Layer the BD (Becton Dickinson) sub-vertical overlay on top — adds
+# Pyxis MedStation devices, services, dashboard, monitors, notebook,
+# SLOs, workflow, and the Pyxis cascade plugin. Tags inherit from the
+# base vertical (vertical:healthcare, dd-demo-toolkit:true) so
+# teardown sweeps base + overlay together.
+dd-demo setup --vertical healthcare --sub-vertical bd
 
 # With custom display name
 dd-demo setup --vertical finance --display-name "Goldman Sachs Global Operations"
@@ -185,11 +215,17 @@ dd-demo setup --vertical manufacturing > setup_output.txt
 ```
 
 ### `dd-demo simulate`
-Start the simulator and emit metrics, logs, and traces for a vertical.
+Start the simulator and emit metrics, logs, and traces for a vertical. With `--sub-vertical`, the overlay's devices/services are merged into the simulated fleet and the overlay's incident plugins are loaded alongside the base vertical's plugins.
 
 ```bash
 # Start healthcare simulator (metrics every 15 seconds)
 dd-demo simulate --vertical healthcare
+
+# Run with the BD overlay merged in: extra devices (Pyxis, BACTEC,
+# Rowa, Phoenix, Veritor), extra services (pyxis-inventory-api,
+# pharmacy-ehr-bridge), and the Pyxis inventory-sync cascade plugin
+# fire alongside the existing WiFi cascade.
+dd-demo simulate --vertical healthcare --sub-vertical bd
 
 # Faster emit rate (metrics every 5 seconds)
 dd-demo simulate --vertical finance --emit-interval 5
