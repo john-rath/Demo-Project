@@ -6,6 +6,34 @@ or conventions change.
 
 ---
 
+## 0. ⚠️ Read this before authoring any new asset
+
+**Before** creating, editing, or deploying any dashboard, monitor,
+notebook, SLO, workflow, plugin, service, or sub-vertical overlay,
+read **[STYLE_GUIDE.md](STYLE_GUIDE.md)** in this directory.
+
+It captures the Datadog query gotchas, tag standards, naming
+conventions, layout patterns, and bifurcation rules that have caused
+production demo bugs in the past. Following it is not optional —
+every rule traces to a real bug.
+
+Quick-reference index for the highest-bug-density rules:
+
+- **§1.1** Percentile aggregators (`p95:`, `p99:`) only work on histogram metrics, not gauges.
+- **§1.2** `by {dim}` must come BEFORE `.as_count()`, never after.
+- **§1.3** Monitor query alerts do NOT support `||` / `&&`. Split into two monitors.
+- **§1.5** Notebook timeseries cells require `formulas:` on every request, or the chart renders empty.
+- **§1.7** Workflow descriptions have a 300-character limit.
+- **§2** Tag standards: never invent new tag keys. Use existing values under existing keys.
+- **§9.3** New plugins must be 4-axis disjoint from existing plugins (spatial, namespace, incident_domain, temporal).
+- **§11** Pre-commit checklist before adding any asset.
+
+When you fix a new class of bug, **add the rule to STYLE_GUIDE.md
+before closing the work** — the whole point of the document is that
+future contributors don't repeat the same investigation.
+
+---
+
 ## 1. Project Scope
 
 `dd-demo-toolkit` is a config-driven Datadog demo framework for Sales

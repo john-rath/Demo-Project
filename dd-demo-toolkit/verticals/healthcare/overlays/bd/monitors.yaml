@@ -148,10 +148,21 @@ monitors:
       - "safety:patient-safety"
     priority: 1
 
-  - name: "[Healthcare/BD] BACTEC Incubator Out-of-Range"
+  - name: "[Healthcare/BD] BACTEC Incubator Temp Too Low"
     type: "query alert"
-    query: "avg(last_5m):avg:hospital.bactec.incubator_temp_celsius{device_type:bactec_blood_culture} by {device_id} < 34.8 || avg(last_5m):avg:hospital.bactec.incubator_temp_celsius{device_type:bactec_blood_culture} by {device_id} > 36.2"
-    message: "🌡️ BACTEC FX incubator temp out of 35±1°C range. Blood-culture validity at risk."
+    query: "avg(last_5m):avg:hospital.bactec.incubator_temp_celsius{device_type:bactec_blood_culture} by {device_id} < 34.8"
+    message: "🌡️ BACTEC FX incubator below 34.8°C. Blood-culture validity at risk."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:biomed"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/BD] BACTEC Incubator Temp Too High"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.bactec.incubator_temp_celsius{device_type:bactec_blood_culture} by {device_id} > 36.2"
+    message: "🌡️ BACTEC FX incubator above 36.2°C. Blood-culture validity at risk."
     tags:
       - "vertical:healthcare"
       - "dd-demo-toolkit:true"

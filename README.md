@@ -765,6 +765,31 @@ docker compose --profile teardown-all run --rm teardown-all \
 
 ## Contributing
 
+### Style guide (read first)
+
+Before authoring any new dashboard, monitor, notebook, SLO, workflow,
+plugin, service, or sub-vertical overlay, read
+[**dd-demo-toolkit/STYLE_GUIDE.md**](dd-demo-toolkit/STYLE_GUIDE.md). It
+captures the Datadog query gotchas, tag standards, naming conventions,
+layout patterns, and incident-bifurcation rules that prevent the
+production-demo bugs we've shipped before.
+
+Highlights of the highest-bug-density rules:
+
+- Percentile aggregators (`p95:`, `p99:`) work only on histogram
+  metrics, not gauges. Use `max:` for KPI strips.
+- `by {dim}` must come BEFORE `.as_count()`, not after.
+- Monitor query alerts do not support `||`. Split into two monitors.
+- Notebook timeseries cells require `formulas:` on every request or
+  the chart renders empty.
+- Workflow descriptions have a 300-character limit.
+- Never invent new tag keys; use existing values under existing keys.
+- New incident plugins must be 4-axis disjoint (spatial, metric
+  namespace, `incident_domain` tag, temporal).
+
+The style guide includes a pre-commit checklist (§11) — run through it
+before opening a PR with new assets.
+
 ### Adding a New Vertical
 
 See [Adding a New Vertical](#adding-a-new-vertical) above.

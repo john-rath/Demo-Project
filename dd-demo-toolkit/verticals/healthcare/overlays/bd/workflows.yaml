@@ -1,7 +1,7 @@
 workflows:
 
   - name: "[Healthcare/BD] Pyxis Inventory Poll-Rate Limit Recovery"
-    description: "Self-heal for the BD Pyxis inventory-sync polling storm. Triggered when the Pyxis Inventory Poll-Rate Storm monitor fires (signal_chain:1-root-cause + incident_domain:pharmacy-automation). Calls the pyxis-inventory-api admin endpoint to clamp polling at the vendor-recommended ceiling, watches for sync-lag recovery, and notifies pharmacy ops."
+    description: "Self-heal for the BD Pyxis polling storm: clamps inventory poll rate via pyxis-inventory-api admin, waits for sync-lag drain, verifies dispense latency recovery, opens BD ticket."
     trigger:
       type: monitor
       monitor_tags:

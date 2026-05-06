@@ -3,7 +3,7 @@ notebooks:
   - id: "bd-pyxis-cascade-rca"
     name: "💊 BD Pyxis Inventory-Sync Cascade — Bits AI SRE Walkthrough"
     type: investigation
-    description: "Symptom: nurses report Pyxis dispensing delays in Pharmacy on Floor 1 South. Root cause: vendor-pushed firmware bumped Pyxis inventory polling rate, saturating pyxis-inventory-api → pharmacy-ehr-bridge thread pool → upstream of nurse-visible dispense latency. This notebook walks through the four phases the way Bits AI SRE narrows it down."
+    description: "Symptom: nurses report Pyxis dispensing delays in Pharmacy on Floor 1 South. Root cause: vendor-pushed firmware bumped Pyxis inventory polling rate, saturating pyxis-inventory-api → pharmacy-ehr-bridge thread pool → upstream of nurse-visible dispense latency. This notebook walks through the four phases the way Bits AI SRE narrows it down, and closes with a quantified ROI view."
     time_range: "1h"
     tags:
       - "vertical:healthcare"
@@ -39,8 +39,16 @@ notebooks:
               - response_format: "timeseries"
                 queries:
                   - data_source: "metrics"
-                    name: "p95"
-                    query: "p95:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,department:Pharmacy} by {floor,wing}"
+                    name: "avg"
+                    query: "avg:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,department:Pharmacy} by {floor,wing}"
+                  - data_source: "metrics"
+                    name: "max"
+                    query: "max:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,department:Pharmacy} by {floor,wing}"
+                formulas:
+                  - formula: "avg"
+                    alias: "Dispense avg by floor/wing"
+                  - formula: "max"
+                    alias: "Dispense max by floor/wing"
                 display_type: "line"
             yaxis:
               scale: "linear"
@@ -74,6 +82,9 @@ notebooks:
                   - data_source: "metrics"
                     name: "cpu"
                     query: "avg:hospital.device.cpu_usage_pct{device_type:pyxis_medstation,department:Pharmacy} by {device_id}"
+                formulas:
+                  - formula: "cpu"
+                    alias: "CPU %"
                 display_type: "line"
                 style:
                   palette: "cool"
@@ -82,6 +93,9 @@ notebooks:
                   - data_source: "metrics"
                     name: "rssi"
                     query: "avg:hospital.device.signal_strength_dbm{device_type:pyxis_medstation,department:Pharmacy} by {device_id}"
+                formulas:
+                  - formula: "rssi"
+                    alias: "RSSI dBm"
                 display_type: "line"
                 style:
                   palette: "warm"
@@ -111,6 +125,9 @@ notebooks:
                   - data_source: "metrics"
                     name: "poll"
                     query: "avg:hospital.pyxis.inventory_poll_rate_per_min{device_type:pyxis_medstation,department:Pharmacy} by {device_id}"
+                formulas:
+                  - formula: "poll"
+                    alias: "Poll rate /min"
                 display_type: "line"
             markers:
               - value: "y = 60"
@@ -130,6 +147,9 @@ notebooks:
                   - data_source: "metrics"
                     name: "lag"
                     query: "avg:hospital.pyxis.sync_lag_to_inventory_ms{device_type:pyxis_medstation,department:Pharmacy} by {device_id}"
+                formulas:
+                  - formula: "lag"
+                    alias: "Sync lag (ms)"
                 display_type: "line"
             markers:
               - value: "y = 4000"
@@ -183,8 +203,16 @@ notebooks:
               - response_format: "timeseries"
                 queries:
                   - data_source: "metrics"
-                    name: "p99"
-                    query: "p99:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge}"
+                    name: "avg"
+                    query: "avg:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge}"
+                  - data_source: "metrics"
+                    name: "max"
+                    query: "max:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge}"
+                formulas:
+                  - formula: "avg"
+                    alias: "avg latency (ms)"
+                  - formula: "max"
+                    alias: "max latency (ms)"
                 display_type: "line"
             markers:
               - value: "y = 1500"
@@ -237,13 +265,20 @@ notebooks:
                 queries:
                   - data_source: "metrics"
                     name: "lat"
-                    query: "p95:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,department:Pharmacy}"
+                    query: "avg:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,department:Pharmacy}"
                   - data_source: "metrics"
                     name: "lag"
                     query: "avg:hospital.pyxis.sync_lag_to_inventory_ms{device_type:pyxis_medstation,department:Pharmacy}"
                   - data_source: "metrics"
                     name: "poll"
                     query: "avg:hospital.pyxis.inventory_poll_rate_per_min{device_type:pyxis_medstation,department:Pharmacy}"
+                formulas:
+                  - formula: "lat"
+                    alias: "Dispense latency (ms)"
+                  - formula: "lag"
+                    alias: "Sync lag (ms)"
+                  - formula: "poll"
+                    alias: "Poll rate /min"
                 display_type: "line"
         type: "notebook_cells"
 
@@ -252,7 +287,103 @@ notebooks:
             type: "markdown"
             text: |
               Once polling is back at ≤60/min, sync lag drains within 90s
-              and dispense p95 returns to baseline.
+              and dispense latency (avg + max) returns to baseline.
+
+              ---
+              # 💰 Business Impact & ROI
+
+              The cascade above looks technical, but every second of
+              degradation translates into measurable nurse, patient, and
+              compliance costs. This is why automation + observability
+              isn't a "nice to have" line item — it pays for itself on
+              the first preventable incident.
+
+              ## What just happened, in operations terms
+
+              - **Affected fleet:** 18 Pyxis MedStation cabinets across
+                Pharmacy and satellite locations
+              - **Cascade duration if undetected:** typically 60–90 minutes
+                of MTTR through manual triage (vendor finger-pointing
+                between BD, pharmacy software, and network teams)
+              - **Cascade duration with Datadog auto-remediation workflow:**
+                **<5 minutes** end-to-end (detect → root-cause → throttle →
+                verify recovery → notify)
+
+              ## ROI math — single incident
+
+              | Lever                              | Manual MTTR (status quo)            | Automated (Datadog + Bits AI SRE) |
+              |-----------------------------------|--------------------------------------|------------------------------------|
+              | Time to detect                     | 8–15 min (nurse complaint → ops)    | < 60 sec (poll-rate monitor)       |
+              | Time to root-cause                 | 30–60 min (cross-team triage)       | < 90 sec (Bits AI SRE causal walk) |
+              | Time to remediate                  | 30+ min (vendor call, manual change)| < 2 min (workflow rate-limit API)  |
+              | **Total MTTR**                     | **60–90 min**                        | **< 5 min**                        |
+              | Dispense workflow delays           | ~540 dispenses/hr × 1.5h × 2.5s ≈ **34 nurse-minutes** | ~540 dispenses/hr × 0.08h × 2.5s ≈ **2 nurse-minutes** |
+              | Med-administration delays         | 80–120 doses delayed 2–5 min        | < 10 doses delayed                 |
+              | Compliance audit exposure          | Full incident logged; manual RCA needed | Auto-RCA notebook + workflow log captured |
+
+              **Direct labor savings per incident** (loaded nurse cost
+              ~$70/hr, loaded biomed/IT cost ~$110/hr):
+              - Nurse time: 32 min × $70/hr ≈ **$37**
+              - Biomed/IT triage: 90 min × $110/hr ≈ **$165**
+              - **Per-incident savings: ~$200 direct, before downstream
+                impact**
+
+              ## Annualized at hospital scale
+
+              Conservative assumption: **12 such polling-storm-class
+              incidents per year** (vendor pushes, config drift, capacity
+              events). Hospital-system numbers scale linearly:
+
+              | Scope                          | Annual MTTR hours saved | Annual nurse-hours preserved | Direct cost avoided |
+              |--------------------------------|-------------------------|-------------------------------|---------------------|
+              | Single 500-bed hospital        | 12 × 1.5 = **18 hrs**   | ~10 hrs (workflow drag)       | ~$2,400             |
+              | 10-hospital regional system    | 180 hrs                 | 100 hrs                       | $24,000             |
+              | 100-hospital national system   | 1,800 hrs               | 1,000 hrs                     | $240,000            |
+
+              **And this is for ONE incident pattern.** A mature program
+              automates dozens of patterns (WiFi cascades, FHIR broker
+              backpressure, EHR queue saturation, Rowa robot drift,
+              BACTEC LIS lag…), and the savings compound.
+
+              ## What's not on the spreadsheet (the bigger numbers)
+
+              **Sentinel-event prevention.** A single missed STAT
+              medication for a coding ICU patient can become a
+              joint-commission sentinel event. Average sentinel-event cost
+              to a U.S. hospital: **$200K–$1M+ per incident** (legal,
+              regulatory, reputational, settlement). Avoiding **one** of
+              these per year through faster Pyxis recovery covers the
+              entire Datadog spend.
+
+              **DEA / DSCSA compliance.** Pyxis controlled-substance
+              discrepancies must be reconciled within 72 hours. Real-time
+              `hospital.pyxis.controlled_substance_discrepancies_total`
+              surveillance + auto-cases = catching discrepancies the day
+              they happen rather than at end-of-month, which protects the
+              hospital's DEA registration.
+
+              **Nurse retention / HCAHPS.** Nurse turnover costs
+              $40K–$80K per RN. Workflow friction (waiting at the
+              cabinet, override paperwork, manual recounts) is the
+              #2 cited reason for bedside-RN burnout in BD's own
+              surveys. Removing 30+ min of daily cabinet friction per
+              nurse moves HCAHPS "responsiveness of staff" scores —
+              which feed Medicare reimbursement.
+
+              **Vendor leverage.** When the BD account team has
+              `hospital.pyxis.inventory_poll_rate_per_min` time-series
+              evidence of a vendor-pushed firmware regression, the next
+              support conversation is *evidence-driven* rather than
+              he-said-she-said. That's faster fixes and more credible
+              SLA enforcement.
+
+              ## Bottom line
+
+              The Datadog + Bits AI SRE stack pays for itself on the
+              first prevented sentinel event, the first automated
+              compliance catch, or the first 90-minute MTTR avoided
+              across a regional system. Every additional pattern
+              automated after that is pure margin.
 
               ---
               ## Follow-ups
@@ -263,4 +394,7 @@ notebooks:
                  on `hospital.pyxis.inventory_poll_rate_per_min`.
               3. Capacity-plan `pyxis-inventory-api` thread-pool sizing
                  against worst-case poll burst from full Pyxis fleet.
+              4. Bring this notebook to the next BD vendor QBR — turn
+                 a "Pyxis is unreliable" anecdote into a quantified
+                 product-reliability conversation.
         type: "notebook_cells"

@@ -20,7 +20,7 @@
       "definition": {
         "title": "Cabinets Online",
         "type": "query_value",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.device.online{device_type:pyxis_medstation,$floor,$wing,$department,$manufacturer}"}], "response_format": "scalar"}],
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.device.online{device_type:pyxis_medstation,$floor,$wing,$department}", "aggregator": "last"}], "response_format": "scalar"}],
         "autoscale": true,
         "precision": 0
       },
@@ -38,9 +38,9 @@
     },
     {
       "definition": {
-        "title": "Dispense p95 (ms)",
+        "title": "Dispense max (ms)",
         "type": "query_value",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "p95:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department}"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 2500, "palette": "white_on_red"}, {"comparator": ">", "value": 1500, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 1500, "palette": "white_on_green"}]}],
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 2500, "palette": "white_on_red"}, {"comparator": ">", "value": 1500, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 1500, "palette": "white_on_green"}]}],
         "autoscale": true,
         "precision": 0
       },
@@ -58,9 +58,9 @@
     },
     {
       "definition": {
-        "title": "Witness Countersign p95 (ms)",
+        "title": "Witness Countersign max (ms)",
         "type": "query_value",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "p95:hospital.pyxis.witness_countersign_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department}"}], "response_format": "scalar"}],
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.pyxis.witness_countersign_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department}", "aggregator": "max"}], "response_format": "scalar"}],
         "autoscale": true,
         "precision": 0
       },
@@ -120,7 +120,7 @@
       "definition": {
         "title": "Sync Failures (5m)",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.sync_failures_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count() by {device_id}"}], "response_format": "timeseries", "display_type": "bars"}]
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.sync_failures_total{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
       },
       "layout": {"x": 6, "y": 8, "width": 6, "height": 3}
     },
@@ -139,9 +139,9 @@
     },
     {
       "definition": {
-        "title": "Dispense Latency p95 by Department (ms)",
+        "title": "Dispense Latency avg by Department (ms)",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "p95:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}],
+        "requests": [{"formulas": [{"formula": "avg"}, {"formula": "max", "alias": "max"}], "queries": [{"data_source": "metrics", "name": "avg", "query": "avg:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}, {"data_source": "metrics", "name": "max", "query": "max:hospital.pyxis.dispense_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}],
         "markers": [{"value": "y = 2500", "display_type": "error dashed", "label": "Critical SLA"}]
       },
       "layout": {"x": 0, "y": 12, "width": 6, "height": 3}
@@ -150,15 +150,15 @@
       "definition": {
         "title": "Dispense Failures (5m)",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.dispense_failed_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count() by {department}"}], "response_format": "timeseries", "display_type": "bars"}]
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.dispense_failed_total{device_type:pyxis_medstation,$floor,$wing,$department} by {department}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
       },
       "layout": {"x": 6, "y": 12, "width": 6, "height": 3}
     },
     {
       "definition": {
-        "title": "Witness Countersign Latency p95 (ms)",
+        "title": "Witness Countersign Latency avg by Department (ms)",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "p95:hospital.pyxis.witness_countersign_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}]
+        "requests": [{"formulas": [{"formula": "avg"}, {"formula": "max", "alias": "max"}], "queries": [{"data_source": "metrics", "name": "avg", "query": "avg:hospital.pyxis.witness_countersign_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}, {"data_source": "metrics", "name": "max", "query": "max:hospital.pyxis.witness_countersign_latency_ms{device_type:pyxis_medstation,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}]
       },
       "layout": {"x": 0, "y": 15, "width": 6, "height": 3}
     },
@@ -188,7 +188,7 @@
       "definition": {
         "title": "Drawer Open Events (per device, /5m)",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.drawer_open_events_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count() by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.drawer_open_events_total{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}.as_count()"}], "response_format": "timeseries", "display_type": "line"}]
       },
       "layout": {"x": 0, "y": 19, "width": 4, "height": 3}
     },
@@ -196,7 +196,7 @@
       "definition": {
         "title": "Cubie Lock Contention",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.cubie_lock_contention_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count() by {device_id}"}], "response_format": "timeseries", "display_type": "bars"}]
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.cubie_lock_contention_total{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
       },
       "layout": {"x": 4, "y": 19, "width": 4, "height": 3}
     },
@@ -204,7 +204,7 @@
       "definition": {
         "title": "Drawer Jams",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.drawer_jam_events_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count() by {device_id}"}], "response_format": "timeseries", "display_type": "bars"}]
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.drawer_jam_events_total{device_type:pyxis_medstation,$floor,$wing,$department} by {device_id}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
       },
       "layout": {"x": 8, "y": 19, "width": 4, "height": 3}
     },
@@ -220,7 +220,7 @@
       "definition": {
         "title": "Override Events by Department",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.override_events_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count() by {department}"}], "response_format": "timeseries", "display_type": "bars"}]
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.override_events_total{device_type:pyxis_medstation,$floor,$wing,$department} by {department}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
       },
       "layout": {"x": 4, "y": 22, "width": 4, "height": 3}
     },
@@ -277,7 +277,7 @@
       "definition": {
         "title": "Unmatched Orders (last 5m)",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.unmatched_orders_total{device_type:pyxis_medstation,$floor,$wing,$department}.as_count() by {department}"}], "response_format": "timeseries", "display_type": "bars"}]
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.pyxis.unmatched_orders_total{device_type:pyxis_medstation,$floor,$wing,$department} by {department}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
       },
       "layout": {"x": 6, "y": 29, "width": 6, "height": 3}
     },
@@ -305,18 +305,18 @@
     },
     {
       "definition": {
-        "title": "pharmacy-ehr-bridge p99 Latency (ms)",
+        "title": "pharmacy-ehr-bridge Latency (ms) — avg & max",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "p99:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge}"}], "response_format": "timeseries", "display_type": "line"}],
+        "requests": [{"formulas": [{"formula": "avg"}, {"formula": "max", "alias": "max"}], "queries": [{"data_source": "metrics", "name": "avg", "query": "avg:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge}"}, {"data_source": "metrics", "name": "max", "query": "max:hospital.app.latency_ms{service_name:pharmacy-ehr-bridge}"}], "response_format": "timeseries", "display_type": "line"}],
         "markers": [{"value": "y = 1500", "display_type": "error dashed", "label": "Choke threshold"}]
       },
       "layout": {"x": 4, "y": 34, "width": 4, "height": 3}
     },
     {
       "definition": {
-        "title": "pharmacy-dispensing-api p99 Latency (ms)",
+        "title": "pharmacy-dispensing-api Latency (ms) — avg & max",
         "type": "timeseries",
-        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "p99:hospital.app.latency_ms{service_name:pharmacy-dispensing-api}"}], "response_format": "timeseries", "display_type": "line"}]
+        "requests": [{"formulas": [{"formula": "avg"}, {"formula": "max", "alias": "max"}], "queries": [{"data_source": "metrics", "name": "avg", "query": "avg:hospital.app.latency_ms{service_name:pharmacy-dispensing-api}"}, {"data_source": "metrics", "name": "max", "query": "max:hospital.app.latency_ms{service_name:pharmacy-dispensing-api}"}], "response_format": "timeseries", "display_type": "line"}]
       },
       "layout": {"x": 8, "y": 34, "width": 4, "height": 3}
     },
@@ -450,8 +450,7 @@
   "template_variables": [
     {"name": "floor", "prefix": "floor", "default": "*"},
     {"name": "wing", "prefix": "wing", "default": "*"},
-    {"name": "department", "prefix": "department", "default": "*"},
-    {"name": "manufacturer", "prefix": "device_manufacturer", "default": "BD"}
+    {"name": "department", "prefix": "department", "default": "*"}
   ],
   "layout_type": "ordered",
   "notify_list": [],
