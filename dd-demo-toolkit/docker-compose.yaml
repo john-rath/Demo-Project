@@ -31,6 +31,10 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=otel-collector:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - PYTHONUNBUFFERED=1
+      # DD_DEMO_VERTICAL and the optional DD_DEMO_SUB_VERTICAL come from
+      # .env via env_file above. When DD_DEMO_SUB_VERTICAL is set
+      # (e.g. "bd"), the Dockerfile CMD appends --sub-vertical so the
+      # overlay's plugins load alongside base-vertical plugins.
     restart: unless-stopped
 
   setup:
@@ -39,7 +43,11 @@ services:
       dockerfile: Dockerfile
     container_name: dd-demo-setup
     entrypoint: ["sh", "-c"]
-    command: ['dd-demo setup --vertical "$$DD_DEMO_VERTICAL" --clean']
+    # When DD_DEMO_SUB_VERTICAL is set (e.g. "bd"), the overlay's
+    # monitors, dashboards, notebooks, SLOs, services, workflows, and
+    # cases are deployed on top of the base vertical's resources. The
+    # ${VAR:+...} expansion only adds the flag when the var is non-empty.
+    command: ['dd-demo setup --vertical "$$DD_DEMO_VERTICAL" --clean $${DD_DEMO_SUB_VERTICAL:+--sub-vertical "$$DD_DEMO_SUB_VERTICAL"}']
     env_file:
       - .env
     environment:

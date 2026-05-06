@@ -64,6 +64,28 @@ docker compose --profile setup up setup
 
 Metrics and logs will begin flowing to Datadog within 30 seconds. Pre-built dashboards will populate automatically.
 
+#### Including a sub-vertical overlay (e.g. BD on top of healthcare)
+
+Set `DD_DEMO_SUB_VERTICAL` in your `.env` file to layer an overlay on
+top of the base vertical. The simulator and setup containers both
+honor it.
+
+```bash
+# In .env
+DD_DEMO_VERTICAL=healthcare
+DD_DEMO_SUB_VERTICAL=bd
+
+# Then the same commands deploy + simulate base + overlay
+docker compose --profile setup up setup    # deploys healthcare + BD
+docker compose up                           # simulates healthcare + BD plugins
+```
+
+> **Rebuild after adding/changing the env var.** Both containers read
+> `DD_DEMO_SUB_VERTICAL` at runtime, but the Dockerfile CMD that
+> appends `--sub-vertical` only changes if the image was built with the
+> updated Dockerfile. After upgrading from a pre-overlay image, run
+> `docker compose build` to refresh the simulator and setup images.
+
 #### Cleaning up (Docker)
 
 Two profile-scoped services are provided for cleanup. Both are one-shot
