@@ -401,6 +401,226 @@ device_categories:
             baseline: 2
             fluctuation: 0.50
 
+services:
+- name: claims-intake-api
+  host: claims-intake-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "POST /api/claims/submit"
+    latency_base_ms: 140
+    latency_p99_ms: 720
+    error_rate: 0.025
+  - name: "POST /api/claims/fnol"
+    latency_base_ms: 180
+    latency_p99_ms: 900
+    error_rate: 0.03
+  - name: "GET /api/claims/{id}"
+    latency_base_ms: 60
+    latency_p99_ms: 280
+    error_rate: 0.01
+  - name: "POST /api/claims/photos"
+    latency_base_ms: 220
+    latency_p99_ms: 1200
+    error_rate: 0.04
+  dependencies:
+  - service: document-processing-service
+    operation: "POST /api/documents/ocr"
+    probability: 0.6
+  - service: policy-admin-service
+    operation: "GET /api/policies/{id}"
+    probability: 0.8
+- name: rating-engine-api
+  host: rating-engine-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "POST /api/quotes/rate"
+    latency_base_ms: 280
+    latency_p99_ms: 1400
+    error_rate: 0.02
+  - name: "POST /api/quotes/rerate"
+    latency_base_ms: 320
+    latency_p99_ms: 1600
+    error_rate: 0.025
+  - name: "GET /api/rates/factors"
+    latency_base_ms: 45
+    latency_p99_ms: 220
+    error_rate: 0.005
+  dependencies:
+  - service: risk-scoring-service
+    operation: "POST /api/risk/score"
+    probability: 0.9
+  - service: third-party-data-api
+    operation: "GET /api/external/credit"
+    probability: 0.7
+- name: policy-admin-service
+  host: policyadmin-01
+  language: dotnet
+  framework: ".NET 8"
+  operations:
+  - name: "GET /api/policies/{id}"
+    latency_base_ms: 55
+    latency_p99_ms: 260
+    error_rate: 0.008
+  - name: "POST /api/policies/issue"
+    latency_base_ms: 380
+    latency_p99_ms: 1800
+    error_rate: 0.03
+  - name: "POST /api/policies/endorse"
+    latency_base_ms: 240
+    latency_p99_ms: 1100
+    error_rate: 0.025
+  - name: "POST /api/policies/renew"
+    latency_base_ms: 290
+    latency_p99_ms: 1300
+    error_rate: 0.02
+  dependencies:
+  - service: rating-engine-api
+    operation: "POST /api/quotes/rate"
+    probability: 0.5
+- name: risk-scoring-service
+  host: risk-scoring-01
+  language: python
+  framework: FastAPI
+  operations:
+  - name: "POST /api/risk/score"
+    latency_base_ms: 340
+    latency_p99_ms: 1500
+    error_rate: 0.018
+  - name: "POST /api/risk/fraud-check"
+    latency_base_ms: 420
+    latency_p99_ms: 2000
+    error_rate: 0.022
+  - name: "GET /api/risk/model-status"
+    latency_base_ms: 25
+    latency_p99_ms: 110
+    error_rate: 0.005
+- name: document-processing-service
+  host: docproc-01
+  language: python
+  framework: Django
+  operations:
+  - name: "POST /api/documents/ocr"
+    latency_base_ms: 480
+    latency_p99_ms: 2400
+    error_rate: 0.04
+  - name: "POST /api/documents/classify"
+    latency_base_ms: 210
+    latency_p99_ms: 1000
+    error_rate: 0.03
+  - name: "GET /api/documents/{id}"
+    latency_base_ms: 70
+    latency_p99_ms: 320
+    error_rate: 0.012
+- name: customer-portal-web
+  host: portal-web-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "GET /api/portal/policies"
+    latency_base_ms: 120
+    latency_p99_ms: 600
+    error_rate: 0.02
+  - name: "POST /api/portal/quote-start"
+    latency_base_ms: 180
+    latency_p99_ms: 850
+    error_rate: 0.03
+  - name: "POST /api/portal/payment"
+    latency_base_ms: 260
+    latency_p99_ms: 1300
+    error_rate: 0.025
+  - name: "POST /api/portal/claim-status"
+    latency_base_ms: 95
+    latency_p99_ms: 450
+    error_rate: 0.015
+  dependencies:
+  - service: policy-admin-service
+    operation: "GET /api/policies/{id}"
+    probability: 0.6
+  - service: payment-disbursement-api
+    operation: "POST /api/payments/charge"
+    probability: 0.2
+- name: agent-portal-api
+  host: agent-portal-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "POST /api/agent/quote"
+    latency_base_ms: 220
+    latency_p99_ms: 1050
+    error_rate: 0.02
+  - name: "POST /api/agent/endorsement"
+    latency_base_ms: 310
+    latency_p99_ms: 1500
+    error_rate: 0.028
+  - name: "GET /api/agent/book-of-business"
+    latency_base_ms: 140
+    latency_p99_ms: 680
+    error_rate: 0.015
+  dependencies:
+  - service: rating-engine-api
+    operation: "POST /api/quotes/rate"
+    probability: 0.8
+  - service: policy-admin-service
+    operation: "POST /api/policies/endorse"
+    probability: 0.4
+- name: payment-disbursement-api
+  host: payments-01
+  language: go
+  framework: stdlib
+  operations:
+  - name: "POST /api/payments/charge"
+    latency_base_ms: 180
+    latency_p99_ms: 900
+    error_rate: 0.018
+  - name: "POST /api/payments/disburse"
+    latency_base_ms: 240
+    latency_p99_ms: 1200
+    error_rate: 0.022
+  - name: "POST /api/payments/ach"
+    latency_base_ms: 160
+    latency_p99_ms: 800
+    error_rate: 0.015
+- name: telematics-ingest-gateway
+  host: telematics-gw-01
+  language: go
+  framework: stdlib
+  operations:
+  - name: "POST /api/telematics/events"
+    latency_base_ms: 20
+    latency_p99_ms: 90
+    error_rate: 0.006
+  - name: "POST /api/telematics/trips"
+    latency_base_ms: 45
+    latency_p99_ms: 200
+    error_rate: 0.01
+  - name: "GET /api/telematics/score"
+    latency_base_ms: 60
+    latency_p99_ms: 280
+    error_rate: 0.012
+  dependencies:
+  - service: risk-scoring-service
+    operation: "POST /api/risk/score"
+    probability: 0.3
+- name: third-party-data-api
+  host: thirdparty-conn-01
+  language: python
+  framework: FastAPI
+  operations:
+  - name: "GET /api/external/credit"
+    latency_base_ms: 540
+    latency_p99_ms: 2800
+    error_rate: 0.035
+  - name: "GET /api/external/mvr"
+    latency_base_ms: 620
+    latency_p99_ms: 3200
+    error_rate: 0.04
+  - name: "GET /api/external/clue"
+    latency_base_ms: 480
+    latency_p99_ms: 2400
+    error_rate: 0.03
+
 pinned_devices:
   - device_type: claims_intake_server
     region: us-east

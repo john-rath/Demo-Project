@@ -35,6 +35,35 @@ future contributors don't repeat the same investigation.
 
 ---
 
+## 0.5 ⚠️ Secret-handling policy (do not regress)
+
+`.env` in this repo holds **op:// references**, not plain Datadog API/APP
+keys. Real secrets live in 1Password and are resolved into short-lived
+process env vars by `op run --env-file=.env --`, wired into every
+Make target that hits Datadog. See the top-level README §
+"Handling secrets" for the user-facing flow.
+
+When editing this project, do **not**:
+
+- write plain `DD_API_KEY=<32-hex>` style values into `.env.template` or
+  any committed config — only `op://<vault>/<item>/<field>` references;
+- add `env_file: .env` to a docker-compose service that consumes
+  `DD_API_KEY` or `DD_APP_KEY` (it'd inject the `op://...` literal into
+  the container). Use `environment: - DD_API_KEY=${DD_API_KEY:?...}` so
+  the compose shell-env path is taken instead. The shell env is
+  populated by `op run` inside the Make targets;
+- remove the `check-op` dependency from Make targets that hit Datadog —
+  it's the only thing that produces a useful error when `op` is missing
+  or the user isn't signed in;
+- write a plain secret to `.env` from the UI (`env_manager.py` rejects
+  this on purpose — keep that rejection in place).
+
+The UI's `env_manager.SECRET_KEYS` and the docker-compose `:?` failure
+messages are the user-facing surface for this policy; if you add a new
+toolkit secret, update both.
+
+---
+
 ## 1. Project Scope
 
 `dd-demo-toolkit` is a config-driven Datadog demo framework for Sales

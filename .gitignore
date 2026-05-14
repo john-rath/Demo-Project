@@ -1,0 +1,26 @@
+# Claude Code harness state — these are local-only and must never be
+# committed. The `.claude/worktrees/` directories contain git worktrees
+# the harness spawns for parallel sessions; git would otherwise treat
+# them as orphan submodule pointers (gitlinks), which is what was
+# polluting feat/visual-layer with "mark worktree as dirty" commits.
+.claude/
+
+# Toolkit runtime artifacts
+.env
+.env.*
+!.env.template
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Editor/OS
+.DS_Store
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,367 @@
+/*
+ * Vanilla CSS for the Phase 1 UI.
+ *
+ * Deliberately simple: no framework, no build, no preprocessor. The whole
+ * point of Phase 1's vanilla UI is that it loads with one HTTP request and
+ * proves the backend works end-to-end. Phase 1.5 swaps this for a
+ * Vite-built React bundle and this file goes away.
+ */
+
+:root {
+  --bg: #0e1116;
+  --bg-card: #161b22;
+  --bg-input: #0d1117;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-muted: #8b949e;
+  --accent: #774aa4;        /* Datadog purple */
+  --accent-hover: #8a5db5;
+  --ok: #2ea043;
+  --err: #f85149;
+  --warn: #d29922;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.muted { color: var(--text-muted); }
+
+code {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  background: var(--bg-input);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+main {
+  max-width: 960px;
+  margin: 24px auto;
+  padding: 0 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
+}
+
+.card h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.card p { margin: 0 0 16px; }
+
+.row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.row:last-child { margin-bottom: 0; }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 220px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+input, select, button {
+  font-family: inherit;
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: normal;
+  background: var(--bg-input);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.1s;
+}
+
+input:focus, select:focus {
+  border-color: var(--accent);
+}
+
+button {
+  cursor: pointer;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+
+button:hover { border-color: var(--accent); }
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+button.primary:hover { background: var(--accent-hover); }
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.health-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  background: var(--bg-input);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+.health-pill[data-state="ok"]   { background: rgba(46,160,67,0.15); color: var(--ok); }
+.health-pill[data-state="err"]  { background: rgba(248,81,73,0.15); color: var(--err); }
+
+.result-ok  { color: var(--ok); }
+.result-err { color: var(--err); }
+.result-warn { color: var(--warn); }
+
+/* Migration banner shown when .env still has plain DD keys. The card
+ * stays in the existing flex flow so it pushes the cards below it down
+ * — we want it impossible to miss. */
+.banner-warn {
+  border-color: var(--warn);
+  background: rgba(210, 153, 34, 0.08);
+}
+.banner-warn h2 { color: var(--warn); }
+.banner-warn code { background: rgba(210, 153, 34, 0.15); }
+#noncompliant-keys { font-family: "SF Mono", Menlo, Consolas, monospace; }
+
+/* ============================================================================
+ * Tab strip
+ * ========================================================================== */
+
+nav.tabs {
+  display: flex;
+  gap: 4px;
+  max-width: 960px;
+  margin: 16px auto 0;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  color: var(--text-muted);
+  padding: 8px 16px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  position: relative;
+  bottom: -1px;  /* overlap the nav bottom border so .active appears connected */
+}
+
+.tab:hover { color: var(--text); }
+
+.tab.active {
+  background: var(--bg-card);
+  border-color: var(--border);
+  border-bottom: 1px solid var(--bg-card);
+  color: var(--text);
+}
+
+.tab-panel[hidden] { display: none; }
+.tab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ============================================================================
+ * Process control rows (Simulator + Deploy tabs share this)
+ * ========================================================================== */
+
+.process-row {
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-input);
+  margin-bottom: 8px;
+}
+.process-row:last-child { margin-bottom: 0; }
+
+.process-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+}
+
+.process-name {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+  min-width: 110px;
+}
+
+.process-info {
+  font-size: 12px;
+}
+
+.process-uptime {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.process-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.process-actions button {
+  min-width: 80px;
+}
+
+/* Status pill (per-process state indicator). Color follows state. */
+.status-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.status-pill[data-state="idle"]     { color: var(--text-muted); }
+.status-pill[data-state="running"]  { background: rgba(46,160,67,0.15); color: var(--ok); border-color: rgba(46,160,67,0.4); }
+.status-pill[data-state="stopping"] { background: rgba(210,153,34,0.15); color: var(--warn); border-color: rgba(210,153,34,0.4); }
+.status-pill[data-state="exited"]   { background: rgba(139,148,158,0.12); color: var(--text-muted); }
+.status-pill[data-state="exited-error"] { background: rgba(248,81,73,0.15); color: var(--err); border-color: rgba(248,81,73,0.4); }
+
+/* ============================================================================
+ * Log pane (Simulator + Deploy tabs share this component)
+ * ========================================================================== */
+
+.card-log {
+  padding: 0;  /* the toolbar + pre have their own padding */
+  overflow: hidden;
+}
+
+.log-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.log-toolbar h2 {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.log-toolbar .spacer { flex: 1 1 auto; }
+
+.log-toolbar button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.log-source {
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.checkbox input { margin: 0; }
+
+.log-pane {
+  margin: 0;
+  padding: 12px 20px;
+  height: 460px;
+  overflow-y: auto;
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Color-code lines based on their content. JS adds these classes when
+ * appending. Keeps the visual at-a-glance for the SE during a demo. */
+.log-line.err   { color: var(--err); }
+.log-line.warn  { color: var(--warn); }
+.log-line.info  { color: var(--text-muted); }
+
+.deploy-summary {
+  align-items: center;
+  gap: 32px;
+}
+.deploy-summary code {
+  display: inline-block;
+  margin-left: 4px;
+}

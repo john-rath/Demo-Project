@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>dd-demo-toolkit UI</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header>
+    <h1>dd-demo-toolkit <span class="muted">visual layer</span></h1>
+    <div id="health" class="health-pill" data-state="unknown">checking&hellip;</div>
+  </header>
+
+  <!--
+    Tab strip. Three logical surfaces: Configure (the .env editor),
+    Simulator (start/stop docker compose + live log), Deploy
+    (setup / teardown / teardown-all). app.js wires data-tab clicks
+    to show/hide the matching data-tab-panel section.
+  -->
+  <nav class="tabs" role="tablist">
+    <button class="tab active" data-tab="configure" type="button">Configure</button>
+    <button class="tab" data-tab="simulator" type="button">Simulator</button>
+    <button class="tab" data-tab="deploy" type="button">Deploy assets</button>
+  </nav>
+
+  <main>
+
+    <!-- =========================== CONFIGURE TAB =========================== -->
+    <section class="tab-panel" data-tab-panel="configure">
+
+      <!--
+        Migration banner. Hidden by default; shown when GET /api/env returns
+        non_compliant_secret_keys with one or more entries. The list is filled
+        in by app.js when the page loads.
+      -->
+      <section class="card banner-warn" id="banner-noncompliant" hidden>
+        <h2>Plain secrets detected in .env</h2>
+        <p>
+          Your <code>.env</code> still holds plain Datadog keys for
+          <span id="noncompliant-keys"></span>. Corp policy: secrets live in
+          1Password, not on disk. Run <code>make migrate-secrets</code> in
+          your terminal for step-by-step migration instructions.
+        </p>
+      </section>
+
+      <section class="card" id="card-vertical">
+        <h2>Vertical &amp; overlay</h2>
+        <p class="muted">
+          The vertical chooses the demo scenario (devices, services, plugins).
+          Optional overlay layers customer-specific gear on top — e.g.
+          <code>bd</code> on top of <code>healthcare</code>.
+        </p>
+        <div class="row">
+          <label>
+            Vertical
+            <select id="select-vertical"><option>loading&hellip;</option></select>
+          </label>
+          <label>
+            Sub-vertical (overlay)
+            <select id="select-overlay"><option value="">— none —</option></select>
+          </label>
+        </div>
+      </section>
+
+      <section class="card" id="card-creds">
+        <h2>Datadog credentials</h2>
+        <p class="muted">
+          Enter <strong>1Password references</strong> for your keys, not the keys
+          themselves — corp policy. Format: <code>op://&lt;vault&gt;/&lt;item&gt;/&lt;field&gt;</code>.
+          References are written to <code id="env-path-display">.env</code> at
+          file mode <code>0o600</code>; <code>op run</code> resolves them at
+          command time. The save endpoint refuses plain keys.
+        </p>
+        <div class="row">
+          <label>
+            DD_SITE
+            <select id="select-site"><option>loading&hellip;</option></select>
+          </label>
+          <label>
+            DD_API_KEY
+            <input type="text" id="input-api-key" autocomplete="off" spellcheck="false"
+                   placeholder="op://Employee/Datadog/api-key" />
+          </label>
+          <label>
+            DD_APP_KEY
+            <input type="text" id="input-app-key" autocomplete="off" spellcheck="false"
+                   placeholder="op://Employee/Datadog/app-key" />
+          </label>
+        </div>
+        <div class="row">
+          <button id="btn-test" type="button">Test connection</button>
+          <span id="test-result" class="muted"></span>
+        </div>
+      </section>
+
+      <section class="card" id="card-simulator-settings">
+        <h2>Simulator settings</h2>
+        <div class="row">
+          <label>
+            DISPLAY_NAME
+            <input type="text" id="input-display-name" placeholder="optional" />
+          </label>
+          <label>
+            EMIT_INTERVAL (seconds)
+            <input type="number" id="input-emit-interval" min="1" step="1" placeholder="15" />
+          </label>
+        </div>
+        <div class="row">
+          <label>
+            OTEL_EXPORTER_OTLP_ENDPOINT
+            <input type="text" id="input-otel-endpoint" placeholder="localhost:4317" />
+          </label>
+          <label>
+            OTEL_EXPORTER_OTLP_PROTOCOL
+            <select id="select-otel-protocol">
+              <option value="">— unset —</option>
+              <option value="grpc">grpc</option>
+              <option value="http/protobuf">http/protobuf</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="actions">
+        <button id="btn-save" type="button" class="primary">Save to .env</button>
+        <span id="save-result" class="muted"></span>
+      </section>
+
+    </section>
+
+    <!-- =========================== SIMULATOR TAB =========================== -->
+    <section class="tab-panel" data-tab-panel="simulator" hidden>
+      <section class="card" id="card-simulator-control">
+        <h2>Simulator</h2>
+        <p class="muted">
+          Runs <code>docker compose up --remove-orphans</code> as a child of
+          the UI server. The stack (otel-collector + simulator) inherits the
+          op-resolved env from <code>make ui</code> — secrets stay in 1Password.
+          Start it here, watch the live log, click Stop to send SIGINT
+          (compose's graceful-shutdown signal); a follow-up
+          <code>docker compose down</code> cleans up orphans.
+        </p>
+        <div class="row process-row" data-process="simulator">
+          <div class="process-status">
+            <span class="process-name">simulator</span>
+            <span class="status-pill" data-state="idle">idle</span>
+            <span class="muted process-uptime"></span>
+          </div>
+          <div class="process-actions">
+            <button class="primary" data-action="start">Start</button>
+            <button data-action="stop" disabled>Stop</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card-log">
+        <div class="log-toolbar">
+          <h2>Live log</h2>
+          <span class="muted log-source"></span>
+          <span class="spacer"></span>
+          <label class="checkbox">
+            <input type="checkbox" id="sim-autoscroll" checked />
+            auto-scroll
+          </label>
+          <button data-log-target="simulator" data-log-action="clear" type="button">Clear</button>
+        </div>
+        <pre class="log-pane" data-log-pane="simulator"></pre>
+      </section>
+    </section>
+
+    <!-- =========================== DEPLOY TAB ============================= -->
+    <section class="tab-panel" data-tab-panel="deploy" hidden>
+      <section class="card" id="card-deploy-summary">
+        <h2>Deploy assets</h2>
+        <p class="muted">
+          Each button below maps to one <code>docker compose --profile … run</code>
+          invocation. They consume the same <code>.env</code> as the simulator —
+          <strong>save your vertical / overlay selection on the Configure tab
+          first</strong>. All three are one-shot containers that exit on their
+          own; the live log streams their output.
+        </p>
+        <div class="row deploy-summary">
+          <div>
+            <span class="muted">Vertical:</span>
+            <code id="deploy-vertical">—</code>
+          </div>
+          <div>
+            <span class="muted">Sub-vertical:</span>
+            <code id="deploy-overlay">—</code>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="card-deploy-actions">
+        <div class="row process-row" data-process="setup">
+          <div class="process-status">
+            <span class="process-name">setup</span>
+            <span class="status-pill" data-state="idle">idle</span>
+            <span class="muted process-uptime"></span>
+            <span class="muted process-info">deploy dashboards, monitors, notebooks, SLOs, workflows…</span>
+          </div>
+          <div class="process-actions">
+            <button class="primary" data-action="start">Deploy</button>
+            <button data-action="stop" disabled>Stop</button>
+          </div>
+        </div>
+
+        <div class="row process-row" data-process="teardown">
+          <div class="process-status">
+            <span class="process-name">teardown</span>
+            <span class="status-pill" data-state="idle">idle</span>
+            <span class="muted process-uptime"></span>
+            <span class="muted process-info">remove resources for the current vertical only</span>
+          </div>
+          <div class="process-actions">
+            <button data-action="start">Tear down</button>
+            <button data-action="stop" disabled>Stop</button>
+          </div>
+        </div>
+
+        <div class="row process-row" data-process="teardown-all">
+          <div class="process-status">
+            <span class="process-name">teardown-all</span>
+            <span class="status-pill" data-state="idle">idle</span>
+            <span class="muted process-uptime"></span>
+            <span class="muted process-info result-warn">
+              ⚠ deletes EVERY <code>dd-demo-toolkit:true</code> resource across all verticals
+            </span>
+          </div>
+          <div class="process-actions">
+            <button data-action="start" data-confirm="This deletes every dd-demo-toolkit resource across ALL verticals in your Datadog org. Type 'yes' to confirm:">Tear down all</button>
+            <button data-action="stop" disabled>Stop</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card card-log">
+        <div class="log-toolbar">
+          <h2>Live log</h2>
+          <span class="muted log-source">no run yet</span>
+          <span class="spacer"></span>
+          <label class="checkbox">
+            <input type="checkbox" id="deploy-autoscroll" checked />
+            auto-scroll
+          </label>
+          <button data-log-target="deploy" data-log-action="clear" type="button">Clear</button>
+        </div>
+        <pre class="log-pane" data-log-pane="deploy"></pre>
+      </section>
+    </section>
+
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

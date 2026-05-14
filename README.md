@@ -22,6 +22,193 @@ Each vertical is a complete simulation:
 
 ---
 
+## Web UI (optional)
+
+Don't want to hand-edit `.env`? Run the local web UI:
+
+```bash
+cd dd-demo-toolkit/
+make ui-install          # one-time: python3.13 venv + UI deps
+make ui                  # serves http://127.0.0.1:8765
+```
+
+Open **http://127.0.0.1:8765** in your browser. The UI today lets you:
+
+- Pick the vertical and (optional) sub-vertical overlay from dropdowns
+- Enter Datadog credentials, with a **Test connection** button that validates both API and APP keys before saving
+- Set `EMIT_INTERVAL`, `DISPLAY_NAME`, OTel endpoint/protocol
+- Save to `.env` (written at file mode `0o600`, refuses to write if `.env` isn't gitignored)
+
+Coming in later phases: start/stop the simulator from the browser, deploy/teardown assets, tune throughput and volume curves, scaffold new sub-vertical overlays.
+
+The UI is a thin wrapper — `.env` and the `verticals/` YAML files on disk remain the source of truth, and everything the UI does maps to a CLI command you could run by hand. See [`dd-demo-toolkit/dd_demo_toolkit_ui/README.md`](dd-demo-toolkit/dd_demo_toolkit_ui/README.md) for architecture, endpoint reference, and how to run the test suite.
+
+> The UI binds to `127.0.0.1` only and has no auth — single-user local tool, not a hosted service. Don't expose it on a non-loopback interface without reading the safety notes in the module README.
+
+---
+
+## Handling secrets
+
+**Corp policy: Datadog API and APP keys must not live in `.env` as plain text.** They belong in 1Password (recommended), Vault, or the macOS Keychain, and are resolved into short-lived process env vars at command invocation. The full guide is internal — short version below.
+
+### How it works in this repo
+
+```
+1Password           .env on disk                       process env at runtime
+(real secret)  →    DD_API_KEY=op://Employee/...   →   DD_API_KEY=<resolved>
+                    (a reference, not a secret)        (short-lived; one process)
+```
+
+`.env` holds `op://<vault>/<item>/<field>` **references**, not secrets. When you run any toolkit command via the `Makefile`, it wraps the underlying invocation in `op run --env-file=.env -- <cmd>`. The 1Password CLI substitutes references into env vars for the child process and nothing else. The resolved value never lands on disk and stops existing the moment the process exits.
+
+### One-time setup
+
+#### 1. Install the 1Password CLI
+
+```bash
+brew install --cask 1password-cli
+op --version                           # confirm install (need 2.x+)
+```
+
+#### 2. Sign in — two paths
+
+**Path A (recommended): desktop-app biometric integration.** If you have the 1Password desktop app installed:
+
+1. Open 1Password → **Settings → Developer**.
+2. Check **"Integrate with 1Password CLI"**.
+3. Quit and restart your terminal so the integration is picked up.
+4. The next `op` command will prompt Touch ID once and stay authenticated for the desktop-app session.
+
+**Path B: CLI session token.** If no desktop app:
+
+```bash
+op account add                         # interactive: sign-in URL, email, secret key, password
+eval "$(op signin)"                    # creates ~30-minute session in this shell
+```
+
+**Heads up: `op whoami` is unreliable** under the biometric integration in op 2.x — it can say "not signed in" even when you absolutely are. Use this as your real auth probe instead:
+
+```bash
+op vault list                          # if this returns vault rows, you're signed in
+make check-op                          # equivalent; returns 0 when auth is live
+```
+
+#### 3. Create a single 1Password item with all DD credentials
+
+You need an item in any vault you own (commonly `Employee`) holding four fields. **GUI is the safest path** — it avoids shell-quoting pitfalls entirely.
+
+Open the 1Password desktop app → your vault → **+ New Item** → **API Credential**. Title it `Datadog`. Then **Edit** the item and add these four fields (labels must match exactly):
+
+| Field label | Type | Value |
+|---|---|---|
+| `api-key` | Password | your DD API key |
+| `app-key` | Password | your DD application key |
+| `client-token` | Password | your DD client token (optional, reserved for future client integrations) |
+| `rum-application-id` | Text | your RUM application UUID (optional, same) |
+
+Save. The field labels (lowercase, hyphen-separated) are what `op://Employee/Datadog/<field>` resolves against — typos there are the most common failure mode.
+
+**CLI alternative**, only if you prefer terminal. Type apostrophes by hand (paste introduces smart quotes that break the command silently):
+
+```bash
+print -n 'Paste DD_API_KEY: ';           read -rs API_VAL;        echo
+print -n 'Paste DD_APP_KEY: ';           read -rs APP_VAL;        echo
+print -n 'Paste DD_CLIENT_TOKEN: ';      read -rs CT_VAL;         echo
+print -n 'Paste DD_RUM_APPLICATION_ID: '; read -r  RUM_VAL
+
+op item create --category 'API Credential' --title 'Datadog' --vault Employee \
+  "api-key=$API_VAL" "app-key=$APP_VAL" \
+  "client-token=$CT_VAL" "rum-application-id=$RUM_VAL"
+
+unset API_VAL APP_VAL CT_VAL RUM_VAL
+```
+
+`read -rs` reads silently (no terminal echo) into a shell variable, which is then expanded into the `op` argv with normal double-quote substitution — no risk of smart-quote or leading-space corruption.
+
+#### 4. Confirm `op` can read every field
+
+```bash
+for f in api-key app-key client-token rum-application-id; do
+    echo "$f: $(op read op://Employee/Datadog/$f | wc -c) bytes"
+done
+```
+
+Each line should show a non-zero byte count (typical: 33, 41, 36, 37). `0 bytes` for a field means the label in 1Password doesn't match — open the item, Edit, retype the label exactly.
+
+#### 5. Point `.env` at the references
+
+Copy the template into a working `.env`:
+
+```bash
+cp .env.template .env
+```
+
+`.env.template` already ships `DD_API_KEY=op://Employee/Datadog/api-key` and so on. If your vault or item is named differently than `Employee` / `Datadog`, edit the four `op://...` lines to match. Plain-text Datadog keys in `.env` are rejected by the web UI and by your future self — don't.
+
+#### 6. End-to-end smoke test
+
+Should return `0` (zero `op://` literals survive into the resolved env):
+
+```bash
+op run --env-file=.env -- env | grep -cE "^DD_.*=op://"
+```
+
+And the resolved keys should be live against Datadog:
+
+```bash
+op run --env-file=.env -- sh -c \
+  'curl -s -o /dev/null -w "validate: %{http_code}\n" \
+    -H "DD-API-KEY: $DD_API_KEY" \
+    https://api.$DD_SITE/api/v1/validate; \
+   curl -s -o /dev/null -w "api_key: %{http_code}\n" \
+    -H "DD-API-KEY: $DD_API_KEY" -H "DD-APPLICATION-KEY: $DD_APP_KEY" \
+    https://api.$DD_SITE/api/v1/api_key'
+```
+
+Both lines should print `200`. A `403` on either means that key in 1Password is wrong — fix the value via the GUI or `op item edit Datadog --vault Employee 'api-key=<new>'`.
+
+### Migrating an existing plain-text `.env`
+
+If your current `.env` already has Datadog keys pasted as plain text:
+
+1. **Rotate first** any key that's been outside 1Password (shell history, old backups, draft commits, screenshots) — per the corp guide. Create new keys in [Datadog → API keys](https://app.datadoghq.com/organization-settings/api-keys) and [Application keys](https://app.datadoghq.com/personal-settings/application-keys); copy the new values.
+2. **Put the new values into 1Password** following step 3 above (use the GUI path).
+3. **Verify** with the byte-count loop in step 4 and the curl pair in step 6.
+4. **Edit `.env`** to replace the plain `DD_API_KEY=<hex>` and `DD_APP_KEY=<hex>` lines with `DD_API_KEY=op://Employee/Datadog/api-key` etc.
+5. **Revoke the old keys** in the Datadog UI. Don't skip this — the rotation isn't complete until the old keys are dead.
+
+`make migrate-secrets` prints an abbreviated form of these steps if you forget them.
+
+### Daily use
+
+All the Make targets wrap their commands in `op run` automatically:
+
+```bash
+make up                    # starts simulator + otel-collector with resolved env
+make setup                 # deploys assets
+make teardown              # tears them down
+make ui                    # runs the local web UI
+```
+
+If you bypass the Makefile and invoke `docker compose` or `dd-demo` directly, the compose files will fail-fast with a clear "DD_API_KEY not set — run via `make ...`" message rather than silently misbehaving.
+
+### Adding a new secret to the toolkit
+
+When a future phase needs another credential (e.g. a Slack webhook token, a Pagerduty key):
+
+1. Add the field to your existing `Datadog` 1Password item (or a new dedicated item — your choice). Label it consistently with the others (lowercase, hyphenated).
+2. Add the `op://...` reference to `.env.template` so other users know it exists.
+3. Add the key name to `dd_demo_toolkit_ui/env_manager.MANAGED_KEYS`. If it's a credential (not just an identifier), also add it to `SECRET_KEYS` so the UI rejects plain values.
+4. Wire it into wherever it's consumed (Python code reading `os.environ["..."]`, or compose.yaml `environment:`).
+
+The reference-vs-value pattern stays the same; you never persist a plain secret to disk.
+
+### Other secret stores (Vault, Keychain)
+
+The toolkit doesn't ship paved-road support for Vault or macOS Keychain — Vault users can write their own wrapper command (anything that exports `DD_API_KEY` / `DD_APP_KEY` in the shell before invoking `make` or `docker compose` works). Keychain is least recommended per the corp guide because its access control is silent.
+
+---
+
 ## Quick Start
 
 ### 1. Clone and Configure
@@ -31,13 +218,15 @@ Each vertical is a complete simulation:
 git clone <repo-url> dd-demo-toolkit
 cd dd-demo-toolkit
 
-# Copy and configure environment
+# Copy the template — it already references your Datadog keys via op://
 cp .env.template .env
-# Edit .env with your Datadog credentials:
-#   DD_API_KEY=<your-api-key>
-#   DD_APP_KEY=<your-app-key>
-#   DD_SITE=datadoghq.com (or datadoghq.eu, etc.)
+
+# If your 1Password vault/item is named differently than Employee/Datadog,
+# edit the op:// lines in .env. Otherwise leave them alone — the real
+# secrets stay in 1Password, not in this file.
 ```
+
+If you haven't yet set up your 1Password item for Datadog credentials, do that **first** — see [§ Handling secrets](#handling-secrets) above. Without it, the `op run` wrapper in every `make` target won't have anything to resolve.
 
 ### 2. Deploy Resources + Start Simulator (Docker or Colima)
 
