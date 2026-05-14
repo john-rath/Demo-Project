@@ -22,6 +22,31 @@ Each vertical is a complete simulation:
 
 ---
 
+## Web UI (optional)
+
+Don't want to hand-edit `.env`? Run the local web UI:
+
+```bash
+cd dd-demo-toolkit/
+make ui-install          # one-time: python3.13 venv + UI deps
+make ui                  # serves http://127.0.0.1:8765
+```
+
+Open **http://127.0.0.1:8765** in your browser. The UI today lets you:
+
+- Pick the vertical and (optional) sub-vertical overlay from dropdowns
+- Enter Datadog credentials, with a **Test connection** button that validates both API and APP keys before saving
+- Set `EMIT_INTERVAL`, `DISPLAY_NAME`, OTel endpoint/protocol
+- Save to `.env` (written at file mode `0o600`, refuses to write if `.env` isn't gitignored)
+
+Coming in later phases: start/stop the simulator from the browser, deploy/teardown assets, tune throughput and volume curves, scaffold new sub-vertical overlays.
+
+The UI is a thin wrapper — `.env` and the `verticals/` YAML files on disk remain the source of truth, and everything the UI does maps to a CLI command you could run by hand. See [`dd-demo-toolkit/dd_demo_toolkit_ui/README.md`](dd-demo-toolkit/dd_demo_toolkit_ui/README.md) for architecture, endpoint reference, and how to run the test suite.
+
+> The UI binds to `127.0.0.1` only and has no auth — single-user local tool, not a hosted service. Don't expose it on a non-loopback interface without reading the safety notes in the module README.
+
+---
+
 ## Quick Start
 
 ### 1. Clone and Configure
