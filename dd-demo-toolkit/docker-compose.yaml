@@ -10,10 +10,16 @@ services:
       - "13133:13133"
     volumes:
       - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
-    env_file:
-      - .env
+    # IMPORTANT: do NOT use env_file: for DD_API_KEY here. If .env holds
+    # the value as an op:// reference (corp policy), env_file would inject
+    # the literal "op://..." string into the container — the collector
+    # would then try to use that as the API key and fail. Instead we read
+    # from the compose shell environment via ${DD_API_KEY:?...}, which is
+    # populated by `op run --env-file=.env --` (Makefile targets do this).
+    # The :? expansion gives a clear failure if you bypass the Makefile
+    # and forget to wrap docker compose in op run yourself.
     environment:
-      - DD_API_KEY=${DD_API_KEY}
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up`, or wrap with `op run --env-file=.env -- docker compose ...`}
       - DD_SITE=${DD_SITE:-datadoghq.com}
       - GOGC=80
 
@@ -48,10 +54,17 @@ services:
     # cases are deployed on top of the base vertical's resources. The
     # ${VAR:+...} expansion only adds the flag when the var is non-empty.
     command: ['dd-demo setup --vertical "$$DD_DEMO_VERTICAL" --clean $${DD_DEMO_SUB_VERTICAL:+--sub-vertical "$$DD_DEMO_SUB_VERTICAL"}']
+    # `env_file` injects non-secret config from .env into the container.
+    # The :? overrides below pull DD_API_KEY / DD_APP_KEY from the compose
+    # shell env (populated by `op run`), so the op:// reference in .env
+    # never reaches the container as a literal — see otel-collector for
+    # the full rationale.
     env_file:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make setup`}
+      - DD_APP_KEY=${DD_APP_KEY:?DD_APP_KEY not set — run via `make setup`}
     restart: "no"
     profiles:
       - setup
@@ -70,6 +83,8 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make teardown`}
+      - DD_APP_KEY=${DD_APP_KEY:?DD_APP_KEY not set — run via `make teardown`}
     restart: "no"
     profiles:
       - teardown
@@ -88,6 +103,8 @@ services:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make teardown-all`}
+      - DD_APP_KEY=${DD_APP_KEY:?DD_APP_KEY not set — run via `make teardown-all`}
     restart: "no"
     profiles:
       - teardown-all

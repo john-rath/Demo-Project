@@ -47,6 +47,57 @@ The UI is a thin wrapper — `.env` and the `verticals/` YAML files on disk rema
 
 ---
 
+## Handling secrets
+
+**Corp policy: Datadog API and APP keys must not live in `.env` as plain text.** They belong in 1Password (recommended), Vault, or the macOS Keychain, and are resolved into short-lived process env vars at command invocation. The full guide is internal — short version below.
+
+### How it works in this repo
+
+```
+1Password           .env on disk                       process env at runtime
+(real secret)  →    DD_API_KEY=op://Employee/...   →   DD_API_KEY=<resolved>
+                    (a reference, not a secret)        (short-lived; one process)
+```
+
+`.env` holds `op://<vault>/<item>/<field>` **references**, not secrets. When you run any toolkit command via the `Makefile`, it wraps the underlying invocation in `op run --env-file=.env -- <cmd>`. The 1Password CLI substitutes references into env vars for the child process and nothing else. The resolved value never lands on disk and stops existing the moment the process exits.
+
+### One-time setup
+
+```bash
+brew install --cask 1password-cli      # install the op CLI
+eval "$(op signin)"                    # sign in once
+make check-op                          # verify install + auth
+```
+
+### Migrating an existing plain-text `.env`
+
+If your current `.env` has real API keys pasted in (most do today):
+
+```bash
+make migrate-secrets                   # prints step-by-step migration
+```
+
+The target prints the exact `op item create` invocation, the new `.env` lines to substitute in, and a verification command. After migrating, **revoke the old API key in Datadog** if it ever lived outside 1Password (shell history, old backups, draft commits).
+
+### Daily use
+
+All the Make targets wrap their commands in `op run` automatically:
+
+```bash
+make up                    # starts simulator + otel-collector with resolved env
+make setup                 # deploys assets
+make teardown              # tears them down
+make ui                    # runs the local web UI
+```
+
+If you bypass the Makefile and invoke `docker compose` or `dd-demo` directly, the compose files will fail-fast with a clear "DD_API_KEY not set — run via `make ...`" message rather than silently misbehaving.
+
+### Other secret stores (Vault, Keychain)
+
+The toolkit doesn't ship paved-road support for Vault or macOS Keychain — Vault users can write their own wrapper command (anything that exports `DD_API_KEY` / `DD_APP_KEY` in the shell before invoking `make` or `docker compose` works). Keychain is least recommended per the corp guide because its access control is silent.
+
+---
+
 ## Quick Start
 
 ### 1. Clone and Configure
