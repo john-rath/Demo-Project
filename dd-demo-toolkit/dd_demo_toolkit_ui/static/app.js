@@ -51,6 +51,21 @@
     nonCompliant: [],         // SECRET_KEYS still holding plain values on disk
     apiKeyDirty: false,       // true once the user types in the API key field
     appKeyDirty: false,
+    activeTab: "configure",   // configure | simulator | deploy
+    // Per-process status snapshots (refreshed via polling + status updates
+    // returned from start/stop). Keyed by logical name.
+    processes: {
+      "simulator":    { state: "idle", pid: null, started_at: null, uptime_seconds: null, exit_code: null, last_error: null },
+      "setup":        { state: "idle", pid: null, started_at: null, uptime_seconds: null, exit_code: null, last_error: null },
+      "teardown":     { state: "idle", pid: null, started_at: null, uptime_seconds: null, exit_code: null, last_error: null },
+      "teardown-all": { state: "idle", pid: null, started_at: null, uptime_seconds: null, exit_code: null, last_error: null },
+    },
+    // Active EventSource by process name (so we can close on tab switch /
+    // restart and avoid leaks). One per process.
+    logStreams: {},
+    // Which process the Deploy tab's log pane is currently showing (most
+    // recently started among setup/teardown/teardown-all).
+    deployLogSource: null,
   };
 
   // ----- HTTP helpers ------------------------------------------------------
@@ -221,6 +236,244 @@
     }
   }
 
+  // ============================================================================
+  // Tabs
+  // ============================================================================
+
+  function switchTab(name) {
+    store.activeTab = name;
+    document.querySelectorAll(".tab").forEach((b) => {
+      b.classList.toggle("active", b.dataset.tab === name);
+    });
+    document.querySelectorAll(".tab-panel").forEach((p) => {
+      p.hidden = p.dataset.tabPanel !== name;
+    });
+    // Refresh deploy summary when we land on that tab.
+    if (name === "deploy") {
+      renderDeploySummary();
+    }
+  }
+
+  // ============================================================================
+  // Process control: shared start/stop/status for simulator + deploy tabs.
+  // ============================================================================
+
+  // Map logical process → which log pane to write its lines into.
+  // Simulator gets its own pane; setup/teardown/teardown-all share the
+  // deploy pane (whichever was most recently started).
+  function paneForProcess(name) {
+    if (name === "simulator") {
+      return document.querySelector('[data-log-pane="simulator"]');
+    }
+    return document.querySelector('[data-log-pane="deploy"]');
+  }
+  function autoscrollCheckboxFor(name) {
+    if (name === "simulator") return document.querySelector("#sim-autoscroll");
+    return document.querySelector("#deploy-autoscroll");
+  }
+  function logSourceLabelFor(name) {
+    // Returns the .log-source span next to whichever pane this process owns.
+    const pane = paneForProcess(name);
+    return pane.closest(".card-log").querySelector(".log-source");
+  }
+
+  function renderProcessRow(name) {
+    const row = document.querySelector(`.process-row[data-process="${name}"]`);
+    if (!row) return;
+    const s = store.processes[name];
+    const pill = row.querySelector(".status-pill");
+    const uptimeEl = row.querySelector(".process-uptime");
+    const startBtn = row.querySelector('[data-action="start"]');
+    const stopBtn = row.querySelector('[data-action="stop"]');
+
+    // Pill: special "exited-error" state if the last run failed.
+    let pillState = s.state;
+    if (s.state === "exited" && s.exit_code != null && s.exit_code !== 0) {
+      pillState = "exited-error";
+    }
+    pill.dataset.state = pillState;
+    pill.textContent = s.state === "exited" && s.exit_code != null
+      ? `exited ${s.exit_code}`
+      : s.state;
+
+    // Uptime / last-error annotation.
+    if (s.state === "running" || s.state === "stopping") {
+      uptimeEl.textContent = formatDuration(s.uptime_seconds);
+    } else if (s.state === "exited") {
+      uptimeEl.textContent = s.last_error ? `(${s.last_error})` : "";
+    } else {
+      uptimeEl.textContent = "";
+    }
+
+    // Button enablement reflects state — UI shouldn't let you click
+    // "Start" on a running process or "Stop" on an idle one. Backend
+    // enforces the same with 409s as the backstop.
+    startBtn.disabled = (s.state === "running" || s.state === "stopping");
+    stopBtn.disabled = !(s.state === "running" || s.state === "stopping");
+  }
+
+  function renderAllProcessRows() {
+    Object.keys(store.processes).forEach(renderProcessRow);
+  }
+
+  function formatDuration(seconds) {
+    if (seconds == null) return "";
+    const s = Math.floor(seconds);
+    const m = Math.floor(s / 60);
+    const rs = s % 60;
+    if (m === 0) return `${rs}s`;
+    const h = Math.floor(m / 60);
+    const rm = m % 60;
+    if (h === 0) return `${m}m ${rs}s`;
+    return `${h}h ${rm}m ${rs}s`;
+  }
+
+  // Per-line classification for the log pane. Keep it cheap; called on
+  // every line, possibly hundreds per second from compose during demo
+  // chaos.
+  function classifyLine(line) {
+    const l = line.toLowerCase();
+    if (l.includes("error") || l.includes(" 4") && /\b40[0-9]\b/.test(l) || l.includes("traceback")) return "err";
+    if (l.includes("warn")) return "warn";
+    if (l.startsWith("dd-demo-") && l.includes("|")) return "info";  // docker compose prefix
+    return "";
+  }
+
+  function appendLogLine(pane, line) {
+    const div = document.createElement("div");
+    div.className = "log-line";
+    const cls = classifyLine(line);
+    if (cls) div.classList.add(cls);
+    div.textContent = line;
+    pane.appendChild(div);
+
+    // Cap the pane at ~5000 lines to match the server-side buffer; older
+    // lines fall off the top. Keeps the DOM from getting huge during long
+    // simulator runs.
+    while (pane.children.length > 5000) pane.removeChild(pane.firstChild);
+  }
+
+  function maybeAutoscroll(pane, name) {
+    const checkbox = autoscrollCheckboxFor(name);
+    if (checkbox && checkbox.checked) {
+      pane.scrollTop = pane.scrollHeight;
+    }
+  }
+
+  // Open an EventSource for the named process; route lines to the right
+  // pane; auto-close when the server emits `event: end`.
+  function startLogStream(name) {
+    // Close any existing stream first (e.g. user clicked Start twice
+    // very quickly).
+    stopLogStream(name);
+
+    const pane = paneForProcess(name);
+    const sourceLabel = logSourceLabelFor(name);
+    sourceLabel.textContent = name;
+
+    const es = new EventSource(`/api/processes/${name}/logs`);
+    store.logStreams[name] = es;
+
+    es.onmessage = (e) => {
+      // The server JSON-escapes embedded newlines/quotes; unescape.
+      const line = e.data
+        .replace(/\\n/g, "\n")
+        .replace(/\\r/g, "")
+        .replace(/\\\\/g, "\\");
+      appendLogLine(pane, line);
+      maybeAutoscroll(pane, name);
+    };
+
+    es.addEventListener("end", () => {
+      stopLogStream(name);
+      // Refresh status now that the process exited.
+      refreshProcess(name);
+    });
+
+    es.onerror = () => {
+      // EventSource will normally auto-reconnect on transport error.
+      // For our purposes (the server cleanly closes on EOF) any error
+      // post-EOF is harmless; we just close. Pre-EOF errors mean network
+      // is broken; we close so the user can manually retry.
+      stopLogStream(name);
+    };
+  }
+
+  function stopLogStream(name) {
+    const es = store.logStreams[name];
+    if (es) {
+      es.close();
+      delete store.logStreams[name];
+    }
+  }
+
+  function clearLogPane(target) {
+    // target = "simulator" | "deploy"
+    const pane = document.querySelector(`[data-log-pane="${target}"]`);
+    if (pane) pane.innerHTML = "";
+  }
+
+  async function refreshProcess(name) {
+    try {
+      const s = await getJSON(`/api/processes/${name}/status`);
+      store.processes[name] = s;
+      renderProcessRow(name);
+    } catch (e) {
+      console.error("status refresh failed for", name, e);
+    }
+  }
+
+  async function refreshAllProcesses() {
+    try {
+      const list = await getJSON("/api/processes");
+      for (const s of list) store.processes[s.name] = s;
+      renderAllProcessRows();
+    } catch (e) {
+      // 503 (supervisor disabled) is expected in some test configs; don't
+      // shout in those cases.
+      if (!/503/.test(e.message)) {
+        console.error("processes refresh failed", e);
+      }
+    }
+  }
+
+  async function onProcessStart(name) {
+    try {
+      const s = await postJSON(`/api/processes/${name}/start`, {});
+      store.processes[name] = s;
+      renderProcessRow(name);
+      // Clear the pane so users don't see stale output mixed with new.
+      const pane = paneForProcess(name);
+      pane.innerHTML = "";
+      startLogStream(name);
+      // For deploy-tab processes, mark this as the source the pane is showing.
+      if (name !== "simulator") store.deployLogSource = name;
+    } catch (e) {
+      alert(`Failed to start ${name}:\n\n${e.message}`);
+    }
+  }
+
+  async function onProcessStop(name) {
+    try {
+      const s = await postJSON(`/api/processes/${name}/stop`, {});
+      store.processes[name] = s;
+      renderProcessRow(name);
+    } catch (e) {
+      alert(`Failed to stop ${name}:\n\n${e.message}`);
+    }
+  }
+
+  // ============================================================================
+  // Deploy summary (read-only view of which vertical/overlay actions apply to)
+  // ============================================================================
+
+  function renderDeploySummary() {
+    const v = document.querySelector("#deploy-vertical");
+    const o = document.querySelector("#deploy-overlay");
+    if (v) v.textContent = store.env.DD_DEMO_VERTICAL || "(unset)";
+    if (o) o.textContent = store.env.DD_DEMO_SUB_VERTICAL || "(none)";
+  }
+
   // ----- Wire-up & init ----------------------------------------------------
   function wire() {
     els.selectVertical.addEventListener("change", renderOverlays);
@@ -228,6 +481,42 @@
     els.inputAppKey.addEventListener("input", () => { store.appKeyDirty = true; });
     els.btnSave.addEventListener("click", onSave);
     els.btnTest.addEventListener("click", onTest);
+
+    // Tabs.
+    document.querySelectorAll(".tab").forEach((btn) => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+
+    // Process start/stop buttons. Delegate from each process-row.
+    document.querySelectorAll(".process-row").forEach((row) => {
+      const name = row.dataset.process;
+      row.querySelector('[data-action="start"]').addEventListener("click", async () => {
+        // Some buttons (teardown-all) want a typed confirmation before firing.
+        const btn = row.querySelector('[data-action="start"]');
+        const confirmMsg = btn.dataset.confirm;
+        if (confirmMsg) {
+          const answer = window.prompt(confirmMsg, "");
+          if ((answer || "").toLowerCase() !== "yes") return;
+        }
+        await onProcessStart(name);
+      });
+      row.querySelector('[data-action="stop"]').addEventListener("click", () => onProcessStop(name));
+    });
+
+    // "Clear" buttons in log toolbars.
+    document.querySelectorAll('[data-log-action="clear"]').forEach((b) => {
+      b.addEventListener("click", () => clearLogPane(b.dataset.logTarget));
+    });
+
+    // Periodic status refresh while any process is running. 2s cadence
+    // is plenty for uptime display; live state changes still flow via
+    // start/stop responses and the SSE `end` event.
+    setInterval(() => {
+      const anyRunning = Object.values(store.processes).some(
+        (p) => p.state === "running" || p.state === "stopping"
+      );
+      if (anyRunning) refreshAllProcesses();
+    }, 2000);
   }
 
   async function init() {
@@ -266,6 +555,10 @@
     renderVerticals();
     renderEnvFields();
     renderBanner();
+    renderDeploySummary();
+
+    // Process status — non-fatal if supervisor is disabled (503).
+    await refreshAllProcesses();
   }
 
   init();
