@@ -331,11 +331,33 @@
   // Per-line classification for the log pane. Keep it cheap; called on
   // every line, possibly hundreds per second from compose during demo
   // chaos.
+  //
+  // The classifier looks for log-level TOKENS, not free-text substrings.
+  // A line that contains the word "error" as part of a sentence (e.g.
+  // "Transient error encountered while ... retrying") is NOT classified
+  // as an error — the log-level is the WARNING that precedes the message,
+  // not the noun "error" inside it. Word-bounded ALL CAPS (Python's
+  // standard logging format) and tab-delimited lowercase (OTel collector
+  // format) are the two we trust.
+  //
+  // Python `logging` conventions (used by the simulator):
+  //     2026-05-14 19:48 - service.foo - ERROR   - <message>
+  //     2026-05-14 19:48 - service.foo - WARNING - <message containing "error">
+  //
+  // OTel collector zap format:
+  //     2026-05-14T19:48:42Z\terror\tprovider/provider.go\t<message>
+  //     2026-05-14T19:48:42Z\twarn\tagentcomponents/zaplogger.go\t<message>
+  //
+  // status=5XX is a strong signal of a real server-side error even when
+  // the surrounding line is at INFO level (simulator's chaos injections
+  // log INFO lines that include status=500). Same for 4XX → warn.
   function classifyLine(line) {
-    const l = line.toLowerCase();
-    if (l.includes("error") || l.includes(" 4") && /\b40[0-9]\b/.test(l) || l.includes("traceback")) return "err";
-    if (l.includes("warn")) return "warn";
-    if (l.startsWith("dd-demo-") && l.includes("|")) return "info";  // docker compose prefix
+    if (/\bERROR\b/.test(line)) return "err";
+    if (/\bWARN(ING)?\b/.test(line)) return "warn";
+    if (/\terror\b/.test(line)) return "err";
+    if (/\twarn(ing)?\b/.test(line)) return "warn";
+    if (/\bstatus=5\d\d\b/.test(line)) return "err";
+    if (/\bstatus=4\d\d\b/.test(line)) return "warn";
     return "";
   }
 
