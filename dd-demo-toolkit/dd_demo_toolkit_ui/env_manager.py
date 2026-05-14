@@ -37,9 +37,20 @@ from typing import Dict, List, Optional, Tuple
 # "user cleared the field by accident → secret deleted" footgun.
 KEEP_EXISTING = "__DD_DEMO_UI_KEEP_EXISTING__"
 
-# Keys the UI considers secret. ``read_env(mask=True)`` will mask these;
-# writing them with ``KEEP_EXISTING`` preserves the on-disk value.
-SECRET_KEYS = frozenset({"DD_API_KEY", "DD_APP_KEY"})
+# Keys the UI considers secret. ``read_env(mask=True)`` will mask plain
+# values for these; writing them with ``KEEP_EXISTING`` preserves the
+# on-disk value; ``write_env`` rejects plain values for them (must be
+# an op:// reference or empty).
+#
+# DD_CLIENT_TOKEN: Datadog docs say "public" / safe to embed in client
+# code, but corp policy still requires vault storage. So we treat it
+# the same as DD_API_KEY: plain value → rejected.
+#
+# DD_RUM_APPLICATION_ID is intentionally NOT here — it's a UUID
+# identifier (literally shipped to every browser via the RUM init
+# snippet), not a secret. It's still in MANAGED_KEYS so the UI can
+# manage it; the user just isn't blocked from pasting a plain UUID.
+SECRET_KEYS = frozenset({"DD_API_KEY", "DD_APP_KEY", "DD_CLIENT_TOKEN"})
 
 # Keys the UI form manages. ``write_env()`` only touches these; everything
 # else in the file is preserved verbatim. Adding a knob to the UI means
@@ -47,6 +58,8 @@ SECRET_KEYS = frozenset({"DD_API_KEY", "DD_APP_KEY"})
 MANAGED_KEYS = frozenset({
     "DD_API_KEY",
     "DD_APP_KEY",
+    "DD_CLIENT_TOKEN",          # RUM browser SDK (secret per corp policy)
+    "DD_RUM_APPLICATION_ID",    # RUM app UUID (not a secret, but managed)
     "DD_SITE",
     "DD_DEMO_VERTICAL",
     "DD_DEMO_SUB_VERTICAL",

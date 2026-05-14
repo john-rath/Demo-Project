@@ -237,6 +237,25 @@ def test_write_env_rejects_plain_secret(tmp_path):
         em.write_env(p, {"DD_API_KEY": "d65822a9c0570cb0aed44796c47cccdb"})
 
 
+def test_write_env_rejects_plain_client_token(tmp_path):
+    """DD_CLIENT_TOKEN is a SECRET_KEY too — corp policy treats it as
+    vault-required even though Datadog docs call it 'public'."""
+    repo = _make_repo(tmp_path)
+    p = repo / ".env"
+    with pytest.raises(em.PlainSecretRejected, match="op://"):
+        em.write_env(p, {"DD_CLIENT_TOKEN": "pub1234567890abcdef"})
+
+
+def test_write_env_accepts_plain_rum_application_id(tmp_path):
+    """DD_RUM_APPLICATION_ID is a UUID identifier (literally shipped to
+    every browser) — not a secret. Plain UUIDs must pass write_env."""
+    repo = _make_repo(tmp_path)
+    p = repo / ".env"
+    em.write_env(p, {"DD_RUM_APPLICATION_ID": "abc12345-6789-0def-1234-56789abcdef0"})
+    assert em.read_env(p, mask=False)["DD_RUM_APPLICATION_ID"] == \
+        "abc12345-6789-0def-1234-56789abcdef0"
+
+
 def test_write_env_accepts_op_reference(tmp_path):
     repo = _make_repo(tmp_path)
     p = repo / ".env"
