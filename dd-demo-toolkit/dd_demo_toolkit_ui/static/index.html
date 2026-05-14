@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>dd-demo-toolkit UI</title>
+  <link rel="stylesheet" href="/app.css" />
+</head>
+<body>
+  <header>
+    <h1>dd-demo-toolkit <span class="muted">visual layer</span></h1>
+    <div id="health" class="health-pill" data-state="unknown">checking&hellip;</div>
+  </header>
+
+  <main>
+    <!--
+      Phase 1 lays down a single-page form. Phase 2 adds tabs for "Run
+      simulator" and "Deploy assets". The CSS is structured so each
+      <section class="card"> here can later become a tab panel without
+      restyling.
+    -->
+    <section class="card" id="card-vertical">
+      <h2>Vertical &amp; overlay</h2>
+      <p class="muted">
+        The vertical chooses the demo scenario (devices, services, plugins).
+        Optional overlay layers customer-specific gear on top — e.g.
+        <code>bd</code> on top of <code>healthcare</code>.
+      </p>
+      <div class="row">
+        <label>
+          Vertical
+          <select id="select-vertical"><option>loading&hellip;</option></select>
+        </label>
+        <label>
+          Sub-vertical (overlay)
+          <select id="select-overlay"><option value="">— none —</option></select>
+        </label>
+      </div>
+    </section>
+
+    <section class="card" id="card-creds">
+      <h2>Datadog credentials</h2>
+      <p class="muted">
+        Required to deploy assets and validate the simulator's OTel sink.
+        Keys are written to <code id="env-path-display">.env</code> at file mode
+        <code>0o600</code>. The UI checks <code>.gitignore</code> first and
+        refuses to write if <code>.env</code> isn't covered.
+      </p>
+      <div class="row">
+        <label>
+          DD_SITE
+          <select id="select-site"><option>loading&hellip;</option></select>
+        </label>
+        <label>
+          DD_API_KEY
+          <input type="password" id="input-api-key" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>
+          DD_APP_KEY
+          <input type="password" id="input-app-key" autocomplete="off" spellcheck="false" />
+        </label>
+      </div>
+      <div class="row">
+        <button id="btn-test" type="button">Test connection</button>
+        <span id="test-result" class="muted"></span>
+      </div>
+    </section>
+
+    <section class="card" id="card-simulator">
+      <h2>Simulator settings</h2>
+      <div class="row">
+        <label>
+          DISPLAY_NAME
+          <input type="text" id="input-display-name" placeholder="optional" />
+        </label>
+        <label>
+          EMIT_INTERVAL (seconds)
+          <input type="number" id="input-emit-interval" min="1" step="1" placeholder="15" />
+        </label>
+      </div>
+      <div class="row">
+        <label>
+          OTEL_EXPORTER_OTLP_ENDPOINT
+          <input type="text" id="input-otel-endpoint" placeholder="localhost:4317" />
+        </label>
+        <label>
+          OTEL_EXPORTER_OTLP_PROTOCOL
+          <select id="select-otel-protocol">
+            <option value="">— unset —</option>
+            <option value="grpc">grpc</option>
+            <option value="http/protobuf">http/protobuf</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button id="btn-save" type="button" class="primary">Save to .env</button>
+      <span id="save-result" class="muted"></span>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

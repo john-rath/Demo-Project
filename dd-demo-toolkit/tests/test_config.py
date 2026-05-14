@@ -5,7 +5,7 @@ Tests for vertical configuration loading and validation.
 import pytest
 import yaml
 from pathlib import Path
-from dd_demo_toolkit.config import ConfigLoader, ConfigValidator
+from dd_demo_toolkit.config import ConfigLoader, ConfigError
 
 
 class TestConfigLoading:
@@ -105,9 +105,8 @@ class TestConfigValidation:
                 config_name == vertical_name
             ), f"Config name {config_name} doesn't match directory {vertical_name}"
 
-    def test_config_validation_catches_missing_fields(self):
-        """Test that validator catches missing required fields."""
-        # Create invalid config (missing device count)
+    def test_config_validation_catches_missing_fields(self, tmp_path):
+        """Test that load_vertical catches missing required fields."""
         invalid_config = {
             "vertical": {
                 "name": "test",
@@ -120,20 +119,22 @@ class TestConfigValidation:
                     "devices": [
                         {
                             "type": "test_device",
-                            # Missing 'count' field
                             "manufacturer": "Test",
                         }
                     ]
                 }
             },
             "locations": {"dimensions": []},
+            # Missing top-level 'services' field
         }
 
-        validator = ConfigValidator()
-        errors = validator.validate(invalid_config)
-        assert (
-            len(errors) > 0
-        ), "Validator should catch missing required fields"
+        vertical_dir = tmp_path / "test"
+        vertical_dir.mkdir()
+        (vertical_dir / "config.yaml").write_text(yaml.safe_dump(invalid_config))
+
+        loader = ConfigLoader(verticals_dir=str(tmp_path))
+        with pytest.raises(ConfigError):
+            loader.load_vertical("test")
 
     def test_display_name_not_empty(self):
         """Test that all verticals have non-empty display names."""
