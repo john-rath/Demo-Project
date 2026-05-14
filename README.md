@@ -1080,7 +1080,7 @@ For production use, compress OpenTelemetry data and batch requests in the collec
 
 ## License
 
-[Your License Here]
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ---
 
