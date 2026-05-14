@@ -9,12 +9,17 @@ UI's user-facing error strings come from.
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
-from dd_demo_toolkit_ui.dd_validator import ValidationResult, validate_credentials
+from dd_demo_toolkit_ui.dd_validator import (
+    ReferenceResolutionError,
+    ValidationResult,
+    resolve_secret_reference,
+    validate_credentials,
+)
 
 
 class _FakeResponse:
@@ -88,3 +93,65 @@ def test_network_error_returns_helpful_message():
         r = validate_credentials("api", "app", "datadoghq.com")
     assert r.ok is False
     assert "Could not reach" in r.error
+
+
+# ----- resolve_secret_reference --------------------------------------------
+
+
+def test_resolve_secret_reference_plain_value_is_pass_through():
+    """Non-reference strings are returned unchanged. This is what makes
+    the validator work for both pre- and post-migration callers without
+    branching at the call site."""
+    assert resolve_secret_reference("plainvalue123") == "plainvalue123"
+    assert resolve_secret_reference("") == ""
+
+
+def test_resolve_op_reference_happy_path():
+    """`op read <ref>` returns the secret on stdout; we strip and return it."""
+    fake = MagicMock(returncode=0, stdout="resolved-secret-1234\n", stderr="")
+    with patch("dd_demo_toolkit_ui.dd_validator.shutil.which", return_value="/usr/local/bin/op"), \
+         patch("dd_demo_toolkit_ui.dd_validator.subprocess.run", return_value=fake) as p:
+        out = resolve_secret_reference("op://Employee/Datadog/api-key")
+    assert out == "resolved-secret-1234"
+    # Verify the command shape — we want `op read <ref>` exactly, no shell
+    # interpolation, with the reference as a single argv element.
+    args, kwargs = p.call_args
+    assert args[0] == ["op", "read", "op://Employee/Datadog/api-key"]
+
+
+def test_resolve_op_reference_missing_op_cli():
+    with patch("dd_demo_toolkit_ui.dd_validator.shutil.which", return_value=None):
+        with pytest.raises(ReferenceResolutionError, match="1Password CLI"):
+            resolve_secret_reference("op://Employee/Datadog/api-key")
+
+
+def test_resolve_op_reference_op_fails():
+    fake = MagicMock(returncode=1, stdout="", stderr="not signed in\n")
+    with patch("dd_demo_toolkit_ui.dd_validator.shutil.which", return_value="/x/op"), \
+         patch("dd_demo_toolkit_ui.dd_validator.subprocess.run", return_value=fake):
+        with pytest.raises(ReferenceResolutionError, match="not signed in"):
+            resolve_secret_reference("op://Employee/Datadog/api-key")
+
+
+def test_resolve_op_reference_empty_output():
+    """An item with a missing/empty field is a real-world failure mode —
+    `op read` returns success with no stdout. Distinct error message
+    so users can debug their vault path."""
+    fake = MagicMock(returncode=0, stdout="\n", stderr="")
+    with patch("dd_demo_toolkit_ui.dd_validator.shutil.which", return_value="/x/op"), \
+         patch("dd_demo_toolkit_ui.dd_validator.subprocess.run", return_value=fake):
+        with pytest.raises(ReferenceResolutionError, match="empty value"):
+            resolve_secret_reference("op://Employee/Datadog/api-key")
+
+
+def test_resolve_vault_reference_not_implemented():
+    """We recognize vault: refs so they round-trip in env_manager, but
+    the UI doesn't auto-resolve them — explicit error tells users to
+    wrap their own commands instead."""
+    with pytest.raises(ReferenceResolutionError, match="vault references"):
+        resolve_secret_reference("vault:secret/dd/api_key")
+
+
+def test_resolve_keychain_reference_not_implemented():
+    with pytest.raises(ReferenceResolutionError, match="keychain references"):
+        resolve_secret_reference("keychain://dd_api_key")

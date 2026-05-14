@@ -19,6 +19,22 @@
       <section class="card"> here can later become a tab panel without
       restyling.
     -->
+
+    <!--
+      Migration banner. Hidden by default; shown when GET /api/env returns
+      non_compliant_secret_keys with one or more entries. The list is filled
+      in by app.js when the page loads.
+    -->
+    <section class="card banner-warn" id="banner-noncompliant" hidden>
+      <h2>Plain secrets detected in .env</h2>
+      <p>
+        Your <code>.env</code> still holds plain Datadog keys for
+        <span id="noncompliant-keys"></span>. Corp policy: secrets live in
+        1Password, not on disk. Run <code>make migrate-secrets</code> in
+        your terminal for step-by-step migration instructions.
+      </p>
+    </section>
+
     <section class="card" id="card-vertical">
       <h2>Vertical &amp; overlay</h2>
       <p class="muted">
@@ -41,10 +57,11 @@
     <section class="card" id="card-creds">
       <h2>Datadog credentials</h2>
       <p class="muted">
-        Required to deploy assets and validate the simulator's OTel sink.
-        Keys are written to <code id="env-path-display">.env</code> at file mode
-        <code>0o600</code>. The UI checks <code>.gitignore</code> first and
-        refuses to write if <code>.env</code> isn't covered.
+        Enter <strong>1Password references</strong> for your keys, not the keys
+        themselves — corp policy. Format: <code>op://&lt;vault&gt;/&lt;item&gt;/&lt;field&gt;</code>.
+        References are written to <code id="env-path-display">.env</code> at
+        file mode <code>0o600</code>; <code>op run</code> resolves them at
+        command time. The save endpoint refuses plain keys.
       </p>
       <div class="row">
         <label>
@@ -53,11 +70,13 @@
         </label>
         <label>
           DD_API_KEY
-          <input type="password" id="input-api-key" autocomplete="off" spellcheck="false" />
+          <input type="text" id="input-api-key" autocomplete="off" spellcheck="false"
+                 placeholder="op://Employee/Datadog/api-key" />
         </label>
         <label>
           DD_APP_KEY
-          <input type="password" id="input-app-key" autocomplete="off" spellcheck="false" />
+          <input type="text" id="input-app-key" autocomplete="off" spellcheck="false"
+                 placeholder="op://Employee/Datadog/app-key" />
         </label>
       </div>
       <div class="row">

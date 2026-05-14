@@ -158,8 +158,8 @@ def test_write_env_fresh_file_has_no_blank_lines_between_keys(tmp_path):
     repo = _make_repo(tmp_path)
     p = repo / ".env"
     em.write_env(p, {
-        "DD_API_KEY": "abc",
-        "DD_APP_KEY": "def",
+        "DD_API_KEY": "op://Employee/Datadog/api-key",
+        "DD_APP_KEY": "op://Employee/Datadog/app-key",
         "DD_SITE": "datadoghq.com",
         "EMIT_INTERVAL": "15",
     })
@@ -202,6 +202,99 @@ def test_write_env_rejects_unmanaged_keys(tmp_path):
     p = repo / ".env"
     with pytest.raises(ValueError, match="unmanaged keys"):
         em.write_env(p, {"RANDOM_THING": "x"})
+
+
+# ----- secret-reference policy ----------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("op://Employee/Datadog/api-key", True),
+        ("op://Engineering/dd-team/api-key", True),
+        ("vault:secret/dd/api_key", True),
+        ("keychain://dd_api_key", True),
+        # Plain values — anything that doesn't start with a known scheme.
+        ("d65822a9c0570cb0aed44796c47cccdb", False),
+        ("your_api_key_here", False),
+        ("", False),
+        # Schemes with internal whitespace — must NOT be treated as a
+        # reference, otherwise a typo would sneak past the write check.
+        ("op:// Employee/Datadog/api-key", False),
+        ("op://Employee /Datadog/api-key", False),
+        # Wrong scheme prefix.
+        ("https://1password.com/...", False),
+    ],
+)
+def test_is_secret_reference(value, expected):
+    assert em.is_secret_reference(value) == expected
+
+
+def test_write_env_rejects_plain_secret(tmp_path):
+    repo = _make_repo(tmp_path)
+    p = repo / ".env"
+    with pytest.raises(em.PlainSecretRejected, match="op://Employee/Datadog/api-key"):
+        em.write_env(p, {"DD_API_KEY": "d65822a9c0570cb0aed44796c47cccdb"})
+
+
+def test_write_env_accepts_op_reference(tmp_path):
+    repo = _make_repo(tmp_path)
+    p = repo / ".env"
+    em.write_env(p, {"DD_API_KEY": "op://Employee/Datadog/api-key"})
+    assert em.read_env(p, mask=False)["DD_API_KEY"] == "op://Employee/Datadog/api-key"
+
+
+def test_write_env_accepts_keep_existing_for_secret(tmp_path):
+    """KEEP_EXISTING bypasses the plain-value check (it doesn't introduce
+    a new value at all)."""
+    repo = _make_repo(tmp_path)
+    p = repo / ".env"
+    p.write_text("DD_API_KEY=op://Employee/Datadog/api-key\n")
+    em.write_env(p, {"DD_API_KEY": em.KEEP_EXISTING, "DD_SITE": "datadoghq.eu"})
+    assert em.read_env(p, mask=False)["DD_API_KEY"] == "op://Employee/Datadog/api-key"
+
+
+def test_write_env_accepts_empty_for_secret(tmp_path):
+    """Empty string is allowed — user clearing the field to remove the key.
+    The plain-value check only fires on non-empty plain strings."""
+    repo = _make_repo(tmp_path)
+    p = repo / ".env"
+    em.write_env(p, {"DD_API_KEY": ""})  # must not raise
+
+
+def test_read_env_does_not_mask_op_references(tmp_path):
+    """References are addresses, not secrets — leaving them masked would
+    make them uneditable. Plain values still get masked (transitional)."""
+    p = tmp_path / ".env"
+    p.write_text(
+        "DD_API_KEY=op://Employee/Datadog/api-key\n"
+        "DD_APP_KEY=plain-old-app-key-1234\n"
+    )
+    out = em.read_env(p, mask=True)
+    assert out["DD_API_KEY"] == "op://Employee/Datadog/api-key"     # not masked
+    assert out["DD_APP_KEY"].endswith("1234")                       # masked
+    assert "plain" not in out["DD_APP_KEY"]
+
+
+def test_non_compliant_secret_keys(tmp_path):
+    p = tmp_path / ".env"
+    p.write_text(
+        "DD_API_KEY=op://Employee/Datadog/api-key\n"
+        "DD_APP_KEY=plain-old-app-key\n"
+    )
+    assert em.non_compliant_secret_keys(p) == ["DD_APP_KEY"]
+
+
+def test_non_compliant_returns_empty_when_all_references_or_unset(tmp_path):
+    p = tmp_path / ".env"
+    p.write_text(
+        "DD_API_KEY=op://Employee/Datadog/api-key\n"
+        "DD_APP_KEY=op://Employee/Datadog/app-key\n"
+    )
+    assert em.non_compliant_secret_keys(p) == []
+
+    # Missing file → empty list (nothing to migrate).
+    assert em.non_compliant_secret_keys(tmp_path / "nope.env") == []
 
 
 # ----- gitignore guard ------------------------------------------------------

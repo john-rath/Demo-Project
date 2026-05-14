@@ -20,6 +20,8 @@
   const els = {
     health: $("#health"),
     envPathDisplay: $("#env-path-display"),
+    banner: $("#banner-noncompliant"),
+    bannerKeys: $("#noncompliant-keys"),
     selectVertical: $("#select-vertical"),
     selectOverlay: $("#select-overlay"),
     selectSite: $("#select-site"),
@@ -40,10 +42,13 @@
 
   // Store: what we know about the world. The .env values here are the
   // *masked* versions returned by GET /api/env — never the cleartext.
+  // (Note: op:// references are NOT masked server-side; they're not
+  // secrets and the user needs to see them to edit.)
   const store = {
     verticals: [],            // [{name, display_name, overlays: [...]}]
     sites: [],
-    env: {},                  // masked
+    env: {},                  // masked plain values; references shown verbatim
+    nonCompliant: [],         // SECRET_KEYS still holding plain values on disk
     apiKeyDirty: false,       // true once the user types in the API key field
     appKeyDirty: false,
   };
@@ -122,8 +127,9 @@
   }
 
   function renderEnvFields() {
-    // Secrets: show masked value if present; track "dirty" so we know
-    // whether to send KEEP_EXISTING or the user's new value on save.
+    // For op:// references the server returns the literal value (not
+    // masked). For plain secrets (transitional, pre-migration) the server
+    // returns "*****abcd". Either way we drop it into the input as-is.
     els.inputApiKey.value = store.env.DD_API_KEY || "";
     els.inputAppKey.value = store.env.DD_APP_KEY || "";
     els.inputDisplayName.value = store.env.DISPLAY_NAME || "";
@@ -132,6 +138,15 @@
     els.selectOtelProtocol.value = store.env.OTEL_EXPORTER_OTLP_PROTOCOL || "";
     store.apiKeyDirty = false;
     store.appKeyDirty = false;
+  }
+
+  function renderBanner() {
+    if (store.nonCompliant.length === 0) {
+      els.banner.hidden = true;
+      return;
+    }
+    els.banner.hidden = false;
+    els.bannerKeys.textContent = store.nonCompliant.join(", ");
   }
 
   function setResult(el, msg, kind /* "ok" | "err" | "warn" | "" */) {
@@ -164,12 +179,18 @@
     setResult(els.saveResult, "saving…", "");
     els.btnSave.disabled = true;
     try {
-      const masked = await postJSON("/api/env", collectEnvPayload());
-      store.env = masked;
+      const body = await postJSON("/api/env", collectEnvPayload());
+      store.env = body.values || {};
+      store.nonCompliant = body.non_compliant_secret_keys || [];
       renderEnvFields();
+      renderBanner();
       setResult(els.saveResult, "saved to .env", "ok");
     } catch (e) {
-      setResult(els.saveResult, e.message, "err");
+      // PlainSecretRejected returns 400 with a long message — show the
+      // first sentence inline; full message stays available via console.
+      const first = (e.message || "").split(".")[0] + ".";
+      console.error("save failed:", e.message);
+      setResult(els.saveResult, first, "err");
     } finally {
       els.btnSave.disabled = false;
     }
@@ -233,7 +254,8 @@
       ]);
       store.verticals = verticals;
       store.sites = sites;
-      store.env = env;
+      store.env = env.values || {};
+      store.nonCompliant = env.non_compliant_secret_keys || [];
     } catch (e) {
       els.health.textContent = `load error: ${e.message}`;
       els.health.dataset.state = "err";
@@ -243,6 +265,7 @@
     renderSites();
     renderVerticals();
     renderEnvFields();
+    renderBanner();
   }
 
   init();

@@ -62,6 +62,62 @@ MANAGED_KEYS = frozenset({
 # (comments, blank lines, line continuations, etc.).
 _ENV_LINE_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$")
 
+# Secret-store reference schemes the UI accepts in place of a plain key.
+# Anything matching is treated as a reference (not a secret itself): not
+# masked on display, allowed on write, and resolved at use time (e.g.
+# the "Test connection" button shells out to `op read`).
+#
+# Supported today:
+#   op://<vault>/<item>/<field>   — 1Password CLI (resolution implemented)
+#   vault:<path>                  — HashiCorp Vault (recognized but the
+#                                    UI doesn't auto-resolve; users wrap
+#                                    their own commands)
+#   keychain://<service>          — macOS Keychain (recognized; same)
+#
+# The pattern is intentionally strict — a value containing whitespace or
+# any character outside the URI-ish set is treated as a plain value and
+# will be rejected on write for SECRET_KEYS. That matters because a
+# typo like `op://Employee /Datadog/api-key` (note the space) would
+# otherwise sneak past as a reference and silently fail to resolve.
+_REFERENCE_RE = re.compile(r"^(op://|vault:|keychain://)[\w\-./:?=#@&%+]+$")
+
+
+class PlainSecretRejected(ValueError):
+    """Raised by ``write_env`` when a SECRET_KEY value is neither
+    ``KEEP_EXISTING`` nor a recognized secret-store reference.
+
+    The UI's POST /api/env handler converts this to a 400 with the
+    error message preserved so the user gets a clear "use op:// instead"
+    response, rather than a generic 500.
+    """
+
+
+def is_secret_reference(value: str) -> bool:
+    """True if ``value`` is a reference to a secret stored in 1Password,
+    Vault, or the macOS Keychain.
+
+    References are *not* secrets — they are addresses. Safe to display,
+    safe to keep in `.env`, would be safe to commit (though the
+    `.gitignore` guard still blocks that on general principle).
+    """
+    return bool(value) and bool(_REFERENCE_RE.match(value))
+
+
+def non_compliant_secret_keys(path: Path) -> List[str]:
+    """Return the names of SECRET_KEYS that hold plain (non-reference) values
+    on disk. The UI surfaces this list as a banner so users know to migrate.
+
+    Empty values are NOT flagged (those just mean "not set yet"). Only
+    non-empty plain values trip the check.
+    """
+    env = parse_env(path)
+    bad: List[str] = []
+    for key in SECRET_KEYS:
+        val = env.values.get(key, "")
+        if val and not is_secret_reference(val):
+            bad.append(key)
+    return sorted(bad)
+
 
 @dataclass
 class EnvFile:
@@ -121,15 +177,21 @@ def parse_env(path: Path) -> EnvFile:
 def read_env(path: Path, mask: bool = True) -> Dict[str, str]:
     """Return a flat key → value dict.
 
-    With ``mask=True`` (default), secrets are masked. The UI's GET handler
-    should use mask=True so the response is safe to put into the browser.
-    Internal callers that need the real value (e.g. for connection-test)
-    pass mask=False.
+    With ``mask=True`` (default), plain secret values are masked. The UI's
+    GET handler uses mask=True so the response is safe to put into the
+    browser. Internal callers that need the real value (e.g. legacy paths
+    that hand a plain key to the validator) pass mask=False.
+
+    **Secret references are NOT masked even with mask=True.** A value like
+    ``op://Employee/Datadog/api-key`` is an address, not a secret — the
+    user needs to see it to edit it. Only plain values for SECRET_KEYS
+    are masked, which is the transitional case where someone has not yet
+    migrated to a 1Password reference.
     """
     env = parse_env(path)
     out: Dict[str, str] = {}
     for k, v in env.values.items():
-        if mask and k in SECRET_KEYS:
+        if mask and k in SECRET_KEYS and v and not is_secret_reference(v):
             out[k] = mask_secret(v)
         else:
             out[k] = v
@@ -175,6 +237,10 @@ def write_env(
         ValueError: if ``require_gitignore`` and `.env` is not gitignored.
         ValueError: if a key in ``new_values`` is not in MANAGED_KEYS.
             (Prevents the UI from clobbering keys it shouldn't touch.)
+        PlainSecretRejected: if a SECRET_KEYS value is a plain string
+            (not KEEP_EXISTING, not empty, not a recognized reference).
+            This is the policy enforcement: the UI never persists a
+            plain Datadog key.
     """
     # Reject keys the UI shouldn't be writing. Anything outside MANAGED_KEYS
     # is either a hand-edited custom var (keep it) or a typo (don't propagate).
@@ -184,6 +250,17 @@ def write_env(
             f"write_env() refusing to write unmanaged keys: {sorted(unmanaged)}. "
             f"Add them to env_manager.MANAGED_KEYS if the UI now manages them."
         )
+
+    # Policy enforcement: no plain secrets to disk. Done up front (before
+    # any disk write) so partial state can't be left behind.
+    for key, value in new_values.items():
+        if key in SECRET_KEYS and value not in ("", KEEP_EXISTING) and not is_secret_reference(value):
+            raise PlainSecretRejected(
+                f"{key} must be a secret-store reference (e.g. "
+                f"op://Employee/Datadog/api-key), not a plain value. "
+                f"Plain Datadog keys in .env violate the corp secret-handling "
+                f"policy — see README § 'Handling secrets' for migration steps."
+            )
 
     if require_gitignore:
         _assert_env_is_gitignored(path)

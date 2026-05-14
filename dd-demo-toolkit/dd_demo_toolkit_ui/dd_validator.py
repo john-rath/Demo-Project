@@ -9,10 +9,18 @@ Kept deliberately small and dependency-light: no async (we run it from
 a FastAPI endpoint that's tiny, no point making it async-only), no
 retries (the user is sitting in front of the screen — they'll click
 again if the network blipped).
+
+Reference resolution: per corp secret-handling policy, the UI persists
+op:// references rather than plain keys. Before calling Datadog we
+resolve any reference into its real value via the 1Password CLI (`op
+read <ref>`), then discard the plain value once the validation call
+returns. The plain value never leaves this module.
 """
 
 from __future__ import annotations
 
+import shutil
+import subprocess
 from dataclasses import dataclass
 from typing import Optional
 
@@ -22,6 +30,8 @@ import requests
 # dd_api keeps the UI in sync if the toolkit ever adds a new site
 # (e.g. ap2) without us having to remember to update a second list.
 from dd_demo_toolkit.utils.dd_api import DatadogAPIClient
+
+from .env_manager import is_secret_reference
 
 
 @dataclass
@@ -35,6 +45,77 @@ class ValidationResult:
     # common SE failure mode (they pasted the API key into both fields).
     api_key_ok: bool = False
     app_key_ok: bool = False
+
+
+class ReferenceResolutionError(Exception):
+    """Raised when ``resolve_secret_reference`` can't turn an op:// (or
+    vault:/keychain://) reference into a real value. The message is
+    surfaced verbatim to the UI; keep it actionable.
+    """
+
+
+def resolve_secret_reference(value: str, *, timeout: float = 5.0) -> str:
+    """Return the plaintext value for a secret-store reference.
+
+    Plain (non-reference) values are returned unchanged — this function
+    is safe to call on every credential input from the UI, whether or not
+    it's been migrated to a reference yet.
+
+    Only ``op://`` references are auto-resolved. ``vault:`` and
+    ``keychain://`` are recognized but raise ``ReferenceResolutionError``
+    with a helpful message — users of those stores wrap their commands
+    in their own resolver and shouldn't be using the UI's "Test
+    connection" button directly until we add support.
+
+    Raises:
+        ReferenceResolutionError: if `op` is missing, not signed in,
+            the reference resolves to nothing, or the resolver is not
+            implemented for the given scheme.
+    """
+    if not is_secret_reference(value):
+        return value
+
+    if value.startswith("op://"):
+        if shutil.which("op") is None:
+            raise ReferenceResolutionError(
+                "The 1Password CLI (`op`) is not installed. "
+                "Install with `brew install --cask 1password-cli`, then "
+                "sign in with `eval \"$(op signin)\"`."
+            )
+        try:
+            r = subprocess.run(
+                ["op", "read", value],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            raise ReferenceResolutionError(
+                f"`op read {value}` timed out after {timeout}s. "
+                "Is your 1Password session active?"
+            )
+        if r.returncode != 0:
+            # op writes meaningful diagnostics to stderr — surface them.
+            stderr = (r.stderr or "").strip()
+            raise ReferenceResolutionError(
+                f"`op read {value}` failed: {stderr or 'no stderr output'}"
+            )
+        resolved = (r.stdout or "").strip()
+        if not resolved:
+            raise ReferenceResolutionError(
+                f"`op read {value}` returned an empty value. "
+                "Check that the vault/item/field path is correct."
+            )
+        return resolved
+
+    # vault: or keychain:// — recognized but not auto-resolved by the UI.
+    scheme = value.split(":", 1)[0]
+    raise ReferenceResolutionError(
+        f"The UI's 'Test connection' button doesn't resolve {scheme} "
+        f"references yet. Wrap your commands in your own resolver "
+        "(e.g. `vault read ...` or `security find-generic-password ...`) "
+        "or use a 1Password (`op://...`) reference instead."
+    )
 
 
 def validate_credentials(

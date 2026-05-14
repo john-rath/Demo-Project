@@ -145,23 +145,42 @@ def test_overlays_endpoint_returns_overlay_list(client):
 # ----- /api/env GET ---------------------------------------------------------
 
 
-def test_get_env_when_missing_returns_empty(client):
+def test_get_env_when_missing_returns_empty_envelope(client):
+    """GET /api/env returns an envelope: {values, non_compliant_secret_keys}.
+    Missing file → both empty."""
     r = client.get("/api/env")
     assert r.status_code == 200
-    assert r.json() == {}
+    body = r.json()
+    assert body == {"values": {}, "non_compliant_secret_keys": []}
 
 
-def test_get_env_masks_secrets(client, app_and_paths):
+def test_get_env_masks_plain_secrets_and_flags_them(client, app_and_paths):
+    """Pre-migration: plain DD_API_KEY in .env → masked in values, flagged
+    in non_compliant_secret_keys."""
     _, cfg = app_and_paths
     cfg.env_path.write_text(
         "DD_API_KEY=topsecret123abcd\n"
         "DD_SITE=datadoghq.com\n"
     )
-    r = client.get("/api/env")
-    body = r.json()
-    assert body["DD_SITE"] == "datadoghq.com"
-    assert body["DD_API_KEY"].endswith("abcd")
-    assert "topsecret" not in body["DD_API_KEY"]
+    body = client.get("/api/env").json()
+    assert body["values"]["DD_SITE"] == "datadoghq.com"
+    assert body["values"]["DD_API_KEY"].endswith("abcd")
+    assert "topsecret" not in body["values"]["DD_API_KEY"]
+    assert body["non_compliant_secret_keys"] == ["DD_API_KEY"]
+
+
+def test_get_env_does_not_mask_or_flag_op_references(client, app_and_paths):
+    """Post-migration: op:// references are not secrets — returned verbatim
+    and not flagged."""
+    _, cfg = app_and_paths
+    cfg.env_path.write_text(
+        "DD_API_KEY=op://Employee/Datadog/api-key\n"
+        "DD_APP_KEY=op://Employee/Datadog/app-key\n"
+    )
+    body = client.get("/api/env").json()
+    assert body["values"]["DD_API_KEY"] == "op://Employee/Datadog/api-key"
+    assert body["values"]["DD_APP_KEY"] == "op://Employee/Datadog/app-key"
+    assert body["non_compliant_secret_keys"] == []
 
 
 # ----- /api/env POST --------------------------------------------------------
@@ -179,9 +198,9 @@ def test_post_env_writes_new_value(client, app_and_paths):
     assert on_disk["DD_DEMO_VERTICAL"] == "beta"
 
 
-def test_post_env_keep_existing_preserves_secret(client, app_and_paths):
+def test_post_env_keep_existing_preserves_reference(client, app_and_paths):
     _, cfg = app_and_paths
-    cfg.env_path.write_text("DD_API_KEY=original-secret-zyxw\n")
+    cfg.env_path.write_text("DD_API_KEY=op://Employee/Datadog/api-key\n")
 
     r = client.post("/api/env", json={
         "DD_API_KEY": em.KEEP_EXISTING,
@@ -189,16 +208,31 @@ def test_post_env_keep_existing_preserves_secret(client, app_and_paths):
     })
     assert r.status_code == 200
     on_disk = em.read_env(cfg.env_path, mask=False)
-    assert on_disk["DD_API_KEY"] == "original-secret-zyxw"
+    assert on_disk["DD_API_KEY"] == "op://Employee/Datadog/api-key"
     assert on_disk["DD_SITE"] == "datadoghq.com"
 
 
-def test_post_env_response_is_masked(client, app_and_paths):
-    r = client.post("/api/env", json={"DD_API_KEY": "newkey-abcdefgh"})
+def test_post_env_accepts_op_reference(client, app_and_paths):
+    """The canonical happy path: user enters a 1Password reference."""
+    r = client.post("/api/env", json={
+        "DD_API_KEY": "op://Employee/Datadog/api-key",
+    })
     assert r.status_code == 200
     body = r.json()
-    assert body["DD_API_KEY"].endswith("efgh")
-    assert "newkey" not in body["DD_API_KEY"]
+    # References are not masked.
+    assert body["values"]["DD_API_KEY"] == "op://Employee/Datadog/api-key"
+    assert body["non_compliant_secret_keys"] == []
+
+
+def test_post_env_rejects_plain_secret_with_400(client, app_and_paths):
+    """Policy enforcement: plain DD_API_KEY → 400 with a guidance message."""
+    r = client.post("/api/env", json={
+        "DD_API_KEY": "d65822a9c0570cb0aed44796c47cccdb",
+    })
+    assert r.status_code == 400
+    body = r.json()
+    assert "op://" in body["detail"]
+    assert "policy" in body["detail"].lower()
 
 
 def test_post_env_round_trip_preserves_hand_edited_var(client, app_and_paths):

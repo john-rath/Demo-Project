@@ -165,3 +165,14 @@ button:disabled {
 .result-ok  { color: var(--ok); }
 .result-err { color: var(--err); }
 .result-warn { color: var(--warn); }
+
+/* Migration banner shown when .env still has plain DD keys. The card
+ * stays in the existing flex flow so it pushes the cards below it down
+ * — we want it impossible to miss. */
+.banner-warn {
+  border-color: var(--warn);
+  background: rgba(210, 153, 34, 0.08);
+}
+.banner-warn h2 { color: var(--warn); }
+.banner-warn code { background: rgba(210, 153, 34, 0.15); }
+#noncompliant-keys { font-family: "SF Mono", Menlo, Consolas, monospace; }

@@ -40,7 +40,11 @@ from dd_demo_toolkit.config import ConfigError, ConfigLoader
 from dd_demo_toolkit.utils.dd_api import DatadogAPIClient
 
 from . import env_manager
-from .dd_validator import validate_credentials
+from .dd_validator import (
+    ReferenceResolutionError,
+    resolve_secret_reference,
+    validate_credentials,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -183,12 +187,27 @@ def build_app(cfg: UIConfig) -> FastAPI:
     # ----- .env management ---------------------------------------------------
 
     @app.get("/api/env")
-    def get_env() -> Dict[str, str]:
-        """Return the current `.env` contents with secrets masked."""
-        return env_manager.read_env(cfg.env_path, mask=True)
+    def get_env() -> Dict[str, Any]:
+        """Return the current `.env` with secrets masked + a compliance list.
+
+        Response shape:
+            {
+              "values": {DD_API_KEY: "op://..." or "*****abcd", ...},
+              "non_compliant_secret_keys": ["DD_API_KEY", ...]  # plain values
+                  in .env that should be migrated to op:// references
+            }
+
+        ``non_compliant_secret_keys`` powers the migration banner in the
+        UI. Empty list means everything's compliant (or unset).
+        """
+        return {
+            "values": env_manager.read_env(cfg.env_path, mask=True),
+            "non_compliant_secret_keys":
+                env_manager.non_compliant_secret_keys(cfg.env_path),
+        }
 
     @app.post("/api/env")
-    def post_env(req: EnvWriteRequest) -> Dict[str, str]:
+    def post_env(req: EnvWriteRequest) -> Dict[str, Any]:
         # Drop fields the caller didn't include. Pydantic gives us None
         # for omitted Optional fields; we treat None as "don't touch".
         incoming = {k: v for k, v in req.model_dump().items() if v is not None}
@@ -198,19 +217,35 @@ def build_app(cfg: UIConfig) -> FastAPI:
                 incoming,
                 require_gitignore=cfg.require_gitignore,
             )
+        except env_manager.PlainSecretRejected as e:
+            # Policy violation: plain secret. 400 with the verbatim
+            # message so the UI can surface "use op://..." guidance.
+            raise HTTPException(status_code=400, detail=str(e))
         except ValueError as e:
             # gitignore guard / unmanaged-key guard. 400, not 500: it's a
             # client problem the user can fix.
             raise HTTPException(status_code=400, detail=str(e))
-        return env_manager.read_env(cfg.env_path, mask=True)
+        # Same envelope shape as GET — keeps the frontend simple.
+        return {
+            "values": env_manager.read_env(cfg.env_path, mask=True),
+            "non_compliant_secret_keys":
+                env_manager.non_compliant_secret_keys(cfg.env_path),
+        }
 
     @app.post("/api/env/test")
     def post_env_test(req: EnvTestRequest) -> Dict[str, Any]:
         """Validate credentials against Datadog.
 
-        Resolves ``KEEP_EXISTING`` sentinels from the on-disk `.env` before
-        calling out. That's the only context in which the server reads the
-        unmasked secrets — and the unmasked value never leaves this handler.
+        Resolution order for each secret field:
+          1. ``KEEP_EXISTING`` → read the on-disk value (which may itself
+             be a reference; see step 3).
+          2. A plain string (transitional case) → use as-is.
+          3. A secret reference (``op://...``) → shell out via
+             ``resolve_secret_reference`` to get the real value.
+
+        The resolved plain value lives only on the stack for the duration
+        of this handler — it never gets written, logged, or returned in
+        the response.
         """
         on_disk = env_manager.read_env(cfg.env_path, mask=False)
 
@@ -222,12 +257,21 @@ def build_app(cfg: UIConfig) -> FastAPI:
                         status_code=400,
                         detail=f"{key} requested KEEP_EXISTING but no value on disk",
                     )
-                return v
-            return value
+                value = v
+            # Whether it came from the request or from disk, if it's a
+            # reference, resolve it. resolve_secret_reference is a no-op
+            # for plain values, so the transitional case still works.
+            try:
+                return resolve_secret_reference(value)
+            except ReferenceResolutionError as e:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Could not resolve {key}: {e}",
+                )
 
         api_key = _resolve(req.DD_API_KEY, "DD_API_KEY")
         app_key = _resolve(req.DD_APP_KEY, "DD_APP_KEY")
-        site = req.DD_SITE  # site is never masked, so no resolve needed
+        site = req.DD_SITE  # site is never masked or a reference
 
         result = validate_credentials(api_key, app_key, site)
         return {
