@@ -390,6 +390,13 @@ description** beyond appending narrative.
 
 ## 7. Workflow conventions
 
+> **Before authoring or editing any workflow YAML, read
+> [WORKFLOW_ACTIONS.md](WORKFLOW_ACTIONS.md).** It captures the canonical
+> Datadog Workflow Automation payload shape, the verified-action-ID
+> catalog, and the discovery procedure for unknown actions. Every rule
+> there traces to a real 400 / silent-no-op bug. The summary in this
+> section is a quick reference, not a substitute.
+
 ### 7.1 Structure
 ```yaml
 - name: "[Vertical] <Action> <Object>"
@@ -427,6 +434,22 @@ description** beyond appending narrative.
 
 ### 7.3 Trigger by monitor tags, not monitor names
 Names change. Tags are stable. Always trigger via `monitor_tags`.
+
+### 7.4 Action IDs
+Every YAML `type:` must resolve to a Datadog-registered `actionId` or
+Datadog rejects the entire workflow create (`400 spec is invalid`).
+The toolkit's `_TYPE_TO_ACTION_ID` map (in
+`dd_demo_toolkit/resources/workflows.py`) only contains verified IDs;
+unknown types fall through to no-op so deploys never break.
+
+To add a new action type: see "How to discover a new action ID" in
+[WORKFLOW_ACTIONS.md](WORKFLOW_ACTIONS.md) — fastest path is the
+Datadog UI "Edit JSON Spec" trick (~30s).
+
+### 7.5 Step connections use `outboundEdges` objects
+Not `outEdges`, not a list of strings. The manager builds these
+automatically (sequential wiring); override per-step with `out_edges:`
+in YAML for non-linear flows. Details in WORKFLOW_ACTIONS.md.
 
 ---
 

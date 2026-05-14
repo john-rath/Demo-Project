@@ -25,6 +25,7 @@ Quick-reference index for the highest-bug-density rules:
 - **§1.5** Notebook timeseries cells require `formulas:` on every request, or the chart renders empty.
 - **§1.7** Workflow descriptions have a 300-character limit.
 - **§2** Tag standards: never invent new tag keys. Use existing values under existing keys.
+- **§7** Workflows: **before authoring any workflow YAML, read [WORKFLOW_ACTIONS.md](WORKFLOW_ACTIONS.md).** Unknown `actionId` → Datadog 400; the verified-ID catalog and discovery procedure live in that doc.
 - **§9.3** New plugins must be 4-axis disjoint from existing plugins (spatial, namespace, incident_domain, temporal).
 - **§11** Pre-commit checklist before adding any asset.
 
@@ -285,6 +286,33 @@ simulates a mixed-ownership Datadog environment (hospitality +
 healthcare toolkit resources + a renamed-hilton orphan + an
 untagged customer monitor) and confirms the sweep deletes exactly
 the toolkit resources (including orphans) and nothing else.
+
+---
+
+## 5a. Workflow action IDs & payload shape (2026-05-14)
+
+The Datadog Workflow Automation API rejects any payload whose steps
+reference unknown action IDs (`400 spec is invalid`). The toolkit
+maintains a verified-ID catalog (`_TYPE_TO_ACTION_ID` in
+`dd_demo_toolkit/resources/workflows.py`) and auto-wires steps via the
+correct `outboundEdges` object shape rather than the bare-string
+`outEdges` array I once shipped.
+
+**Authoritative reference: [WORKFLOW_ACTIONS.md](WORKFLOW_ACTIONS.md).**
+Always read it before authoring or editing a `workflows.yaml`. It
+captures:
+
+- The canonical Datadog v2 workflow payload shape (per
+  <https://docs.datadoghq.com/api/latest/workflow-automation/>)
+- The verified-action-ID catalog with sources for each entry
+- The discovery procedure for new action IDs (the
+  "Edit JSON Spec" UI shortcut, the introspect script)
+- Per-step YAML field reference and a copy-paste workflow template
+- Common pitfalls (unknown ID → 400; bad edge shape; missing
+  `connection_label` for integration-targeting actions)
+
+When adding a new action type, the checklist at the bottom of that
+doc is the source of truth.
 
 ---
 

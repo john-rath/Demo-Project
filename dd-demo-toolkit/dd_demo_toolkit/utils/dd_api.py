@@ -2,10 +2,23 @@
 Datadog API client wrapper for creating and managing dashboards, monitors, notebooks, and SLOs.
 """
 
+import logging
 import os
+import time
 from typing import Optional, Dict, Any, List
 import requests
 from dotenv import load_dotenv
+
+
+logger = logging.getLogger(__name__)
+
+# Retry policy for transient Datadog API failures. Only 5xx and
+# connection / read timeouts are retried; 4xx errors are deterministic
+# and won't get better. The backoff is short enough to keep a deploy
+# pass under a minute even when several requests retry.
+_RETRY_STATUS_CODES = {500, 502, 503, 504}
+_RETRY_MAX_ATTEMPTS = 3
+_RETRY_BACKOFF_BASE_SEC = 1.5
 
 
 class DatadogAPIClient:
@@ -98,36 +111,66 @@ class DatadogAPIClient:
             RuntimeError: If the request fails.
         """
         url = f"{self.base_url}{endpoint}"
-        try:
-            if method.upper() == "GET":
-                response = requests.get(url, headers=self.headers, params=params, timeout=10)
-            elif method.upper() == "POST":
-                response = requests.post(url, headers=self.headers, json=json_data, params=params, timeout=10)
-            elif method.upper() == "PUT":
-                response = requests.put(url, headers=self.headers, json=json_data, params=params, timeout=10)
-            elif method.upper() == "PATCH":
-                response = requests.patch(url, headers=self.headers, json=json_data, params=params, timeout=10)
-            elif method.upper() == "DELETE":
-                response = requests.delete(url, headers=self.headers, params=params, timeout=10)
-            else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
+        method_upper = method.upper()
 
-            response.raise_for_status()
-            return response.json() if response.text else {}
+        for attempt in range(1, _RETRY_MAX_ATTEMPTS + 1):
+            try:
+                if method_upper == "GET":
+                    response = requests.get(url, headers=self.headers, params=params, timeout=10)
+                elif method_upper == "POST":
+                    response = requests.post(url, headers=self.headers, json=json_data, params=params, timeout=10)
+                elif method_upper == "PUT":
+                    response = requests.put(url, headers=self.headers, json=json_data, params=params, timeout=10)
+                elif method_upper == "PATCH":
+                    response = requests.patch(url, headers=self.headers, json=json_data, params=params, timeout=10)
+                elif method_upper == "DELETE":
+                    response = requests.delete(url, headers=self.headers, params=params, timeout=10)
+                else:
+                    raise ValueError(f"Unsupported HTTP method: {method}")
 
-        except requests.exceptions.HTTPError as e:
-            # Capture the response body for debugging 400/422 errors
-            body = ""
-            if e.response is not None:
-                try:
-                    body = e.response.text[:1000]  # Limit to 1000 chars
-                except Exception:
-                    pass
-            raise RuntimeError(
-                f"Datadog API request failed ({method} {endpoint}): {e.response.status_code if e.response is not None else 'N/A'} - {body or str(e)}"
-            )
-        except requests.exceptions.RequestException as e:
-            raise RuntimeError(f"Datadog API request failed ({method} {endpoint}): {str(e)}")
+                response.raise_for_status()
+                return response.json() if response.text else {}
+
+            except requests.exceptions.HTTPError as e:
+                status = e.response.status_code if e.response is not None else None
+                # Retry transient server errors; let client errors fail fast.
+                if status in _RETRY_STATUS_CODES and attempt < _RETRY_MAX_ATTEMPTS:
+                    wait = _RETRY_BACKOFF_BASE_SEC * (2 ** (attempt - 1))
+                    logger.warning(
+                        "Datadog API %s %s returned %d, retrying in %.1fs "
+                        "(attempt %d/%d)",
+                        method_upper, endpoint, status, wait,
+                        attempt, _RETRY_MAX_ATTEMPTS,
+                    )
+                    time.sleep(wait)
+                    continue
+                # Final attempt or non-retriable status: surface the failure.
+                body = ""
+                if e.response is not None:
+                    try:
+                        body = e.response.text[:1000]  # Limit to 1000 chars
+                    except Exception:
+                        pass
+                raise RuntimeError(
+                    f"Datadog API request failed ({method} {endpoint}): "
+                    f"{status if status is not None else 'N/A'} - {body or str(e)}"
+                )
+            except (requests.exceptions.ConnectionError,
+                    requests.exceptions.Timeout) as e:
+                # Network-level transient failures — same retry policy.
+                if attempt < _RETRY_MAX_ATTEMPTS:
+                    wait = _RETRY_BACKOFF_BASE_SEC * (2 ** (attempt - 1))
+                    logger.warning(
+                        "Datadog API %s %s network error (%s), retrying in %.1fs "
+                        "(attempt %d/%d)",
+                        method_upper, endpoint, type(e).__name__, wait,
+                        attempt, _RETRY_MAX_ATTEMPTS,
+                    )
+                    time.sleep(wait)
+                    continue
+                raise RuntimeError(f"Datadog API request failed ({method} {endpoint}): {str(e)}")
+            except requests.exceptions.RequestException as e:
+                raise RuntimeError(f"Datadog API request failed ({method} {endpoint}): {str(e)}")
 
     def create_dashboard(self, json_payload: Dict[str, Any]) -> Dict[str, Any]:
         """
