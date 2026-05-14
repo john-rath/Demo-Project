@@ -1,0 +1,271 @@
+# Quest overlay monitors -- HL7 integration engine config-push cascade.
+#
+# Tag scheme strictly mirrors the healthcare vertical's existing standards
+# (see verticals/healthcare/monitors.yaml):
+#   - vertical:healthcare      auto-injected
+#   - dd-demo-toolkit:true     auto-injected
+#   - team:<role>              existing roles only (lab-informatics,
+#                              integration, operations, digital-health)
+#   - incident_domain:<name>   existing key, NEW value `diagnostic-laboratory`
+#                              (mirrors `pharmacy-automation` from the BD
+#                              overlay; new value of existing key is fine)
+#   - signal_chain:<position-name>  same scheme as base
+#
+# Query dimensions all reference EXISTING device-tag keys emitted by the
+# engine: device_type, device_manufacturer, device_category, floor, wing,
+# department, service_name. No new tag keys are introduced.
+#
+# CRITICAL: NO percentile aggregators (`p50:`, `p95:`, `p99:`) anywhere
+# in this file. The user's standard is that percentile metrics in this
+# toolkit "never seem to work right" -- the demoable alternative is
+# `avg:` + `max:` on the same chart, plus threshold-cross counts where
+# an SLA-like view is required. See STYLE_GUIDE.md §1.1.
+
+monitors:
+
+  # ----- Signal chain for the HL7 config-push cascade -------------------
+  # 1-root-cause: HL7 integration engine routing errors spiking after a
+  # config push. The `config_version` gauge tells you a deploy happened;
+  # `routing_errors_total` confirms the deploy is bad.
+  - name: "[Healthcare/Quest] HL7 Engine Routing Errors Spike Post-Deploy"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospital.hl7.routing_errors_total{device_type:hl7_integration_engine} by {device_id} > 30"
+    message: "🚨 HL7 integration engine routing errors spiking. Check hospital.hl7.config_version -- a recent config push is the likely cause. Halt further deploys and prepare to roll back the route map."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:integration"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  # 2-leading-indicator: outbound queue depth growing
+  - name: "[Healthcare/Quest] HL7 Outbound Queue Depth Critical"
+    type: "query alert"
+    query: "avg(last_5m):max:hospital.hl7.outbound_queue_depth{device_type:hl7_integration_engine} by {device_id} > 4000"
+    message: "📈 HL7 outbound queue >4k messages on at least one engine node. Provider-facing result delivery is backing up. Investigate upstream routing errors and worker thread retries."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:integration"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # 2b-leading-indicator: worker thread saturation
+  - name: "[Healthcare/Quest] HL7 Worker Thread Utilization Saturated"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.hl7.worker_thread_utilization_pct{device_type:hl7_integration_engine} by {device_id} > 90"
+    message: "🐢 HL7 worker thread pool >90% saturated. Engine is retry-spinning on bad routes instead of delivering. Confirm `hospital.hl7.worker_thread_retries_total` is climbing in lockstep."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:integration"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # 2c-leading-indicator: NACK rate via ratio (count-of-NACK / count-of-sent)
+  # Expressed as a ratio of counters so we avoid percentile aggregators.
+  - name: "[Healthcare/Quest] HL7 NACK Rate Elevated"
+    type: "query alert"
+    query: "avg(last_10m):sum:hospital.hl7.nack_received_total{device_type:hl7_integration_engine} / sum:hospital.hl7.messages_sent_total{device_type:hl7_integration_engine} * 100 > 5"
+    message: "❌ HL7 NACK rate >5% across the engine cluster. Ordering provider EHRs are rejecting valid messages -- almost always a malformed route output."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:integration"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # 3-symptom: LIMS feeling the back-pressure (results stuck "pending delivery")
+  - name: "[Healthcare/Quest] LIMS Results Pending Delivery Backlog"
+    type: "query alert"
+    query: "avg(last_5m):max:hospital.lims.results_pending_delivery{device_type:lims_app_server} by {device_id} > 1500"
+    message: "🧪 LIMS has >1.5k verified results stuck in 'pending delivery' state on at least one node. Downstream of HL7 outbound queue -- check `hospital.hl7.outbound_queue_depth` first."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:3-symptom"
+    priority: 1
+
+  # 3b-symptom: LIMS HL7 write failures (the bidirectional confirmation)
+  - name: "[Healthcare/Quest] LIMS HL7 Write Failures Climbing"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospital.lims.hl7_writes_failed_total{device_type:lims_app_server} > 20"
+    message: "↩️ LIMS HL7 write-back failures >20 in 5m. LIMS retries are saturating the db pool -- expect order-acceptance latency next."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:3-symptom"
+    priority: 2
+
+  # 3c-symptom: LIMS db pool saturation
+  - name: "[Healthcare/Quest] LIMS DB Pool Saturated"
+    type: "query alert"
+    query: "avg(last_5m):max:hospital.lims.db_pool_active{device_type:lims_app_server} by {device_id} > 180"
+    message: "🗄 LIMS DB connection pool >90% utilized (pool capacity = 200). Order acceptance latency will spike next."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:3-symptom"
+    priority: 2
+
+  # 4-cascade: specimen pre-analytic queue growing (lab can't accept new
+  # orders fast enough because LIMS is choking)
+  - name: "[Healthcare/Quest] Specimen Pre-Analytic Queue Depth Critical"
+    type: "query alert"
+    query: "avg(last_5m):max:hospital.specimen.queue_depth_pre_analytic{device_type:centrifuge} by {device_id} > 180"
+    message: "⏳ Pre-analytic specimen queue >180 on at least one centrifuge. Specimens are arriving faster than LIMS can accession orders -- downstream of the HL7 cascade."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:4-cascade"
+    priority: 2
+
+  # 4b-cascade: refrigerated storage approaching capacity (safety signal)
+  - name: "[Healthcare/Quest] Specimen Refrigerated Storage Capacity Critical"
+    type: "query alert"
+    query: "avg(last_5m):max:hospital.specimen.refrigerated_capacity_pct{device_type:refrigerated_storage} by {device_id,floor,wing} > 90"
+    message: "🧊 Specimen refrigerated storage >90% capacity. Backlog driving cold-chain risk. Worst-case stability windows narrowing on already-collected specimens."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:4-cascade"
+      - "safety:patient-safety"
+    priority: 1
+
+  # 4c-cascade: specimen stability time remaining (cold-chain safety)
+  - name: "[Healthcare/Quest] Specimen Stability Time Remaining Critical"
+    type: "query alert"
+    query: "avg(last_5m):min:hospital.specimen.stability_min_remaining{device_type:refrigerated_storage} by {device_id} < 45"
+    message: "⏰ Worst-case in-storage specimen has <45 min of stability remaining. If queue does not drain, samples will require re-collection -- patient impact + regulatory event."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:4-cascade"
+      - "safety:patient-safety"
+      - "compliance:cap"
+    priority: 1
+
+  # 5-business-impact: TAT SLA breaches (the customer-facing punch line)
+  - name: "[Healthcare/Quest] STAT TAT Breaches Spiking"
+    type: "query alert"
+    query: "sum(last_15m):sum:hospital.tat.stat_breaches_total{device_type:lims_app_server} > 8"
+    message: "🚨 More than 8 STAT order TAT breaches in 15min. Contracted turnaround commitments with ordering providers being missed. Customer-facing impact."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:5-business-impact"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/Quest] Routine TAT Breaches Spiking"
+    type: "query alert"
+    query: "sum(last_30m):sum:hospital.tat.routine_breaches_total{device_type:lims_app_server} > 40"
+    message: "📉 More than 40 routine TAT breaches in 30min. Provider satisfaction and renewal risk."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:5-business-impact"
+    priority: 2
+
+  # 5b-business-impact: provider portal error rate (customer-visible)
+  - name: "[Healthcare/Quest] Provider Results Portal Error Rate"
+    type: "query alert"
+    query: "avg(last_5m):sum:hospital.app.errors_total{service_name:provider-results-portal} / sum:hospital.app.requests_total{service_name:provider-results-portal} * 100 > 5"
+    message: "🌐 provider-results-portal error rate >5%. Ordering providers seeing failures when looking up specimen status. Call-center volume will follow."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:diagnostic-laboratory"
+      - "signal_chain:5-business-impact"
+    priority: 1
+
+  # ----- Standalone Quest device-health monitors (not in cascade) -------
+
+  - name: "[Healthcare/Quest] LIMS Cluster Node Offline"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospital.device.online{device_type:lims_app_server} by {device_id} < 1"
+    message: "💾 LIMS cluster node offline. Cluster running degraded; tip the cluster manager into a controlled failover if a second node drops."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+    priority: 1
+
+  - name: "[Healthcare/Quest] HL7 Integration Engine Node Offline"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospital.device.online{device_type:hl7_integration_engine} by {device_id} < 1"
+    message: "🔌 HL7 engine cluster node offline. Cluster running degraded."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:integration"
+      - "incident_domain:diagnostic-laboratory"
+    priority: 1
+
+  - name: "[Healthcare/Quest] Refrigerated Storage Temp Out of Range"
+    type: "query alert"
+    query: "avg(last_5m):max:hospital.specimen.refrigerator_temp_celsius{device_type:refrigerated_storage} by {device_id} > 8"
+    message: "🌡️ Refrigerated specimen storage above 8°C. Cold-chain breach risk -- triggers CAP recordkeeping."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+      - "compliance:cap"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/Quest] Analyzer QC Failure Rate Elevated"
+    type: "query alert"
+    query: "avg(last_15m):sum:hospital.analyzer.qc_fail_total{device_category:clinical_lab_automation} / sum:hospital.analyzer.qc_pass_total{device_category:clinical_lab_automation} * 100 > 8"
+    message: "📊 Analyzer fleet QC failure rate >8% (vs <2% baseline). Likely reagent lot issue -- check `hospital.analyzer.reagent_lot_age_days` and reagent-inventory-api flags."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+      - "compliance:cap"
+      - "compliance:clia"
+    priority: 2
+
+  - name: "[Healthcare/Quest] Analyzer Calibration Overdue"
+    type: "query alert"
+    query: "avg(last_5m):max:hospital.analyzer.calibration_age_hr{device_category:clinical_lab_automation} by {device_id} > 168"
+    message: "🔧 Analyzer calibration overdue (>168hr = 7 days). CAP requires periodic calibration verification; results may be ineligible for billing."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+      - "compliance:cap"
+      - "compliance:clia"
+    priority: 2
+
+  - name: "[Healthcare/Quest] Specimen Sorter Misroutes Spiking"
+    type: "query alert"
+    query: "sum(last_15m):sum:hospital.specimen.sorter_misroutes_total{device_type:specimen_sorter} > 12"
+    message: "🤖 Specimen sorter misroute count >12 in 15min. Chain-of-custody risk; check sorter calibration."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+    priority: 2

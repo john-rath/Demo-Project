@@ -1,0 +1,32 @@
+cases:
+
+  - title: "HL7 Engine Config Push Cascade — Post-Incident Review"
+    description: "An HL7 integration engine config push introduced a malformed outbound routing rule, causing valid ORU^R01 result messages to NACK and saturate worker threads. Workflow auto-remediation rolled the config back; outbound queue drained inside 5 minutes. Action items: (1) re-deploy the fixed routing rule under a canary cluster first, (2) add a pre-deploy synthetic that ships one canary ORU through every route before promotion, (3) make `hospital.hl7.config_version` change a release-gate signal in Datadog Change Tracking."
+    priority: "P2"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:integration"
+      - "incident_domain:diagnostic-laboratory"
+
+  - title: "Reagent Lot QC Drift Investigation"
+    description: "Across the chemistry + immunoassay analyzer fleet, QC failure rate trended above the CLIA threshold for a 6-hour window. Auto-quarantine flagged the suspect lot in reagent-inventory-api. Action items: (1) confirm lot vendor traceability, (2) submit a CLIA logbook entry, (3) bring vendor data to the next QBR with evidence."
+    priority: "P3"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+      - "compliance:clia"
+      - "compliance:cap"
+
+  - title: "STAT TAT SLO Quarterly Review"
+    description: "Review STAT TAT SLO performance for the trailing 90 days: aggregate burn rate, drill into per-test-type breaches, evaluate whether contracted TAT windows need re-negotiation with the top-5 ordering providers. Pull TAT-breach causation tags into a Pareto chart."
+    priority: "P3"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"

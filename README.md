@@ -165,8 +165,11 @@ Multi-floor hospital with medical IoT (patient monitors, infusion pumps, ventila
 | Overlay | Customer profile | What it adds |
 |---------|------------------|--------------|
 | `bd` | **Becton Dickinson** | Pyxis MedStation ES (18 cabinets) + BACTEC FX, Rowa Vmax, Phoenix M50, Veritor Plus. New services `pyxis-inventory-api` and `pharmacy-ehr-bridge`. Pyxis inventory-sync polling-storm cascade plugin (Pharmacy / Floor 1 South), 47-widget Pyxis MedStation dashboard, BitsSRE walkthrough notebook, and a poll-rate-limit auto-remediation workflow. Bifurcated from the base WiFi cascade by department, metric namespace, `incident_domain` tag, and a 90-130 tick startup delay. |
+| `quest` | **Quest Diagnostics** | Reference-lab software stack instead of hospital IoT: LIMS cluster (Beaker-class), HL7 integration engine cluster (Rhapsody-class), QC rules engine, provider results portal, specimen tracking, courier dispatch, reagent inventory. Lab instruments (Roche cobas chemistry, Sysmex hematology, Roche molecular/PCR, Abbott immunoassay) modeled as *seen via middleware*, plus Inpeco pre-analytic centrifuges + sorters and Sensitech cold-chain refrigeration (real IoT). HL7 engine bad-config-push cascade plugin (Lab / fleet-wide) drives the full chain: routing errors → outbound queue saturation → LIMS back-pressure → specimen backlog → contracted-TAT breach. Two dashboards (Lab NOC overview + HL7 engine detail), a deep RCA notebook that explicitly walks the data-sourcing model (where each metric originates in a real Quest environment), a TAT SLO burn runbook, count-over-count SLOs only (no percentile metrics), and a config-rollback auto-remediation workflow. Bifurcated from the base WiFi cascade and BD Pyxis cascade by department (`Lab`), metric namespace (`hospital.hl7.*` / `hospital.lims.*` / `hospital.tat.*` / `hospital.specimen.*`), `incident_domain:diagnostic-laboratory` tag, and a 90-130 tick startup delay. |
 
 Run with: `dd-demo setup --vertical healthcare --sub-vertical bd && dd-demo simulate --vertical healthcare --sub-vertical bd`
+
+Or for the Quest Diagnostics art-of-the-possible demo: `dd-demo setup --vertical healthcare --sub-vertical quest && dd-demo simulate --vertical healthcare --sub-vertical quest`
 
 ### Finance: Global Financial Services Platform
 
@@ -629,7 +632,19 @@ dd-demo-toolkit/
 │   │   │   └── wifi_cascade.py
 │   │   └── overlays/                 # Sub-vertical overlays (additive)
 │   │       ├── bd.yaml               # additive simulator config
-│   │       └── bd/                   # additive resources
+│   │       ├── bd/                   # additive resources
+│   │       │   ├── monitors.yaml
+│   │       │   ├── notebooks.yaml
+│   │       │   ├── slos.yaml
+│   │       │   ├── workflows.yaml
+│   │       │   ├── cases.yaml
+│   │       │   ├── services.yaml
+│   │       │   ├── dashboards/
+│   │       │   │   └── bd-pyxis-medstation.json
+│   │       │   └── plugins/
+│   │       │       └── bd_pyxis_outage.py
+│   │       ├── quest.yaml            # Quest Diagnostics additive config
+│   │       └── quest/                # Quest overlay resources
 │   │           ├── monitors.yaml
 │   │           ├── notebooks.yaml
 │   │           ├── slos.yaml
@@ -637,9 +652,10 @@ dd-demo-toolkit/
 │   │           ├── cases.yaml
 │   │           ├── services.yaml
 │   │           ├── dashboards/
-│   │           │   └── bd-pyxis-medstation.json
+│   │           │   ├── quest-lab-noc-overview.json
+│   │           │   └── quest-hl7-engine-detail.json
 │   │           └── plugins/
-│   │               └── bd_pyxis_outage.py
+│   │               └── quest_hl7_config_cascade.py
 │   │
 │   ├── finance/
 │   ├── manufacturing/

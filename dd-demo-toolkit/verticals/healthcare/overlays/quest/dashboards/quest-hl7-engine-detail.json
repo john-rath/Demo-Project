@@ -1,0 +1,229 @@
+{
+  "title": "Quest Diagnostics — HL7 Integration Engine Detail",
+  "description": "Per-node drilldown of the HL7 integration engine cluster (Rhapsody-class). Used to walk the cascade root: config version, routing errors, outbound queue, worker thread saturation, ACK/NACK rates, and the LIMS-side back-pressure signals downstream of the engine. Pairs with the `quest-lab-integration-cascade-rca` notebook.",
+  "widgets": [
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "# HL7 Integration Engine — Cluster Detail\n**Cluster:** Rhapsody-class HA cluster. **Outbound:** ORU^R01 result messages to ordering-provider EHRs.\n\nThis dashboard is the drilldown when an HL7 outbound queue or routing-error alert fires. Read top-to-bottom: change-event signal → queue/worker saturation → ACK/NACK/sent flow → LIMS-side downstream impact.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+
+    {
+      "definition": {
+        "title": "Config Version",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.hl7.config_version{device_type:hl7_integration_engine}"}], "response_format": "scalar", "aggregator": "last"}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 0, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Routing Errors (5m)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.hl7.routing_errors_total{device_type:hl7_integration_engine}.as_count()", "aggregator": "sum"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 30, "palette": "white_on_red"}, {"comparator": ">", "value": 5, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 5, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 2, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Queue Depth (max)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.hl7.outbound_queue_depth{device_type:hl7_integration_engine}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 4000, "palette": "white_on_red"}, {"comparator": ">", "value": 800, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 800, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 4, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Worker Util (avg %)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.hl7.worker_thread_utilization_pct{device_type:hl7_integration_engine}"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 90, "palette": "white_on_red"}, {"comparator": ">", "value": 70, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 70, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 6, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "NACK Rate %",
+        "type": "query_value",
+        "requests": [
+          {"formulas": [{"formula": "n / s * 100"}], "queries": [
+            {"data_source": "metrics", "name": "n", "query": "sum:hospital.hl7.nack_received_total{device_type:hl7_integration_engine}.as_count()"},
+            {"data_source": "metrics", "name": "s", "query": "sum:hospital.hl7.messages_sent_total{device_type:hl7_integration_engine}.as_count()"}
+          ], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 5, "palette": "white_on_red"}, {"comparator": ">", "value": 1, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 1, "palette": "white_on_green"}]}
+        ],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {"x": 8, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Worker Retries (5m)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.hl7.worker_thread_retries_total{device_type:hl7_integration_engine}.as_count()", "aggregator": "sum"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 10, "y": 2, "width": 2, "height": 2}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Cascade root — config version + routing errors\nA `config_version` step IMMEDIATELY followed by `routing_errors` accumulation is the smoking-gun pattern. Bits AI SRE auto-correlates these.",
+        "background_color": "yellow",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 4, "width": 12, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Config Version (per node)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.hl7.config_version{device_type:hl7_integration_engine} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 0, "y": 6, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Routing Errors (count)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.hl7.routing_errors_total{device_type:hl7_integration_engine}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 6, "y": 6, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Queue + worker saturation",
+        "background_color": "orange",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 9, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Outbound Queue Depth (per node, avg + max)",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "avg"}, {"formula": "mx"}], "queries": [
+            {"data_source": "metrics", "name": "avg", "query": "avg:hospital.hl7.outbound_queue_depth{device_type:hl7_integration_engine} by {device_id}"},
+            {"data_source": "metrics", "name": "mx", "query": "max:hospital.hl7.outbound_queue_depth{device_type:hl7_integration_engine}"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ],
+        "markers": [{"value": "y = 4000", "display_type": "error dashed", "label": "Cascade"}]
+      },
+      "layout": {"x": 0, "y": 10, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Worker Thread Utilization (per node)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.hl7.worker_thread_utilization_pct{device_type:hl7_integration_engine} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 90", "display_type": "error dashed", "label": "Saturated"}]
+      },
+      "layout": {"x": 6, "y": 10, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Message-flow integrity (sent / ACK / NACK / delivered)",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 13, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Sent vs Delivered vs ACK",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "sent"}, {"formula": "delivered"}, {"formula": "ack"}], "queries": [
+            {"data_source": "metrics", "name": "sent", "query": "sum:hospital.hl7.messages_sent_total{device_type:hl7_integration_engine}.as_count()"},
+            {"data_source": "metrics", "name": "delivered", "query": "sum:hospital.hl7.messages_delivered_total{device_type:hl7_integration_engine}.as_count()"},
+            {"data_source": "metrics", "name": "ack", "query": "sum:hospital.hl7.ack_received_total{device_type:hl7_integration_engine}.as_count()"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ]
+      },
+      "layout": {"x": 0, "y": 14, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "NACK Rate % (sent → NACKed)",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "n / s * 100", "alias": "NACK %"}], "queries": [
+            {"data_source": "metrics", "name": "n", "query": "sum:hospital.hl7.nack_received_total{device_type:hl7_integration_engine}.as_count()"},
+            {"data_source": "metrics", "name": "s", "query": "sum:hospital.hl7.messages_sent_total{device_type:hl7_integration_engine}.as_count()"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ],
+        "markers": [{"value": "y = 5", "display_type": "error dashed", "label": "Critical"}]
+      },
+      "layout": {"x": 6, "y": 14, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Downstream impact in LIMS (the back-pressure signature)",
+        "background_color": "gray",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 17, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "LIMS Results Pending Delivery (per node)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.lims.results_pending_delivery{device_type:lims_app_server} by {device_id}"}], "response_format": "timeseries", "display_type": "area"}],
+        "markers": [{"value": "y = 1500", "display_type": "error dashed", "label": "Critical"}]
+      },
+      "layout": {"x": 0, "y": 18, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "LIMS HL7 Write Failures (count)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.lims.hl7_writes_failed_total{device_type:lims_app_server}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 6, "y": 18, "width": 6, "height": 3}
+    }
+  ],
+  "template_variables": [
+    {"name": "floor", "prefix": "floor", "default": "*"},
+    {"name": "wing", "prefix": "wing", "default": "*"}
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

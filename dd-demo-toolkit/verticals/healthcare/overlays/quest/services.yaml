@@ -1,0 +1,117 @@
+# Quest overlay -- Service Catalog entries for the Quest software stack.
+# Tag scheme matches the base healthcare services.yaml: vertical:healthcare,
+# dd-demo-toolkit:true, plus team/compliance/incident_domain.
+#
+# Architecture for the cascade (see quest-lab-integration-cascade-rca):
+#
+#   provider-results-portal
+#        ^
+#        | results
+#        |
+#   hl7-integration-engine  <-- CHOKE POINT (root cause: bad config push)
+#        ^
+#        | release for outbound
+#        |
+#   lims-core  <-- backpressure surfaces here first
+#        |
+#        +--> qc-rules-engine
+#        +--> reagent-inventory-api
+#
+#   specimen-tracking-api / courier-dispatch-service are adjacent services
+#   not in the primary cascade chain but instrumented for completeness.
+
+services:
+
+  - dd-service: lims-core
+    display-name: "LIMS Core (Beaker Cluster)"
+    description: "System of record for orders, results, QC evaluation, and TAT counters. Java Spring Boot. The first service that feels back-pressure when hl7-integration-engine stops accepting outbound messages: results pile up in 'pending verification' state, db pool saturates against the HL7 release queue, and TAT counters start ticking 'breached'."
+    owner: "Lab Informatics"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:hipaa"
+      - "compliance:cap"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+
+  - dd-service: hl7-integration-engine
+    display-name: "HL7 Integration Engine (Rhapsody Cluster)"
+    description: "Rhapsody-based HL7 v2 / FHIR routing engine. Outbound ORU^R01 result messages to ordering provider EHRs flow through here. The choke point in the Quest cascade demo -- a bad routing-rule config push saturates worker threads, NACKs valid messages, and grows the outbound queue past 10k. .NET 8."
+    owner: "Integration Services"
+    tier: "Tier 1"
+    languages: ["dotnet"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:hipaa"
+      - "team:integration"
+      - "incident_domain:diagnostic-laboratory"
+
+  - dd-service: qc-rules-engine
+    display-name: "QC Rules Engine (Westgard)"
+    description: "Evaluates analyzer runs against Westgard multi-rule QC (1_3s, 2_2s, R_4s, etc). Downstream of lims-core; ships qc_pass/qc_fail counters back. Python FastAPI."
+    owner: "Lab Informatics"
+    tier: "Tier 2"
+    languages: ["python"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:cap"
+      - "compliance:clia"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+
+  - dd-service: provider-results-portal
+    display-name: "Ordering Provider Results Portal"
+    description: "Web + API surface where ordering providers (clinics, hospitals, integrated EHRs) look up specimen status and pull results. Downstream of lims-core and hl7-integration-engine. Customer-visible -- error spikes here translate directly into provider call-center volume. Java Spring Boot."
+    owner: "Provider Experience"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:hipaa"
+      - "team:digital-health"
+      - "incident_domain:diagnostic-laboratory"
+
+  - dd-service: specimen-tracking-api
+    display-name: "Specimen Tracking / Chain of Custody API"
+    description: "Tracks every specimen from accession through verification including legal chain-of-custody events. Go service backed by an event-sourced store."
+    owner: "Lab Operations"
+    tier: "Tier 1"
+    languages: ["go"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:hipaa"
+      - "compliance:cap"
+      - "team:operations"
+      - "incident_domain:diagnostic-laboratory"
+
+  - dd-service: courier-dispatch-service
+    display-name: "Courier Dispatch Service"
+    description: "Route assignment and reroute orchestration for the specimen courier fleet. Integrates with the third-party logistics SaaS via webhook + polling. Python Django."
+    owner: "Lab Operations"
+    tier: "Tier 2"
+    languages: ["python"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+      - "incident_domain:diagnostic-laboratory"
+
+  - dd-service: reagent-inventory-api
+    display-name: "Reagent Inventory & Lot API"
+    description: "Tracks reagent lot numbers, expiration, and QC-flag state per analyzer. Source of truth for whether a lot is approved for clinical use. Java Spring Boot."
+    owner: "Lab Operations"
+    tier: "Tier 2"
+    languages: ["java"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:cap"
+      - "compliance:clia"
+      - "team:operations"
+      - "incident_domain:diagnostic-laboratory"

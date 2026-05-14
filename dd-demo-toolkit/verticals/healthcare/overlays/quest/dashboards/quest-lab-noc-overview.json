@@ -1,0 +1,321 @@
+{
+  "title": "Quest Diagnostics — Lab NOC Overview",
+  "description": "Single pane for Quest Diagnostics lab operations: TAT SLO health, HL7 outbound result delivery, LIMS back-pressure, specimen pipeline (pre-analytic → analytic → refrigerated storage), and provider-facing portal health. The cascade-detection layout walks left-to-right: customer-facing TAT → delivery layer (HL7 engine) → LIMS → lab production → specimen logistics. All metrics filter on the Quest overlay's device types and the `vertical:healthcare` tag.",
+  "widgets": [
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Quest Diagnostics — Lab Operations NOC\nLab informatics + integration + operations single-pane view. Reads left-to-right: **customer-facing TAT → delivery layer → LIMS → lab production**. Cascade signal lights up the whole row when an HL7 / LIMS / specimen issue propagates.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+
+    {
+      "definition": {
+        "title": "STAT TAT Breaches (1h)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.tat.stat_breaches_total{device_type:lims_app_server,$floor,$wing}.as_count()", "aggregator": "sum"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 8, "palette": "white_on_red"}, {"comparator": ">", "value": 2, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 2, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 0, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Routine TAT Breaches (1h)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.tat.routine_breaches_total{device_type:lims_app_server,$floor,$wing}.as_count()", "aggregator": "sum"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 40, "palette": "white_on_red"}, {"comparator": ">", "value": 10, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 10, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 2, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "HL7 Outbound Queue (max)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.hl7.outbound_queue_depth{device_type:hl7_integration_engine}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 4000, "palette": "white_on_red"}, {"comparator": ">", "value": 800, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 800, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 4, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "LIMS Pending Delivery (max)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.lims.results_pending_delivery{device_type:lims_app_server}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 1500, "palette": "white_on_red"}, {"comparator": ">", "value": 400, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 400, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 6, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Pre-Analytic Queue (max)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.specimen.queue_depth_pre_analytic{device_type:centrifuge}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 180, "palette": "white_on_red"}, {"comparator": ">", "value": 80, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 80, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 8, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Refrigerated Capacity (max %)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.specimen.refrigerated_capacity_pct{device_type:refrigerated_storage}"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 90, "palette": "white_on_red"}, {"comparator": ">", "value": 75, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 75, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 10, "y": 2, "width": 2, "height": 2}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Delivery layer — HL7 integration engine (cascade root)",
+        "background_color": "yellow",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 4, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "HL7 Outbound Queue Depth (per node)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.hl7.outbound_queue_depth{device_type:hl7_integration_engine} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 800", "display_type": "warning dashed", "label": "Warning"}, {"value": "y = 4000", "display_type": "error dashed", "label": "Cascade threshold"}]
+      },
+      "layout": {"x": 0, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "HL7 Worker Thread Utilization (avg) + Routing Errors (count)",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "wt"}], "queries": [{"data_source": "metrics", "name": "wt", "query": "avg:hospital.hl7.worker_thread_utilization_pct{device_type:hl7_integration_engine}"}], "response_format": "timeseries", "display_type": "line"},
+          {"formulas": [{"formula": "errs"}], "queries": [{"data_source": "metrics", "name": "errs", "query": "sum:hospital.hl7.routing_errors_total{device_type:hl7_integration_engine}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}
+        ],
+        "markers": [{"value": "y = 90", "display_type": "warning dashed", "label": "Saturated"}]
+      },
+      "layout": {"x": 6, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "HL7 ACK / NACK / Sent",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "sent"}, {"formula": "ack"}, {"formula": "nack"}], "queries": [
+            {"data_source": "metrics", "name": "sent", "query": "sum:hospital.hl7.messages_sent_total{device_type:hl7_integration_engine}.as_count()"},
+            {"data_source": "metrics", "name": "ack", "query": "sum:hospital.hl7.ack_received_total{device_type:hl7_integration_engine}.as_count()"},
+            {"data_source": "metrics", "name": "nack", "query": "sum:hospital.hl7.nack_received_total{device_type:hl7_integration_engine}.as_count()"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ]
+      },
+      "layout": {"x": 0, "y": 8, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "HL7 Engine Config Version (change-event signal)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.hl7.config_version{device_type:hl7_integration_engine}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 6, "y": 8, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## LIMS back-pressure (downstream of HL7 cascade)",
+        "background_color": "orange",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 11, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "LIMS Results Pending Delivery (per node)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.lims.results_pending_delivery{device_type:lims_app_server} by {device_id}"}], "response_format": "timeseries", "display_type": "area"}],
+        "markers": [{"value": "y = 1500", "display_type": "error dashed", "label": "Critical"}]
+      },
+      "layout": {"x": 0, "y": 12, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "LIMS DB Pool Active (capacity = 200)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.lims.db_pool_active{device_type:lims_app_server} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 180", "display_type": "warning dashed", "label": "90%"}, {"value": "y = 200", "display_type": "error dashed", "label": "Capacity"}]
+      },
+      "layout": {"x": 6, "y": 12, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "LIMS HL7 Write Failures (count)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.lims.hl7_writes_failed_total{device_type:lims_app_server}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 0, "y": 15, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "LIMS Orders Received vs Results Verified (rate)",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "ord"}, {"formula": "ver"}], "queries": [
+            {"data_source": "metrics", "name": "ord", "query": "sum:hospital.lims.orders_received_total{device_type:lims_app_server}.as_count()"},
+            {"data_source": "metrics", "name": "ver", "query": "sum:hospital.lims.results_verified_total{device_type:lims_app_server}.as_count()"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ]
+      },
+      "layout": {"x": 6, "y": 15, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Specimen pipeline — pre-analytic → analytic → refrigerated",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 18, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Pre-Analytic Queue Depth (avg + max)",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "avg"}, {"formula": "mx"}], "queries": [
+            {"data_source": "metrics", "name": "avg", "query": "avg:hospital.specimen.queue_depth_pre_analytic{device_type:centrifuge}"},
+            {"data_source": "metrics", "name": "mx", "query": "max:hospital.specimen.queue_depth_pre_analytic{device_type:centrifuge}"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ],
+        "markers": [{"value": "y = 180", "display_type": "error dashed", "label": "Critical"}]
+      },
+      "layout": {"x": 0, "y": 19, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Specimen Sorter Queue (avg + max)",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "avg"}, {"formula": "mx"}], "queries": [
+            {"data_source": "metrics", "name": "avg", "query": "avg:hospital.specimen.queue_depth_analytic{device_type:specimen_sorter}"},
+            {"data_source": "metrics", "name": "mx", "query": "max:hospital.specimen.queue_depth_analytic{device_type:specimen_sorter}"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ]
+      },
+      "layout": {"x": 6, "y": 19, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Refrigerated Storage Capacity %",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.specimen.refrigerated_capacity_pct{device_type:refrigerated_storage} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 90", "display_type": "error dashed", "label": "Critical"}]
+      },
+      "layout": {"x": 0, "y": 22, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Worst-Case Specimen Stability Remaining (min)",
+        "type": "timeseries",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "min:hospital.specimen.stability_min_remaining{device_type:refrigerated_storage}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 45", "display_type": "error dashed", "label": "Critical"}]
+      },
+      "layout": {"x": 6, "y": 22, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Customer-facing TAT (the punch line)",
+        "background_color": "vivid_green",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 25, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "TAT Breach Accumulation — STAT vs Routine",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "stat"}, {"formula": "routine"}], "queries": [
+            {"data_source": "metrics", "name": "stat", "query": "sum:hospital.tat.stat_breaches_total{device_type:lims_app_server}.as_count()"},
+            {"data_source": "metrics", "name": "routine", "query": "sum:hospital.tat.routine_breaches_total{device_type:lims_app_server}.as_count()"}
+          ], "response_format": "timeseries", "display_type": "bars"}
+        ]
+      },
+      "layout": {"x": 0, "y": 26, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "STAT Orders In-Flight (avg + max)",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "avg"}, {"formula": "mx"}], "queries": [
+            {"data_source": "metrics", "name": "avg", "query": "avg:hospital.tat.stat_in_flight_count{device_type:lims_app_server}"},
+            {"data_source": "metrics", "name": "mx", "query": "max:hospital.tat.stat_in_flight_count{device_type:lims_app_server}"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ]
+      },
+      "layout": {"x": 6, "y": 26, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Provider Results Portal — Error Rate %",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "errs / reqs * 100", "alias": "error %"}], "queries": [
+            {"data_source": "metrics", "name": "errs", "query": "sum:hospital.app.errors_total{service_name:provider-results-portal}.as_count()"},
+            {"data_source": "metrics", "name": "reqs", "query": "sum:hospital.app.requests_total{service_name:provider-results-portal}.as_count()"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ],
+        "markers": [{"value": "y = 5", "display_type": "error dashed", "label": "Critical"}]
+      },
+      "layout": {"x": 0, "y": 29, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Provider Results Portal — Latency (avg + max)",
+        "type": "timeseries",
+        "requests": [
+          {"formulas": [{"formula": "avg"}, {"formula": "mx"}], "queries": [
+            {"data_source": "metrics", "name": "avg", "query": "avg:hospital.app.latency_ms{service_name:provider-results-portal}"},
+            {"data_source": "metrics", "name": "mx", "query": "max:hospital.app.latency_ms{service_name:provider-results-portal}"}
+          ], "response_format": "timeseries", "display_type": "line"}
+        ]
+      },
+      "layout": {"x": 6, "y": 29, "width": 6, "height": 3}
+    }
+  ],
+  "template_variables": [
+    {"name": "floor", "prefix": "floor", "default": "*"},
+    {"name": "wing", "prefix": "wing", "default": "*"},
+    {"name": "department", "prefix": "department", "default": "Lab"}
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

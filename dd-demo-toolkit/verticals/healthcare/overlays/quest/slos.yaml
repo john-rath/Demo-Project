@@ -1,0 +1,111 @@
+# Quest overlay SLOs.
+#
+# All SLOs are expressed as count-over-count ratios so we do not depend
+# on percentile aggregators (see STYLE_GUIDE.md §1.1 and the user
+# standard that percentile metrics in this toolkit are unreliable).
+#
+# TAT SLOs are the headline -- TAT (turnaround time) is the operational
+# metric Quest contracts on with ordering providers. LIMS emits the
+# numerator (within-target) and denominator (completed) as DogStatsD
+# counters at result-verification time.
+
+slos:
+
+  - name: "STAT Order TAT Within Target"
+    description: "STAT (urgent) orders must be completed within the contracted TAT window (commonly 60 min from accession to verified result). Numerator: orders completed inside the window. Denominator: orders completed. Target 98% rolling 30 days."
+    type: metric
+    target: 98.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.tat.stat_orders_within_target_total{device_type:lims_app_server}.as_count()"
+      denominator: "sum:hospital.tat.stat_orders_completed_total{device_type:lims_app_server}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+
+  - name: "Routine Order TAT Within Target"
+    description: "Routine orders must be completed within the contracted TAT window (commonly 24h from accession to verified result). Target 95% rolling 30 days."
+    type: metric
+    target: 95.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.tat.routine_orders_within_target_total{device_type:lims_app_server}.as_count()"
+      denominator: "sum:hospital.tat.routine_orders_completed_total{device_type:lims_app_server}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+
+  - name: "HL7 Outbound Result Delivery Success"
+    description: "Outbound HL7 result messages (ORU^R01) must be acknowledged by the receiving ordering-provider EHR. Numerator: delivered (ACKed). Denominator: sent. Target 99.5%."
+    type: metric
+    target: 99.5
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.hl7.ack_received_total{device_type:hl7_integration_engine}.as_count()"
+      denominator: "sum:hospital.hl7.messages_sent_total{device_type:hl7_integration_engine}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:integration"
+      - "incident_domain:diagnostic-laboratory"
+
+  - name: "Analyzer QC Pass Rate (Westgard)"
+    description: "Across the analyzer fleet, QC runs must pass at >98% rate (CAP/CLIA compliance threshold). Numerator: QC pass. Denominator: pass + fail."
+    type: metric
+    target: 98.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.analyzer.qc_pass_total{device_category:clinical_lab_automation}.as_count()"
+      denominator: "sum:hospital.analyzer.qc_pass_total{device_category:clinical_lab_automation}.as_count() + sum:hospital.analyzer.qc_fail_total{device_category:clinical_lab_automation}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:operations"
+      - "compliance:cap"
+      - "compliance:clia"
+
+  - name: "LIMS Core API Availability"
+    description: "LIMS Core is the central system of record. Service availability target 99.9% rolling 30 days."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.app.requests_total{service_name:lims-core}.as_count() - sum:hospital.app.errors_total{service_name:lims-core}.as_count()"
+      denominator: "sum:hospital.app.requests_total{service_name:lims-core}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:lab-informatics"
+      - "incident_domain:diagnostic-laboratory"
+
+  - name: "Provider Results Portal Availability"
+    description: "Customer-facing portal availability impacts ordering-provider experience and call-center load. Target 99.9%."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.app.requests_total{service_name:provider-results-portal}.as_count() - sum:hospital.app.errors_total{service_name:provider-results-portal}.as_count()"
+      denominator: "sum:hospital.app.requests_total{service_name:provider-results-portal}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:diagnostic-laboratory"
+
+  - name: "HL7 Integration Engine Availability"
+    description: "Rhapsody HL7 engine cluster availability. Choke point for all outbound result delivery."
+    type: metric
+    target: 99.95
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.app.requests_total{service_name:hl7-integration-engine}.as_count() - sum:hospital.app.errors_total{service_name:hl7-integration-engine}.as_count()"
+      denominator: "sum:hospital.app.requests_total{service_name:hl7-integration-engine}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:integration"
+      - "incident_domain:diagnostic-laboratory"
