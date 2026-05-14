@@ -77,8 +77,14 @@ def app_and_paths(tmp_path: Path, verticals_dir: Path):
     cfg = UIConfig(
         verticals_dir=verticals_dir,
         env_path=env_path,
+        project_dir=tmp_path,
         static_dir=tmp_path / "nonexistent-static",
         require_gitignore=False,
+        # Phase 1 tests don't exercise process control; disable so we
+        # don't accidentally try to start docker compose under pytest.
+        # The dedicated Phase 2/3 tests in test_ui_supervisor.py flip
+        # this back on with a tmp_path project_dir.
+        enable_supervisor=False,
     )
     app = build_app(cfg)
     return app, cfg

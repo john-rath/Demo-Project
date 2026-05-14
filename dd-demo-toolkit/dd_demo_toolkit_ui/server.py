@@ -1,22 +1,24 @@
 """
 FastAPI app for the dd-demo-toolkit visual layer.
 
-Phase 1 endpoints:
+Phase 1 endpoints (config + env):
   GET  /api/health
   GET  /api/verticals                    -> [{"name", "overlays": [...]}]
   GET  /api/verticals/{name}/overlays    -> ["bd", "quest", ...]
   GET  /api/sites                        -> ["datadoghq.com", ...]
-  GET  /api/env                          -> {DD_API_KEY: "****abcd", ...}
-  POST /api/env                          -> writes .env, returns the new
-                                            masked state. Body values may
-                                            be the literal sentinel
-                                            ``KEEP_EXISTING`` for masked
-                                            fields.
+  GET  /api/env                          -> {values, non_compliant_secret_keys}
+  POST /api/env                          -> writes .env (rejects plain secrets)
   POST /api/env/test                     -> {ok, api_key_ok, app_key_ok, error}
 
+Phase 2 + 3 endpoints (process control + log streaming):
+  GET  /api/processes                    -> [{name, state, ...}]
+  GET  /api/processes/{name}/status      -> single status dict
+  POST /api/processes/{name}/start       -> start the named process
+  POST /api/processes/{name}/stop        -> signal it to exit
+  GET  /api/processes/{name}/logs        -> SSE stream of stdout lines
+
 Plus a static mount at `/` that serves the (vanilla, no-build) UI from
-``dd_demo_toolkit_ui/static/``. Phase 1.5 will swap that for a Vite-built
-React bundle; nothing else changes.
+``dd_demo_toolkit_ui/static/``.
 
 Construction follows the FastAPI app-factory pattern (``build_app(...)``)
 so that tests can hand a tmp_path-based ``UIConfig`` without monkeypatching
@@ -26,13 +28,15 @@ real paths and hands it to uvicorn.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -44,6 +48,14 @@ from .dd_validator import (
     ReferenceResolutionError,
     resolve_secret_reference,
     validate_credentials,
+)
+from .process_supervisor import (
+    AlreadyRunningError,
+    EnvNotResolvedError,
+    NotRunningError,
+    ProcessSupervisor,
+    ProcessSupervisorError,
+    UnknownProcessError,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,6 +72,10 @@ class UIConfig:
     """
     verticals_dir: Path
     env_path: Path
+    # Directory the `docker compose` invocations run from. Must contain
+    # docker-compose.yaml and (typically) .env. Defaults in the CLI to
+    # env_path.parent.
+    project_dir: Path
     # Where to serve static files from. Defaults to the bundled vanilla
     # UI under this package. Phase 1.5 will switch the default to a
     # `web/dist/` produced by `npm run build`.
@@ -69,6 +85,10 @@ class UIConfig:
     # CLI always sets it True. Tests flip it off so they don't have to
     # build a fake .gitignore tree.
     require_gitignore: bool = True
+    # If False, the process-supervisor endpoints aren't mounted. Tests
+    # turn this off when they want to exercise the Phase 1 surface
+    # without spinning up docker. The CLI always sets it True.
+    enable_supervisor: bool = True
 
 
 # --- Pydantic request models -------------------------------------------------
@@ -117,9 +137,24 @@ def build_app(cfg: UIConfig) -> FastAPI:
     in other Python web codebases. Closure + frozen dataclass = no
     accidental rewrites.
     """
+    supervisor: Optional[ProcessSupervisor] = None
+    if cfg.enable_supervisor:
+        supervisor = ProcessSupervisor(project_dir=cfg.project_dir)
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        # Startup: nothing to do (supervisor is lazy — handles created
+        # on first start/status call).
+        yield
+        # Shutdown: politely stop any running children so the docker
+        # stack doesn't dangle when the user Ctrl-Cs the UI server.
+        if supervisor is not None:
+            await supervisor.shutdown()
+
     app = FastAPI(
         title="dd-demo-toolkit UI",
         version="0.1.0",
+        lifespan=lifespan,
         # We bind to 127.0.0.1 by default in cli.py, so CORS isn't a
         # security concern. We still leave it off (no CORSMiddleware) so
         # accidental remote use surfaces as an obvious browser error
@@ -280,6 +315,119 @@ def build_app(cfg: UIConfig) -> FastAPI:
             "app_key_ok": result.app_key_ok,
             "error": result.error,
         }
+
+    # ----- Process control (Phase 2 + 3) -------------------------------------
+
+    def _require_supervisor() -> ProcessSupervisor:
+        # build_app() may run with enable_supervisor=False for tests;
+        # in that mode the routes below return 503 rather than 500
+        # so callers know the feature is intentionally off.
+        if supervisor is None:
+            raise HTTPException(
+                status_code=503,
+                detail="process supervisor disabled in this UIConfig",
+            )
+        return supervisor
+
+    def _supervisor_error_to_http(e: ProcessSupervisorError) -> HTTPException:
+        # 404 for unknown process name; 409 for state conflicts (already
+        # running, not running); 400 for env-not-resolved (user can fix
+        # by relaunching via `make ui`); 500 for anything else.
+        if isinstance(e, UnknownProcessError):
+            return HTTPException(status_code=404, detail=str(e))
+        if isinstance(e, (AlreadyRunningError, NotRunningError)):
+            return HTTPException(status_code=409, detail=str(e))
+        if isinstance(e, EnvNotResolvedError):
+            return HTTPException(status_code=400, detail=str(e))
+        return HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/processes")
+    def list_processes() -> List[Dict[str, Any]]:
+        """Status of every named process the supervisor knows about."""
+        sup = _require_supervisor()
+        return sup.status_all()
+
+    @app.get("/api/processes/{name}/status")
+    def process_status(name: str) -> Dict[str, Any]:
+        sup = _require_supervisor()
+        try:
+            return sup.status(name)
+        except ProcessSupervisorError as e:
+            raise _supervisor_error_to_http(e)
+
+    @app.post("/api/processes/{name}/start")
+    async def process_start(name: str) -> Dict[str, Any]:
+        sup = _require_supervisor()
+        try:
+            return await sup.start(name)
+        except ProcessSupervisorError as e:
+            raise _supervisor_error_to_http(e)
+
+    @app.post("/api/processes/{name}/stop")
+    async def process_stop(name: str) -> Dict[str, Any]:
+        sup = _require_supervisor()
+        try:
+            return await sup.stop(name)
+        except ProcessSupervisorError as e:
+            raise _supervisor_error_to_http(e)
+
+    @app.get("/api/processes/{name}/logs")
+    async def process_logs(name: str, request: Request) -> StreamingResponse:
+        """SSE stream of stdout lines for the named process.
+
+        Replays the bounded backlog first, then streams live lines. Closes
+        cleanly when the child process exits OR when the client disconnects
+        (detected via request.is_disconnected()).
+
+        Event shape: ``data: <line>\\n\\n`` per the SSE spec. Lines are
+        JSON-escaped so embedded newlines / quotes don't break the format.
+        """
+        sup = _require_supervisor()
+        try:
+            sup._validate_name(name)  # raises if unknown
+        except ProcessSupervisorError as e:
+            raise _supervisor_error_to_http(e)
+
+        async def event_stream() -> AsyncIterator[bytes]:
+            # Send a comment frame on connect so any reverse proxy that
+            # buffers output flushes its initial window. Browsers ignore
+            # `:` comment lines per the SSE spec.
+            yield b": connected\n\n"
+            try:
+                async for line in sup.subscribe_logs(name):
+                    # Periodically check the client; otherwise a tab close
+                    # leaves the generator hanging until the next line.
+                    if await request.is_disconnected():
+                        return
+                    # JSON-escape via repr → quote-strip, since the only
+                    # thing SSE forbids in `data:` payloads is a real
+                    # newline. repr's output is safe ASCII.
+                    escaped = (
+                        line
+                        .replace("\\", "\\\\")
+                        .replace("\n", "\\n")
+                        .replace("\r", "\\r")
+                    )
+                    yield f"data: {escaped}\n\n".encode("utf-8")
+            except asyncio.CancelledError:
+                # Client closed the connection.
+                return
+            # End-of-stream marker so the frontend knows the process exited.
+            yield b"event: end\ndata: \n\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={
+                # Disable buffering on common proxies (nginx, etc).
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                # SSE clients reconnect automatically; tell them not to.
+                # The new connection would replay the backlog anyway, so
+                # auto-reconnect would just duplicate buffered lines.
+                "Connection": "keep-alive",
+            },
+        )
 
     # ----- Static UI ---------------------------------------------------------
 

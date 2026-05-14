@@ -133,15 +133,23 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
+    # project_dir is where `docker compose` runs from. It must contain
+    # docker-compose.yaml and (typically) the .env file. We default it to
+    # the directory holding the .env path the user passed, since that's
+    # also where the toolkit's docker-compose.yaml lives.
+    project_dir = env_path.parent.resolve()
+
     cfg = UIConfig(
         verticals_dir=verticals_dir,
         env_path=env_path,
+        project_dir=project_dir,
         static_dir=static_dir,
         require_gitignore=not args.no_gitignore_check,
     )
 
     log.info("verticals dir: %s", cfg.verticals_dir)
     log.info("env path:      %s (exists=%s)", cfg.env_path, cfg.env_path.exists())
+    log.info("project dir:   %s", cfg.project_dir)
     log.info("static dir:    %s", cfg.static_dir)
     log.info("listening on:  http://%s:%d", args.host, args.port)
 

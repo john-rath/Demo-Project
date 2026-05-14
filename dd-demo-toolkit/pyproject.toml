@@ -51,6 +51,9 @@ dev = [
     # without also installing the optional `ui` extras.
     "fastapi>=0.110",
     "httpx>=0.27",
+    # ProcessSupervisor tests in test_ui_supervisor.py use @pytest.mark.asyncio
+    # to drive the async start/stop/subscribe paths.
+    "pytest-asyncio>=0.23",
 ]
 # `pip install dd-demo-toolkit[ui]` pulls in the web layer.
 # Kept as an extra (rather than a hard dep) so command-line-only users
@@ -106,3 +109,9 @@ minversion = "7.0"
 # Coverage for both packages — keep the UI honest as it grows.
 addopts = "-v --cov=dd_demo_toolkit --cov=dd_demo_toolkit_ui --cov-report=term-missing"
 testpaths = ["tests"]
+# pytest-asyncio: STRICT mode requires every async test to be explicitly
+# marked. Prevents accidental "sync test calling async fn → silent skip"
+# bugs. function-scoped event loop = each test gets a fresh loop, which
+# matches the supervisor's per-test lifecycle.
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
