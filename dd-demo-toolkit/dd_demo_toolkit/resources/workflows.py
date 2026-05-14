@@ -39,30 +39,38 @@ logger = logging.getLogger(__name__)
 # Override per-step by adding `action_id: com.datadoghq.<...>` in the
 # YAML; the explicit value always wins over the type-based lookup.
 _TYPE_TO_ACTION_ID = {
-    # Verified against the Datadog Workflow Automation public API docs
-    # (see https://docs.datadoghq.com/api/latest/workflow-automation/):
+    # Verified against the Datadog public docs / SDK examples:
     "noop": "com.datadoghq.core.noop",
-    "datadog_query": "com.datadoghq.dd.monitor.listMonitors",  # documented example
+    # Datadog Workflow Automation API reference example:
+    #   https://docs.datadoghq.com/api/latest/workflow-automation/
+    "datadog_query": "com.datadoghq.dd.monitor.listMonitors",
+    # Datadog Workflow Logic / flow control docs page:
+    #   https://docs.datadoghq.com/actions/workflows/actions/flow_control/
+    "condition": "com.datadoghq.core.if",
+    # Datadog Terraform workflow exports
+    # (https://medium.com/runa-engineering/terraforming-datadog-workflows):
+    "slack_message": "com.datadoghq.slack.send_simple_message",
+    "slack_send_message": "com.datadoghq.slack.send_simple_message",
+    "data_transform": "com.datadoghq.datatransformation.func",
+    "javascript": "com.datadoghq.datatransformation.func",
 
-    # KNOWN-INVALID guesses observed in earlier tenant tests — do NOT
-    # uncomment without replacing with the real handles found via:
-    #   scripts/introspect_workflow_actions.py --include-blueprint
-    # The Datadog pattern is `com.datadoghq.dd.<resource>.<action>` for
-    # native Datadog actions and `com.<vendor>.<action>` for vendor
-    # integrations (e.g. Slack would be `com.slack.<action>`).
-    # "sleep": "com.datadoghq.dd.utility.delay",                  # unverified
-    # "wait": "com.datadoghq.dd.utility.delay",                   # unverified
-    # "http_request": "com.datadoghq.http.requestUrl",            # unverified
-    # "slack_message": "com.slack.sendMessage",                   # unverified — vendor namespace, not com.datadoghq
-    # "slack_send_message": "com.slack.sendMessage",              # unverified
-    # "condition": "com.datadoghq.dd.utility.conditional",        # unverified
-    # "datadog_incident": "com.datadoghq.dd.incident.createIncident",   # unverified
-    # "datadog_case": "com.datadoghq.dd.case.createCase",         # unverified
-    # "pagerduty_alert": "com.pagerduty.triggerIncident",         # unverified
-    # "pagerduty_trigger": "com.pagerduty.triggerIncident",       # unverified
-    # "jira_create_issue": "com.atlassian.jira.createIssue",      # unverified
-    # "servicenow_create_incident": "com.servicenow.createIncident",  # unverified
-    # "github_create_issue": "com.github.createIssue",            # unverified
+    # STILL UNVERIFIED — Datadog does not publish these IDs in the public
+    # docs and our tenant has no example workflows that use them. Easiest
+    # way to learn them: in the Datadog UI, create a one-step workflow
+    # using the HTTP action (and one with the Sleep action), click "Edit
+    # JSON Spec" → the actionId is at the top of each step. Paste them
+    # into the entries below and remove the comment markers. Then
+    # `scripts/introspect_workflow_actions.py` will round-trip them.
+    # "http_request": "com.datadoghq.http.<...>",                 # unverified
+    # "sleep": "com.datadoghq.<...>",                             # unverified
+    # "wait": "com.datadoghq.<...>",                              # unverified
+    # "datadog_incident": "com.datadoghq.dd.incident.<...>",      # unverified
+    # "datadog_case": "com.datadoghq.dd.case.<...>",              # unverified
+    # "pagerduty_alert": "com.datadoghq.pagerduty.<...>",         # unverified
+    # "pagerduty_trigger": "com.datadoghq.pagerduty.<...>",       # unverified
+    # "jira_create_issue": "com.datadoghq.jira.<...>",            # unverified
+    # "servicenow_create_incident": "com.datadoghq.servicenow.<...>",  # unverified
+    # "github_create_issue": "com.datadoghq.github.<...>",        # unverified
 }
 
 
