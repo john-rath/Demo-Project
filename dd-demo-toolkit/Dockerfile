@@ -3,8 +3,16 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copy application code
+# Copy application code. We include dd_demo_toolkit_ui/ even though the
+# UI is designed to run locally on the SE's laptop (not in the simulator
+# container) — pyproject.toml lists it in [tool.setuptools] packages, so
+# pip's editable install needs the dir to exist. FastAPI/uvicorn are NOT
+# installed here (they live in the optional `[ui]` extras), so running
+# `dd-demo-ui` inside this container would fail with ImportError — which
+# is the desired behaviour. Only `dd-demo simulate / setup / teardown`
+# are meant to run from this image.
 COPY dd_demo_toolkit/ ./dd_demo_toolkit/
+COPY dd_demo_toolkit_ui/ ./dd_demo_toolkit_ui/
 COPY verticals/ ./verticals/
 COPY pyproject.toml requirements.txt ./
 
