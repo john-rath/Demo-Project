@@ -71,6 +71,20 @@ device_categories:
   # ----- New category: instruments-as-seen-via-middleware -----
   # IP base 10.120 (avoids collision with base healthcare 10.100/.150/.180/
   # .190/.200/.210 and BD overlay 10.110).
+  #
+  # IMPORTANT — source-of-truth model for analyzer metrics:
+  # The `hospital.analyzer.*` metrics declared on chemistry / hematology /
+  # molecular / immunoassay analyzer device entries below are LIMS-DERIVED
+  # in production. Analyzers are vendor-locked appliances; their state
+  # reaches Datadog via instrument middleware (Data Innovations IM, Roche
+  # cobas IT, Abbott AlinIQ) which writes into LIMS, and LIMS emits the
+  # counters tagged with the originating `device_id` / `device_type`.
+  # In other words: the analyzer is the GROUPING dimension on queries,
+  # not the literal emit source. The simulator emits them from the
+  # analyzer device profile for cleaner query semantics, but the real-
+  # world data path is `analyzer -> middleware -> LIMS -> Datadog`.
+  # See the data-sourcing map in the RCA notebook
+  # (quest-lab-integration-cascade-rca) for the full breakdown.
   clinical_lab_automation:
     ip_base: '10.120'
     department_pool:

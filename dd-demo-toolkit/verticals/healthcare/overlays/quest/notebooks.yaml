@@ -50,33 +50,78 @@ notebooks:
               ## ⚠️ How to read this notebook — the data-sourcing map
 
               Before chasing graphs, anchor on **where each metric below
-              actually originates** in a real Quest environment. This is
-              the answer to "how would we get this data into Datadog?"
-              that every customer asks within the first 10 minutes of a
-              demo. It is the part that, if you cannot answer it on the
-              whiteboard, the rest of the conversation falls apart.
+              actually originates** in a real Quest environment, and on
+              the **effort level** to get it into Datadog. This is the
+              answer to "how would we get this data into Datadog?" that
+              every customer asks within the first 10 minutes of a demo.
+              If you cannot answer it on the whiteboard, the rest of the
+              conversation falls apart.
 
-              | Metric prefix                | Source system (in production)                          | Instrumented how                                                |
-              |------------------------------|--------------------------------------------------------|-----------------------------------------------------------------|
-              | `hospital.hl7.*`             | Rhapsody / Mirth / Cloverleaf HL7 integration engine   | Engine ships JMX + native API; APM agent on the JVM/.NET runtime. Queue depth, ACK/NACK counters, worker thread metrics, route-config version all native. **Bread-and-butter Datadog territory.** |
-              | `hospital.lims.*`            | LIMS application servers (Beaker / Sunquest / SoftLab) | APM agent on JVM/.NET, plus DogStatsD increments emitted by LIMS at order-receipt, result-verification, and HL7-write-failure points. |
-              | `hospital.tat.*`             | LIMS (same servers as above)                           | LIMS computes `verified_time − accession_time`, compares to contracted TAT, and ships a DogStatsD counter increment on every completed order — `within_target_total` if inside SLA, `breaches_total` if outside. Numerator + denominator are explicit, so SLOs are count-over-count (not percentile-based). |
-              | `hospital.analyzer.*`        | Vendor middleware: Data Innovations IM, Roche cobas IT, Abbott AlinIQ. The analyzers themselves do not emit Prom/OTel — the middleware does, scraping their ASTM/HL7 LIS interfaces. | Middleware runs on a Quest-managed server with Datadog Agent + custom check polling its DB or REST API. |
-              | `hospital.specimen.*` queue/cycle | Pre-analytic automation lines (Inpeco, Roche CCM, Beckman) | Modern automation lines expose vendor REST + PLC SCADA. Datadog Agent + custom check. |
-              | `hospital.specimen.refrigerator_temp_celsius`, `.refrigerated_capacity_pct`, `.stability_*` | Cold-chain IoT (Sensitech, Berlinger, Cooper-Atkins) | Real IoT. CAP and CDC mandate cold-chain monitoring; these devices ship native telemetry today. Direct OTel push. |
-              | `hospital.courier.*`         | Courier dispatch app + driver tablets                  | Quest-owned mobile app + dispatch SaaS API + driver handheld telemetry. Datadog Agent on dispatch servers, RUM on driver app. |
-              | `hospital.app.*` (latency, errors, requests) | Every service above                                     | Standard Datadog APM auto-instrumentation. |
+              Metrics fall into three tiers by instrumentation effort:
 
-              **The headline:** every signal in this cascade comes from
-              **software Quest owns and operates**. The lab instruments
-              themselves (cobas, Architect, Sysmex, PCR boxes) are
-              vendor-locked appliances that do not natively emit Prom/OTel
-              — but their state reaches Datadog *via the middleware that
-              Quest already runs in front of them*, the same way every
-              other large clinical lab IT shop does it. There is no
-              "magic IoT" required to get this story off the ground; it
-              is the same APM + custom-metrics + cold-chain-IoT mix
-              Quest is already running today, just wired into Datadog.
+              ### Tier 1 — Native (auto-collected)
+              The Datadog Agent or APM tracer surfaces these out of the
+              box once installed on the host. No application code change.
+
+              | Metric                                          | Source                                                       |
+              |-------------------------------------------------|--------------------------------------------------------------|
+              | `hospital.hl7.ack_received_total`               | HL7 engine native counter (JMX/REST). Rhapsody, Mirth, Cloverleaf all expose this. |
+              | `hospital.hl7.nack_received_total`              | HL7 engine native counter (ACK code = AE/AR in the MSA segment). |
+              | `hospital.hl7.messages_sent_total`              | HL7 engine native counter, per route.                        |
+              | `hospital.hl7.messages_delivered_total`         | HL7 engine native counter, per route.                        |
+              | `hospital.hl7.outbound_queue_depth`             | HL7 engine native gauge — first-class metric on every major engine. |
+              | `hospital.hl7.worker_thread_utilization_pct`   | JVM/.NET thread-pool stats via JMX or APM runtime metrics.   |
+              | `hospital.hl7.routing_errors_total`             | HL7 engine native error counter.                             |
+              | `hospital.lims.db_pool_active`                  | APM runtime metric (DB connection pool).                     |
+              | `hospital.app.requests_total`, `.errors_total`, `.latency_ms` | APM tracer auto-instrumentation (Java / .NET / Go / Python / Swift). |
+              | `hospital.device.cpu_usage_pct`, `.memory_usage_pct`, `.online` | Datadog Agent on the host (LIMS / HL7 engine / portal servers). |
+              | `hospital.specimen.refrigerator_temp_celsius`, `.refrigerated_capacity_pct`, `.stability_*`, `.door_open_events_total` | Cold-chain IoT (Sensitech / Berlinger / Cooper-Atkins). CAP + CDC mandate this; real devices ship native telemetry today. Direct OTel push or Agent integration. |
+
+              ### Tier 2 — Custom business metric (DogStatsD from app code)
+              These require ~10 lines of code added at well-defined hook
+              points in the application — standard pattern in every shop
+              that does observability seriously. They live in LIMS (the
+              system of record) or in the integration engine's transform
+              scripts.
+
+              | Metric                                          | Where the DogStatsD call goes                                |
+              |-------------------------------------------------|--------------------------------------------------------------|
+              | `hospital.lims.orders_received_total`           | LIMS order-ingest endpoint (counter on every accepted order).|
+              | `hospital.lims.results_verified_total`          | LIMS result-verification path (counter on every verify).     |
+              | `hospital.lims.results_pending_delivery`        | LIMS sweeper job (gauge — `SELECT count(*) FROM results WHERE status='verified' AND hl7_sent_at IS NULL`). |
+              | `hospital.lims.hl7_writes_failed_total`         | LIMS HL7-write catch-block (counter on exception).           |
+              | `hospital.lims.qc_evaluations_total`            | LIMS QC service-call wrapper (counter per evaluation).       |
+              | `hospital.tat.routine_orders_completed_total` / `.stat_orders_completed_total` | LIMS at verify-time — counter on every completed order, partitioned by priority. |
+              | `hospital.tat.routine_orders_within_target_total` / `.stat_orders_within_target_total` | LIMS at verify-time — counter when `verified_time − accession_time` ≤ contracted TAT. |
+              | `hospital.tat.routine_breaches_total` / `.stat_breaches_total` | LIMS at verify-time — counter when the threshold is missed. Numerator + denominator pairs make SLOs count-over-count (no percentiles needed). |
+              | `hospital.tat.stat_in_flight_count` / `.routine_in_flight_count` | LIMS sweeper job (gauge of currently-pending orders).       |
+              | `hospital.specimen.queue_depth_pre_analytic`, `.queue_depth_analytic` | Pre-analytic automation line (Inpeco / Roche CCM / Beckman) — vendor REST or PLC SCADA scrape via custom Agent check. Modern lines support it; older standalone centrifuges don't. |
+              | `hospital.specimen.processed_total`, `.sorter_misroutes_total`, `.stability_breaches_total` | Automation line counters via same vendor REST/SCADA scrape. |
+
+              ### Tier 3 — Wired-from-pipeline (deliberate plumbing)
+              Not native, not as simple as a single DogStatsD increment.
+              These need a deploy-pipeline hook, an admin-API scrape, or
+              a custom check polling vendor middleware.
+
+              | Metric                                          | Implementation                                               |
+              |-------------------------------------------------|--------------------------------------------------------------|
+              | `hospital.hl7.config_version`                   | Emitted by the **CD pipeline** (Jenkins / Spinnaker / Argo) on every promotion of the HL7 routing config. Datadog [Change Tracking](https://docs.datadoghq.com/change_tracking/) auto-correlates against downstream metrics for 15 min post-deploy — this is what makes the smoking-gun "config-version step → routing errors" pattern light up automatically. |
+              | `hospital.hl7.worker_thread_retries_total`      | Engine-dependent. Rhapsody: JMX `RetryCount` bean. Mirth: needs custom logging + log-based metric. |
+              | `hospital.analyzer.tests_completed_total`, `.qc_pass_total`, `.qc_fail_total`, `.test_requeue_rate_pct` | **Source of truth is LIMS**, not the analyzer. Analyzers are vendor-locked appliances; their state reaches Datadog via instrument middleware (Data Innovations IM / Roche cobas IT / Abbott AlinIQ) → LIMS. LIMS then emits these counters tagged with the originating `analyzer_id` so dashboards can group by instrument while the metric origin stays consistent. |
+              | `hospital.analyzer.calibration_age_hr`, `.reagent_lot_age_days`, `.reagent_inventory_pct` | Periodic poll (every 5–15 min) of vendor middleware admin API or DB → custom Agent check. Quest already runs this kind of integration for compliance / inventory reporting. |
+              | `hospital.analyzer.module_status_ok`            | Same path as above — instrument middleware exposes per-module health via API. |
+              | `hospital.courier.in_transit_specimens`, `.pickups_completed_total`, `.pickup_delays_total`, `.route_progress_pct` | Courier dispatch SaaS (MercuryGate / Onfleet / in-house) — webhook-driven or 1-min poll → DogStatsD on the dispatch service. Driver-app RUM optional add-on. |
+
+              **The headline:** every metric in this notebook comes from
+              **software Quest owns and operates**, in one of these three
+              tiers. The lab instruments themselves (cobas, Architect,
+              Sysmex, PCR boxes) are vendor-locked appliances that do not
+              natively emit Prom/OTel — but their state reaches Datadog
+              *via the middleware Quest already runs in front of them*,
+              the same way every other large reference lab does it. No
+              "magic IoT" required: it is the same APM + DogStatsD +
+              cold-chain-IoT + middleware-scrape mix Quest is already
+              running today, just wired into Datadog.
 
               ---
               ## Step 1 — Confirm the symptom

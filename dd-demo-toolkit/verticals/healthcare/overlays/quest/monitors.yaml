@@ -239,7 +239,7 @@ monitors:
   - name: "[Healthcare/Quest] Analyzer QC Failure Rate Elevated"
     type: "query alert"
     query: "avg(last_15m):sum:hospital.analyzer.qc_fail_total{device_category:clinical_lab_automation} / sum:hospital.analyzer.qc_pass_total{device_category:clinical_lab_automation} * 100 > 8"
-    message: "📊 Analyzer fleet QC failure rate >8% (vs <2% baseline). Likely reagent lot issue -- check `hospital.analyzer.reagent_lot_age_days` and reagent-inventory-api flags."
+    message: "📊 Analyzer fleet QC failure rate >8% (vs <2% baseline). Counters emitted by LIMS at evaluation-time, tagged with the originating analyzer (`device_type` / `device_id` is the grouping dimension, not the literal emit source). Likely reagent lot issue -- check `hospital.analyzer.reagent_lot_age_days` and reagent-inventory-api flags."
     tags:
       - "vertical:healthcare"
       - "dd-demo-toolkit:true"
@@ -251,7 +251,7 @@ monitors:
   - name: "[Healthcare/Quest] Analyzer Calibration Overdue"
     type: "query alert"
     query: "avg(last_5m):max:hospital.analyzer.calibration_age_hr{device_category:clinical_lab_automation} by {device_id} > 168"
-    message: "🔧 Analyzer calibration overdue (>168hr = 7 days). CAP requires periodic calibration verification; results may be ineligible for billing."
+    message: "🔧 Analyzer calibration overdue (>168hr = 7 days). Value polled from instrument middleware (Roche cobas IT / Abbott AlinIQ / Sysmex SNCS), grouped by analyzer. CAP requires periodic calibration verification; results may be ineligible for billing."
     tags:
       - "vertical:healthcare"
       - "dd-demo-toolkit:true"

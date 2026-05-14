@@ -54,7 +54,7 @@ slos:
       - "incident_domain:diagnostic-laboratory"
 
   - name: "Analyzer QC Pass Rate (Westgard)"
-    description: "Across the analyzer fleet, QC runs must pass at >98% rate (CAP/CLIA compliance threshold). Numerator: QC pass. Denominator: pass + fail."
+    description: "Across the analyzer fleet, QC runs must pass at >98% rate (CAP/CLIA compliance threshold). Numerator: QC pass. Denominator: pass + fail. Counters are LIMS-emitted at QC-evaluation time, tagged with the originating analyzer for per-instrument drill-down -- the analyzer is the grouping dimension, not the emit source."
     type: metric
     target: 98.0
     timeframe: "30d"
