@@ -19,38 +19,50 @@ logger = logging.getLogger(__name__)
 # Mapping from the declarative YAML `type:` field on each step to the
 # Datadog Workflow Automation action ID the engine uses at runtime.
 #
-# These defaults are best-effort against the public Datadog action
-# catalog. Specific tenant installations may use slightly different
-# IDs (vendor renames, private actions, etc.) — verify in the UI by
-# opening any existing workflow and clicking "Edit JSON Spec" to see
-# the live `actionId` strings used in that tenant.
+# *** IMPORTANT ***
+# Datadog rejects the ENTIRE workflow create (HTTP 400 "spec is invalid")
+# if any `actionId` is unknown -- it does not gracefully ignore. Therefore
+# only IDs that have been verified against a real tenant belong here.
+# Everything else is left commented-out for reference, and unmapped types
+# fall through to `com.datadoghq.core.noop` so the workflow still deploys
+# as a connected (but inert) pipeline on the canvas.
+#
+# How to fill these in for YOUR tenant:
+#   1. In the Datadog UI, open any existing workflow (a blueprint works).
+#   2. Click "Edit JSON Spec" (top right).
+#   3. Each step shows its real `actionId` string. Copy those into the
+#      mapping below or set `action_id:` per step in your workflow YAML.
+#   4. Alternatively, run `scripts/introspect_workflow_actions.py` (see
+#      that file) to scrape live workflows in your tenant and print the
+#      action-id histogram.
 #
 # Override per-step by adding `action_id: com.datadoghq.<...>` in the
 # YAML; the explicit value always wins over the type-based lookup.
 _TYPE_TO_ACTION_ID = {
-    # core / control flow
+    # Verified against the Datadog Workflow Automation public API docs
+    # (see https://docs.datadoghq.com/api/latest/workflow-automation/):
     "noop": "com.datadoghq.core.noop",
-    "sleep": "com.datadoghq.core.wait",
-    "wait": "com.datadoghq.core.wait",
-    # NOTE: `condition` (branching) doesn't fit the sequential
-    # auto-wiring model — set `action_id:` AND `out_edges:` explicitly
-    # on conditional steps. We keep an entry here so the warning at
-    # least surfaces the closest Datadog action handle.
-    "condition": "com.datadoghq.core.conditional",
-    # Datadog signal sources
-    "datadog_query": "com.datadoghq.dd.monitors.searchMonitors",
-    "datadog_incident": "com.datadoghq.dd.incidents.createIncident",
-    "datadog_case": "com.datadoghq.dd.cases.createCase",
-    # generic outbound
-    "http_request": "com.datadoghq.http.request",
-    # vendor / SaaS
-    "slack_message": "com.datadoghq.slack.sendMessage",
-    "slack_send_message": "com.datadoghq.slack.sendMessage",
-    "pagerduty_alert": "com.datadoghq.pagerduty.triggerIncident",
-    "pagerduty_trigger": "com.datadoghq.pagerduty.triggerIncident",
-    "jira_create_issue": "com.datadoghq.jira.createIssue",
-    "servicenow_create_incident": "com.datadoghq.servicenow.createIncident",
-    "github_create_issue": "com.datadoghq.github.createIssue",
+    "datadog_query": "com.datadoghq.dd.monitor.listMonitors",  # documented example
+
+    # KNOWN-INVALID guesses observed in earlier tenant tests — do NOT
+    # uncomment without replacing with the real handles found via:
+    #   scripts/introspect_workflow_actions.py --include-blueprint
+    # The Datadog pattern is `com.datadoghq.dd.<resource>.<action>` for
+    # native Datadog actions and `com.<vendor>.<action>` for vendor
+    # integrations (e.g. Slack would be `com.slack.<action>`).
+    # "sleep": "com.datadoghq.dd.utility.delay",                  # unverified
+    # "wait": "com.datadoghq.dd.utility.delay",                   # unverified
+    # "http_request": "com.datadoghq.http.requestUrl",            # unverified
+    # "slack_message": "com.slack.sendMessage",                   # unverified — vendor namespace, not com.datadoghq
+    # "slack_send_message": "com.slack.sendMessage",              # unverified
+    # "condition": "com.datadoghq.dd.utility.conditional",        # unverified
+    # "datadog_incident": "com.datadoghq.dd.incident.createIncident",   # unverified
+    # "datadog_case": "com.datadoghq.dd.case.createCase",         # unverified
+    # "pagerduty_alert": "com.pagerduty.triggerIncident",         # unverified
+    # "pagerduty_trigger": "com.pagerduty.triggerIncident",       # unverified
+    # "jira_create_issue": "com.atlassian.jira.createIssue",      # unverified
+    # "servicenow_create_incident": "com.servicenow.createIncident",  # unverified
+    # "github_create_issue": "com.github.createIssue",            # unverified
 }
 
 
@@ -246,16 +258,26 @@ class WorkflowManager:
         else:
             # Build a minimal valid spec from our trigger/steps config.
             #
-            # Two things must be right for the workflow to show up on the
-            # Datadog canvas as a connected, executable pipeline rather
-            # than disconnected no-op boxes:
+            # Reference: https://docs.datadoghq.com/api/latest/workflow-automation/
+            #
+            # Three things must be right for the workflow to render as a
+            # connected, executable pipeline on the canvas instead of
+            # disconnected no-op boxes:
             #   1. Each step needs a real `actionId` (mapped from the
             #      YAML `type:` field via _resolve_action_id).
-            #   2. Each step needs an `outEdges` list pointing to the
-            #      name of the next step. We wire steps sequentially in
-            #      the order they appear in the YAML; the last step's
-            #      outEdges list is empty.
+            #   2. Each step needs `outboundEdges` — a list of edge
+            #      OBJECTS shaped `{branchName, nextStepName}`, NOT a
+            #      list of step-name strings. We wire steps sequentially
+            #      via a single "main" branch; explicit `out_edges:` in
+            #      YAML overrides for non-linear / fan-out flows.
+            #   3. Steps that target a Datadog integration (Datadog,
+            #      Slack, Jira, etc.) need a `connectionLabel` pointing
+            #      at an entry in the spec's `connectionEnvs` block.
+            #      The toolkit can't materialize real connection_ids
+            #      without tenant-specific config, so we only emit a
+            #      `connectionLabel` when YAML supplies one explicitly.
             raw_steps = config.get("steps", []) or []
+            step_names = [s.get("name", f"step_{i}") for i, s in enumerate(raw_steps)]
             steps_spec = []
             for idx, step in enumerate(raw_steps):
                 # The Workflow API expects parameters as an array of
@@ -272,43 +294,69 @@ class WorkflowManager:
                 else:
                     params_array = []
 
-                # Sequential wiring: this step's `outEdges` points to
-                # the NEXT step's name. The last step has no outEdges.
-                # Allow an explicit `out_edges:` override in YAML for
-                # workflows that need fan-out / non-linear control flow.
-                explicit_edges = step.get("out_edges")
-                if explicit_edges is not None:
-                    out_edges = list(explicit_edges)
-                elif idx + 1 < len(raw_steps):
-                    next_step_name = raw_steps[idx + 1].get("name", f"step_{idx + 1}")
-                    out_edges = [next_step_name]
+                # Build outboundEdges. Datadog expects a list of objects
+                # `{branchName, nextStepName}`. Sequential wiring uses a
+                # single "main" branch. Explicit `out_edges:` in YAML
+                # may be either a list of strings (treated as main-branch
+                # next-steps) or a list of dicts (passed through).
+                explicit = step.get("out_edges")
+                if explicit is not None:
+                    outbound_edges = []
+                    for entry in explicit:
+                        if isinstance(entry, dict):
+                            outbound_edges.append({
+                                "branchName": entry.get("branch_name") or entry.get("branchName") or "main",
+                                "nextStepName": entry.get("next_step_name") or entry.get("nextStepName"),
+                            })
+                        else:
+                            outbound_edges.append({
+                                "branchName": "main",
+                                "nextStepName": entry,
+                            })
+                elif idx + 1 < len(step_names):
+                    outbound_edges = [{
+                        "branchName": "main",
+                        "nextStepName": step_names[idx + 1],
+                    }]
                 else:
-                    out_edges = []
+                    outbound_edges = []
 
                 step_spec: Dict[str, Any] = {
-                    "name": step.get("name", f"step_{idx}"),
+                    "name": step_names[idx],
                     "actionId": _resolve_action_id(step),
                     "parameters": params_array,
-                    "outEdges": out_edges,
+                    "outboundEdges": outbound_edges,
                 }
+                # Optional fields: only emit if YAML provides them, so
+                # we don't fight Datadog with empty/invalid defaults.
                 if "description" in step:
                     step_spec["description"] = step["description"]
+                if "connection_label" in step:
+                    step_spec["connectionLabel"] = step["connection_label"]
                 steps_spec.append(step_spec)
 
-            trigger_config = config.get("trigger", {})
-            trigger_type = trigger_config.get("type", "manual")
+            # Build the trigger. The Datadog API uses a wrapper shape:
+            #   {"startStepNames": [...], "<type>Trigger": {<params>}}
+            # The YAML's `type:` key just selects the wrapper key — it
+            # should NOT be included inside the trigger object itself
+            # (those are reserved for documented MonitorTrigger /
+            # GithubWebhookTrigger / etc. fields like `rateLimit`).
+            raw_trigger = dict(config.get("trigger", {}) or {})
+            trigger_type = raw_trigger.pop("type", "manual")
+            trigger_wrapper: Dict[str, Any] = {
+                "startStepNames": [steps_spec[0]["name"]] if steps_spec else [],
+                f"{trigger_type}Trigger": raw_trigger,
+            }
 
             spec = {
-                "triggers": [{
-                    "startStepNames": [steps_spec[0]["name"]] if steps_spec else [],
-                    f"{trigger_type}Trigger": trigger_config,
-                }],
+                "triggers": [trigger_wrapper],
                 "steps": steps_spec,
             }
 
             attributes = {
                 "name": config["name"],
                 "description": config["description"],
+                "published": True,
                 "spec": spec,
             }
 
