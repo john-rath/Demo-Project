@@ -53,10 +53,17 @@ check-op: ## Verify the 1Password CLI is installed and authenticated
 	    echo ""; \
 	    exit 1; \
 	}
-	@op whoami >/dev/null 2>&1 || { \
+	@# Auth probe: `op vault list` works under both the desktop-app
+	@# biometric integration AND the `eval "$(op signin)"` session-token
+	@# path. `op whoami` is unreliable with biometric integration in op
+	@# 2.x — it asks for a default-account context the integration
+	@# doesn't populate. `vault list` only succeeds when the session is
+	@# actually live, which is what we actually care about.
+	@op vault list >/dev/null 2>&1 || { \
 	    echo ""; \
-	    echo "  ✗ \`op\` is installed but you aren't signed in."; \
-	    echo "    Sign in:  eval \"\$$(op signin)\""; \
+	    echo "  ✗ \`op\` is installed but isn't authenticated to a vault."; \
+	    echo "    Desktop app users:  open 1Password, unlock it, then re-run."; \
+	    echo "    Otherwise:          eval \"\$$(op signin)\" then re-run."; \
 	    echo ""; \
 	    exit 1; \
 	}
