@@ -32,6 +32,7 @@ OP_RUN := op run --env-file=.env --
 .PHONY: help check-op migrate-secrets \
         build rebuild up up-d down logs ps \
         setup teardown teardown-all \
+        up-data-obs down-data-obs logs-data-obs \
         clean-orphans clean-all \
         ui ui-install test
 
@@ -129,6 +130,17 @@ teardown: check-op ## Tear down resources for $$DD_DEMO_VERTICAL
 
 teardown-all: check-op ## Nuke every dd-demo-toolkit:true resource across all verticals
 	$(OP_RUN) $(COMPOSE) --profile teardown-all run $(RUN_FLAGS) teardown-all
+
+## -- Data Streams Monitoring stack (EY AOP demo) -----------------------------
+
+up-data-obs: check-op ## Start the EY DSM stack: kafka + dd-agent + 3 Python workers
+	$(OP_RUN) $(COMPOSE) --profile data-obs up $(UP_FLAGS) -d
+
+down-data-obs: ## Stop only the EY DSM stack (leaves otel-collector + simulator running)
+	$(COMPOSE) --profile data-obs down --remove-orphans
+
+logs-data-obs: ## Tail logs from the EY DSM workers (producer / pipeline / eval)
+	$(COMPOSE) logs -f data-obs-producer data-obs-feature-pipeline data-obs-eval-consumer
 
 ## -- Cleanup -----------------------------------------------------------------
 

@@ -1,0 +1,2 @@
+ddtrace>=2.18.0
+confluent-kafka>=2.6.0

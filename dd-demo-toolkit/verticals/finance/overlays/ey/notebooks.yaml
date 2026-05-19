@@ -1,0 +1,180 @@
+# EY overlay notebook — the headline RCA narrative Jaganathan should
+# walk through. Frames the "stop running Ragas manually" outcome and
+# layers data-pipeline → LLM trace lineage (Scott's "hand in glove" ask)
+# at the end so topic #4 flows directly out of topic #2.
+
+notebooks:
+
+  - id: "ey-risk-portfolio-llm-eval-rca"
+    name: "🧪 EY Risk Portfolio — Continuous LLM Eval RCA"
+    type: investigation
+    description: "Jaganathan's flow: an LLM F1 regression on the Risk Portfolio eval set. Walk: F1 score drop → per-model split → upstream feature-pipeline null-rate spike → bad data hits the eval set → root cause in the upstream Airflow DAG. Closes the loop with the multi-model cost / latency comparison so the team can decide which model to promote next."
+    time_range: "4h"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "signal_chain_root:feature-pipeline-null-spike"
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Risk Portfolio — Continuous LLM Eval RCA
+
+              **Symptom:** Risk Portfolio dashboard flagged that the
+              production F1 score on the credit-counterparty eval set
+              dropped from ~0.86 to ~0.71 in the last 30 minutes.
+
+              **Old workflow:** Re-run Ragas manually on a held-out set,
+              decide whether to roll back. Takes 2–4 hours, requires a
+              data scientist, and only catches the regression after
+              users have already seen degraded output.
+
+              **New workflow:** Datadog scores every production request
+              continuously, alerts on regression, and gives us the
+              upstream data-lineage walk in one notebook.
+
+              ---
+              ## Step 1 — Confirm the regression
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "f1"
+                    query: "avg:finserv.llm_eval.f1_score{device_type:llm_eval_node} by {model}"
+                formulas:
+                  - formula: "f1"
+                    alias: "F1 by model"
+                display_type: "line"
+            markers:
+              - value: "y = 0.75"
+                display_type: "error dashed"
+                label: "Regression threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Step 2 — Per-model precision/recall split
+
+              Is this a single-model failure (rollback that model) or
+              all-model (likely a data-side cause)? The precision/recall
+              split shows whether the model started producing more false
+              positives, more false negatives, or both.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "precision"
+                    query: "avg:finserv.llm_eval.precision{device_type:llm_eval_node} by {model}"
+                  - data_source: "metrics"
+                    name: "recall"
+                    query: "avg:finserv.llm_eval.recall{device_type:llm_eval_node} by {model}"
+                formulas:
+                  - formula: "precision"
+                    alias: "Precision by model"
+                  - formula: "recall"
+                    alias: "Recall by model"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Step 3 — Walk upstream to the feature pipeline
+
+              All three models regressed together → not a model issue,
+              it's an input issue. Walk to the upstream feature pipeline
+              and check freshness + null rate.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "nulls"
+                    query: "avg:finserv.ai_data.null_rate_pct{device_type:feature_pipeline_node} by {device_id}"
+                  - data_source: "metrics"
+                    name: "lag"
+                    query: "avg:finserv.ai_data.ingestion_lag_sec{device_type:feature_pipeline_node} by {device_id}"
+                formulas:
+                  - formula: "nulls"
+                    alias: "Null rate %"
+                  - formula: "lag"
+                    alias: "Ingestion lag (s)"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Step 4 — Multi-model comparison: which one to promote?
+
+              Now that we know the root cause is data, we still need a
+              promotion decision. The model-comparison view weighs F1
+              against token cost per 1k. gpt-4.5 dominates on quality;
+              gpt-4o-mini wins on cost. Datadog gives the team one
+              picture for the trade-off.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "query_table"
+            requests:
+              - response_format: "scalar"
+                queries:
+                  - data_source: "metrics"
+                    name: "f1"
+                    query: "avg:finserv.llm_eval.f1_score{device_type:llm_eval_node} by {model}"
+                    aggregator: "avg"
+                  - data_source: "metrics"
+                    name: "cost"
+                    query: "avg:finserv.llm_eval.cost_per_1k_tokens_usd{device_type:llm_eval_node} by {model}"
+                    aggregator: "avg"
+                  - data_source: "metrics"
+                    name: "latency"
+                    query: "avg:finserv.llm_eval.avg_latency_ms{device_type:llm_eval_node} by {model}"
+                    aggregator: "avg"
+                formulas:
+                  - formula: "f1"
+                    alias: "F1"
+                  - formula: "cost"
+                    alias: "$/1k tokens"
+                  - formula: "latency"
+                    alias: "Avg latency (ms)"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Outcome
+
+              - **Time to diagnosis:** ~3 min from Datadog alert to root
+                cause in the Airflow DAG (vs. hours of manual Ragas).
+              - **Compliance artefact:** Every eval is captured as an LLM
+                Obs span with model, prompt-template version, and
+                client_engagement attribution — replayable for QRM.
+              - **Promotion decision:** Routed via the AI gateway, not a
+                config push. We can re-route low-stakes evals to
+                gpt-4o-mini today.
+        type: "notebook_cells"

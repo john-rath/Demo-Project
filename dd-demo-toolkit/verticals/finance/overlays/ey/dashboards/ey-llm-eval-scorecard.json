@@ -1,0 +1,204 @@
+{
+  "title": "EY Risk Portfolio — LLM Eval Scorecard",
+  "description": "[dd-demo-toolkit:ey] Continuous LLM evaluation surface for EY CT Consulting Risk Portfolio. Replaces Jaganathan's manual Ragas runs: F1 / precision / recall / relevance per Azure OpenAI model, multi-model latency + token-cost comparison, hallucination + guardrail block rate, and the upstream feature-pipeline health that drives eval-set quality.",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Risk Portfolio — Continuous LLM Evaluation\n**Models in production:** Azure OpenAI gpt-4.1 (baseline) · gpt-4.5 (challenger) · gpt-4o-mini (cost-optimised)\n\nAll widgets filter on `device_type:llm_eval_node` and split by `model`. Multi-tenant view is in the LLM Obs trace facets — filter spans by `client_engagement`.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+
+    {
+      "definition": {
+        "title": "F1 (latest, by model)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:finserv.llm_eval.f1_score{device_type:llm_eval_node} by {model}", "aggregator": "last"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">=", "value": 0.85, "palette": "white_on_green"}, {"comparator": ">=", "value": 0.75, "palette": "white_on_yellow"}, {"comparator": "<", "value": 0.75, "palette": "white_on_red"}]}],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {"x": 0, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Precision (latest, by model)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:finserv.llm_eval.precision{device_type:llm_eval_node} by {model}", "aggregator": "last"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {"x": 3, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Recall (latest, by model)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:finserv.llm_eval.recall{device_type:llm_eval_node} by {model}", "aggregator": "last"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {"x": 6, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Relevance (latest, by model)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:finserv.llm_eval.relevance{device_type:llm_eval_node} by {model}", "aggregator": "last"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {"x": 9, "y": 2, "width": 3, "height": 2}
+    },
+
+    {
+      "definition": {
+        "title": "F1 score over time — split by model",
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [{"data_source": "metrics", "name": "f1", "query": "avg:finserv.llm_eval.f1_score{device_type:llm_eval_node} by {model}"}],
+            "formulas": [{"formula": "f1", "alias": "F1 by model"}],
+            "display_type": "line"
+          }
+        ],
+        "markers": [{"value": "y = 0.75", "display_type": "error dashed", "label": "Regression threshold"}]
+      },
+      "layout": {"x": 0, "y": 4, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Precision vs Recall — by model",
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [
+              {"data_source": "metrics", "name": "p", "query": "avg:finserv.llm_eval.precision{device_type:llm_eval_node} by {model}"},
+              {"data_source": "metrics", "name": "r", "query": "avg:finserv.llm_eval.recall{device_type:llm_eval_node} by {model}"}
+            ],
+            "formulas": [
+              {"formula": "p", "alias": "Precision"},
+              {"formula": "r", "alias": "Recall"}
+            ],
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {"x": 6, "y": 4, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "title": "Hallucination rate (%) by model",
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [{"data_source": "metrics", "name": "h", "query": "avg:finserv.llm_eval.hallucination_rate_pct{device_type:llm_eval_node} by {model}"}],
+            "formulas": [{"formula": "h", "alias": "Hallucination %"}],
+            "display_type": "area"
+          }
+        ],
+        "markers": [{"value": "y = 6", "display_type": "error dashed", "label": "Compliance ceiling"}]
+      },
+      "layout": {"x": 0, "y": 7, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "AI Gateway guardrail block rate (%) by model",
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [{"data_source": "metrics", "name": "g", "query": "avg:finserv.llm_eval.guardrail_block_rate_pct{device_type:llm_eval_node} by {model}"}],
+            "formulas": [{"formula": "g", "alias": "Guardrail block %"}],
+            "display_type": "line"
+          }
+        ]
+      },
+      "layout": {"x": 6, "y": 7, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "title": "Model comparison — latency vs cost vs quality",
+        "type": "query_table",
+        "requests": [
+          {
+            "response_format": "scalar",
+            "queries": [
+              {"data_source": "metrics", "name": "f1", "query": "avg:finserv.llm_eval.f1_score{device_type:llm_eval_node} by {model}", "aggregator": "avg"},
+              {"data_source": "metrics", "name": "latency", "query": "avg:finserv.llm_eval.avg_latency_ms{device_type:llm_eval_node} by {model}", "aggregator": "avg"},
+              {"data_source": "metrics", "name": "cost", "query": "avg:finserv.llm_eval.cost_per_1k_tokens_usd{device_type:llm_eval_node} by {model}", "aggregator": "avg"},
+              {"data_source": "metrics", "name": "halluc", "query": "avg:finserv.llm_eval.hallucination_rate_pct{device_type:llm_eval_node} by {model}", "aggregator": "avg"}
+            ],
+            "formulas": [
+              {"formula": "f1", "alias": "F1"},
+              {"formula": "latency", "alias": "Avg latency (ms)"},
+              {"formula": "cost", "alias": "Cost / 1k tokens (USD)"},
+              {"formula": "halluc", "alias": "Hallucination %"}
+            ]
+          }
+        ]
+      },
+      "layout": {"x": 0, "y": 10, "width": 12, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Data lineage — upstream of the eval set\n*Scott's \"data hand in glove\" ask: before bad data hits the LLM, Datadog already knows it's bad.*",
+        "background_color": "vivid_orange",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 13, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Feature pipeline — last successful run age (min)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [{"data_source": "metrics", "name": "age", "query": "avg:finserv.ai_data.last_successful_run_age_min{device_type:feature_pipeline_node} by {device_id}"}],
+            "formulas": [{"formula": "age", "alias": "Last successful run age (min)"}],
+            "display_type": "line"
+          }
+        ],
+        "markers": [{"value": "y = 30", "display_type": "error dashed", "label": "Stale-data ceiling"}]
+      },
+      "layout": {"x": 0, "y": 14, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Feature pipeline — null rate (%)",
+        "type": "timeseries",
+        "requests": [
+          {
+            "response_format": "timeseries",
+            "queries": [{"data_source": "metrics", "name": "n", "query": "avg:finserv.ai_data.null_rate_pct{device_type:feature_pipeline_node} by {device_id}"}],
+            "formulas": [{"formula": "n", "alias": "Null rate %"}],
+            "display_type": "area"
+          }
+        ],
+        "markers": [{"value": "y = 5", "display_type": "error dashed", "label": "Quality threshold"}]
+      },
+      "layout": {"x": 6, "y": 14, "width": 6, "height": 3}
+    }
+  ],
+  "template_variables": [],
+  "layout_type": "ordered",
+  "reflow_type": "fixed"
+}

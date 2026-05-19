@@ -1,0 +1,345 @@
+# EY CT Consulting sub-vertical overlay for the finance vertical.
+#
+# Art-of-the-possible demo for EY's Client Technology (CT) Consulting practice
+# scheduled for 2026-05-19 with Scott Llewelyn (Chief Architect) and Thejus
+# Yerigeri (Engineering Lead). The demo lead is LLM/AI Observability —
+# Jaganathan T (Risk Portfolio Architect) drives the conversation there.
+#
+# Layered on the `finance` base because:
+#   - Jaganathan is in the Risk Portfolio — finance's `Risk & Compliance`
+#     business_unit and `fraud-detection-service` / `risk-calculation-engine`
+#     services line up natively.
+#   - EY's CT Consulting builds multi-tenant AI products deployed into
+#     client cloud environments. The story is one Datadog control plane
+#     observing the same product across many client engagements.
+#
+# Metric-declaration format: we use the BD overlay's explicit list-of-dicts
+# form with full metric names (`finserv.llm_eval.*`, `finserv.ai_data.*`)
+# rather than finance's `{ baseline, jitter }` form, because the engine's
+# `_create_instruments` only reads the list-of-dicts shape. Using explicit
+# `name:` keeps the monitor / SLO / dashboard queries deterministic.
+#
+# Tag scheme — strictly the existing finance keyspace (per CLAUDE.md §6.3):
+#   - vertical:finance              auto-injected
+#   - dd-demo-toolkit:true          auto-injected
+#   - team:<role>                   reuse finance teams ("Risk & Compliance",
+#                                   "Capital Markets", "Digital Banking")
+#   - incident_domain:<value>       existing key, NEW value `ai-eval-pipeline`
+#                                   (mirrors finance's existing pattern)
+#   - signal_chain:<position-name>  same scheme as base
+#
+# Multi-tenant ("Datadog travels into client cloud") is shown via
+# `client_engagement:<value>` set as a SPAN ATTRIBUTE on LLM Obs traces —
+# NOT as a new device-tag key. This honours §6.3's "no new tag keys" rule
+# while still letting Sivakumar see per-engagement filtering in LLM Obs.
+
+device_categories:
+
+  # New category. Synthetic "model nodes" — one per Azure OpenAI model
+  # variant — emit F1 / precision / recall / relevance as gauges so they
+  # appear on the LLM Eval Scorecard dashboard. The real LLM Obs
+  # evaluations are also submitted via llm_obs.py; these gauges give a
+  # control surface for the model-comparison view that doesn't require
+  # the LLM Obs UI.
+  #
+  # device_id is `<env_prefix>-llm_eval_workloads-<n>`; the engine emits
+  # `model` and `device_manufacturer` as device tags so dashboards split
+  # by model. The model name is in `model:` below and surfaces as the
+  # `model:` tag value on every emitted metric.
+  llm_eval_workloads:
+    ip_base: '10.50'
+    devices:
+
+    # Headline buyer: Azure OpenAI 4.1 (Jaganathan's current baseline)
+    - type: llm_eval_node
+      manufacturer: AzureOpenAI
+      model: gpt-4.1
+      firmware: "2026-04"
+      count: 1
+      metrics:
+      - name: finserv.llm_eval.f1_score
+        type: gauge
+        unit: "1"
+        range: [0.78, 0.92]
+        drift: 0.01
+      - name: finserv.llm_eval.precision
+        type: gauge
+        unit: "1"
+        range: [0.80, 0.94]
+        drift: 0.01
+      - name: finserv.llm_eval.recall
+        type: gauge
+        unit: "1"
+        range: [0.76, 0.90]
+        drift: 0.01
+      - name: finserv.llm_eval.relevance
+        type: gauge
+        unit: "1"
+        range: [0.86, 0.97]
+        drift: 0.008
+      - name: finserv.llm_eval.hallucination_rate_pct
+        type: gauge
+        unit: "%"
+        range: [1.5, 5.0]
+        drift: 0.2
+      - name: finserv.llm_eval.avg_latency_ms
+        type: gauge
+        unit: ms
+        range: [1500, 2200]
+        drift: 30.0
+      - name: finserv.llm_eval.cost_per_1k_tokens_usd
+        type: gauge
+        unit: USD
+        range: [0.010, 0.014]
+        drift: 0.0005
+      - name: finserv.llm_eval.guardrail_block_rate_pct
+        type: gauge
+        unit: "%"
+        range: [0.8, 2.0]
+        drift: 0.1
+      - name: finserv.llm_eval.eval_runs_total
+        type: counter
+        unit: "1"
+        range: [0, 40]
+        drift: 0.8
+      - name: finserv.llm_eval.f1_above_threshold
+        type: counter
+        unit: "1"
+        range: [0, 38]
+        drift: 0.7
+      - name: finserv.llm_eval.hallucinations_total
+        type: counter
+        unit: "1"
+        range: [0, 2]
+        drift: 0.05
+
+    # Challenger: Azure OpenAI 4.5 (Jaganathan asked for side-by-side)
+    - type: llm_eval_node
+      manufacturer: AzureOpenAI
+      model: gpt-4.5
+      firmware: "2026-04"
+      count: 1
+      metrics:
+      - name: finserv.llm_eval.f1_score
+        type: gauge
+        unit: "1"
+        range: [0.86, 0.95]
+        drift: 0.008
+      - name: finserv.llm_eval.precision
+        type: gauge
+        unit: "1"
+        range: [0.88, 0.96]
+        drift: 0.008
+      - name: finserv.llm_eval.recall
+        type: gauge
+        unit: "1"
+        range: [0.83, 0.92]
+        drift: 0.008
+      - name: finserv.llm_eval.relevance
+        type: gauge
+        unit: "1"
+        range: [0.91, 0.98]
+        drift: 0.006
+      - name: finserv.llm_eval.hallucination_rate_pct
+        type: gauge
+        unit: "%"
+        range: [1.0, 3.2]
+        drift: 0.15
+      - name: finserv.llm_eval.avg_latency_ms
+        type: gauge
+        unit: ms
+        range: [2100, 2900]
+        drift: 35.0
+      - name: finserv.llm_eval.cost_per_1k_tokens_usd
+        type: gauge
+        unit: USD
+        range: [0.022, 0.029]
+        drift: 0.0008
+      - name: finserv.llm_eval.guardrail_block_rate_pct
+        type: gauge
+        unit: "%"
+        range: [0.5, 1.5]
+        drift: 0.08
+      - name: finserv.llm_eval.eval_runs_total
+        type: counter
+        unit: "1"
+        range: [0, 30]
+        drift: 0.7
+      - name: finserv.llm_eval.f1_above_threshold
+        type: counter
+        unit: "1"
+        range: [0, 29]
+        drift: 0.65
+      - name: finserv.llm_eval.hallucinations_total
+        type: counter
+        unit: "1"
+        range: [0, 1]
+        drift: 0.03
+
+    # Cost-optimised: gpt-4o-mini for high-volume eval workloads
+    - type: llm_eval_node
+      manufacturer: AzureOpenAI
+      model: gpt-4o-mini
+      firmware: "2026-04"
+      count: 1
+      metrics:
+      - name: finserv.llm_eval.f1_score
+        type: gauge
+        unit: "1"
+        range: [0.68, 0.82]
+        drift: 0.012
+      - name: finserv.llm_eval.precision
+        type: gauge
+        unit: "1"
+        range: [0.72, 0.85]
+        drift: 0.012
+      - name: finserv.llm_eval.recall
+        type: gauge
+        unit: "1"
+        range: [0.64, 0.78]
+        drift: 0.013
+      - name: finserv.llm_eval.relevance
+        type: gauge
+        unit: "1"
+        range: [0.76, 0.89]
+        drift: 0.012
+      - name: finserv.llm_eval.hallucination_rate_pct
+        type: gauge
+        unit: "%"
+        range: [3.0, 7.5]
+        drift: 0.3
+      - name: finserv.llm_eval.avg_latency_ms
+        type: gauge
+        unit: ms
+        range: [550, 850]
+        drift: 15.0
+      - name: finserv.llm_eval.cost_per_1k_tokens_usd
+        type: gauge
+        unit: USD
+        range: [0.0006, 0.0010]
+        drift: 0.00003
+      - name: finserv.llm_eval.guardrail_block_rate_pct
+        type: gauge
+        unit: "%"
+        range: [1.4, 3.0]
+        drift: 0.12
+      - name: finserv.llm_eval.eval_runs_total
+        type: counter
+        unit: "1"
+        range: [0, 80]
+        drift: 1.2
+      - name: finserv.llm_eval.f1_above_threshold
+        type: counter
+        unit: "1"
+        range: [0, 72]
+        drift: 1.1
+      - name: finserv.llm_eval.hallucinations_total
+        type: counter
+        unit: "1"
+        range: [0, 5]
+        drift: 0.15
+
+  # Data-pipeline category for the "data quality before LLM" story (Scott's
+  # "data hand in glove" ask, topic #4 of the brief). Pipeline freshness +
+  # lag drives the dashboard widget that lands the lineage point.
+  ai_data_pipelines:
+    ip_base: '10.51'
+    devices:
+
+    - type: feature_pipeline_node
+      manufacturer: Custom
+      model: AirflowDAG
+      firmware: "2.9"
+      count: 4
+      metrics:
+      - name: finserv.ai_data.rows_ingested_per_min
+        type: gauge
+        unit: "1"
+        range: [30000, 60000]
+        drift: 400.0
+      - name: finserv.ai_data.ingestion_lag_sec
+        type: gauge
+        unit: s
+        range: [10, 90]
+        drift: 2.5
+      - name: finserv.ai_data.null_rate_pct
+        type: gauge
+        unit: "%"
+        range: [0.3, 2.0]
+        drift: 0.08
+      - name: finserv.ai_data.schema_drift_events_per_hr
+        type: gauge
+        unit: "1"
+        range: [0, 1.5]
+        drift: 0.05
+      - name: finserv.ai_data.last_successful_run_age_min
+        type: gauge
+        unit: min
+        range: [2, 18]
+        drift: 0.5
+
+# Service Catalog additions. These are the EY-CT-Consulting-flavoured
+# product surfaces. They sit on top of the finance base's
+# `risk-calculation-engine` and `compliance-reporting-api`, so the trace
+# topology already has a natural upstream once instrumentation is on.
+services:
+- name: risk-eval-agent
+  host: risk-eval-agent-01
+  language: python
+  framework: LangGraph
+  operations:
+  - name: "POST /api/agent/evaluate"
+    latency_base_ms: 1850
+    latency_p99_ms: 4500
+    error_rate: 0.012
+  - name: "POST /api/agent/compare-models"
+    latency_base_ms: 2200
+    latency_p99_ms: 5800
+    error_rate: 0.015
+  - name: "GET /api/agent/audit-trail"
+    latency_base_ms: 120
+    latency_p99_ms: 450
+    error_rate: 0.004
+  dependencies:
+  - service: risk-calculation-engine
+    operation: "calculate_var_daily"
+    probability: 0.4
+  - service: compliance-reporting-api
+    operation: "audit_trail_query"
+    probability: 0.85
+
+- name: ey-fabric-orchestrator
+  host: ey-fabric-01
+  language: dotnet
+  framework: ".NET 9"
+  operations:
+  - name: "POST /api/fabric/dispatch"
+    latency_base_ms: 95
+    latency_p99_ms: 320
+    error_rate: 0.008
+  - name: "GET /api/fabric/engagements"
+    latency_base_ms: 65
+    latency_p99_ms: 220
+    error_rate: 0.003
+  dependencies:
+  - service: risk-eval-agent
+    operation: "POST /api/agent/evaluate"
+    probability: 0.7
+
+- name: ai-gateway-policy-enforcer
+  host: ai-gw-01
+  language: go
+  framework: Envoy
+  operations:
+  - name: "POST /v1/llm/request"
+    latency_base_ms: 35
+    latency_p99_ms: 120
+    error_rate: 0.005
+  - name: "POST /v1/llm/guardrail-check"
+    latency_base_ms: 18
+    latency_p99_ms: 65
+    error_rate: 0.002
+  dependencies:
+  - service: risk-eval-agent
+    operation: "POST /api/agent/evaluate"
+    probability: 0.95

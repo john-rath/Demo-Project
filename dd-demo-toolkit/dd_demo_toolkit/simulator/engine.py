@@ -199,15 +199,23 @@ class SimulatorEngine:
         # Keys are incident names, values are dicts like {"phase": "degraded", "severity": 0.7}
         self.incident_state: Dict[str, Dict[str, Any]] = {}
 
-        # LLM Observability — OTel GenAI spans through the collector
+        # LLM Observability — OTel GenAI spans through the collector.
+        # Pass `vertical_name` so the submitter can pick its scenario
+        # library (hospitality default; finance ⇒ EY Risk Portfolio).
         self.llm_obs = None
         try:
             from dd_demo_toolkit.simulator.llm_obs import LLMObsSubmitter
             otel_endpoint = os.environ.get(
                 "OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317"
             )
-            self.llm_obs = LLMObsSubmitter(endpoint=otel_endpoint)
-            logger.info("LLM Observability trace generation enabled (OTel GenAI)")
+            self.llm_obs = LLMObsSubmitter(
+                endpoint=otel_endpoint,
+                vertical_name=self.vertical_name,
+            )
+            logger.info(
+                f"LLM Observability trace generation enabled "
+                f"(OTel GenAI, vertical={self.vertical_name})"
+            )
         except Exception as exc:
             logger.warning(f"LLM Observability init failed: {exc}")
 

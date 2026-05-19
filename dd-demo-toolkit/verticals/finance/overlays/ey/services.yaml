@@ -1,0 +1,45 @@
+# EY overlay — Service Catalog entries for the AI / risk-eval product
+# surface. Tags mirror the finance base's services.yaml scheme:
+# vertical:finance, dd-demo-toolkit:true, team/business-unit from the
+# existing finance keyspace.
+
+services:
+
+  - dd-service: risk-eval-agent
+    display-name: "Risk Eval Agent (EY CT Consulting)"
+    description: "LangGraph-based multi-agent system that runs continuous evaluations (F1, precision, recall, relevance, hallucination) on risk-portfolio LLM workloads. Submits results to Datadog LLM Observability for production scoring. Replaces manual Ragas runs the Risk team operates today."
+    owner: "Risk & Compliance"
+    tier: "Tier 1"
+    languages: ["python"]
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "compliance:sox"
+      - "compliance:gdpr"
+
+  - dd-service: ey-fabric-orchestrator
+    display-name: "EY Fabric Orchestrator"
+    description: "Multi-tenant control plane that fans out client-engagement-scoped LLM workloads to the right downstream service. Each request carries a `client_engagement` span attribute so observability is partitioned per engagement — the answer to Sivakumar's 'how does Datadog travel into our client's cloud?' question."
+    owner: "Capital Markets"
+    tier: "Tier 1"
+    languages: ["dotnet"]
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Capital Markets"
+      - "incident_domain:ai-eval-pipeline"
+
+  - dd-service: ai-gateway-policy-enforcer
+    display-name: "AI Gateway / Policy Enforcer"
+    description: "Envoy-based gateway in front of Azure OpenAI. Enforces per-engagement guardrails (PII redaction, competitor mention block, prompt-injection detection) and emits guardrail outcome as a span attribute for downstream eval. Anchor for Scott's gateway + registry + policy-enforcement follow-up session."
+    owner: "Risk & Compliance"
+    tier: "Tier 1"
+    languages: ["go"]
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "compliance:sox"

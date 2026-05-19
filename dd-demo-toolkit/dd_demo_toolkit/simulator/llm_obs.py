@@ -275,6 +275,228 @@ EVALUATION_DEFINITIONS = [
 
 
 # ---------------------------------------------------------------------------
+# Finance library — EY CT Consulting Risk Portfolio scenarios
+# ---------------------------------------------------------------------------
+# When LLMObsSubmitter is instantiated with vertical_name="finance", the
+# module-level constants above are swapped to the FINANCE_* variants
+# below. Only one LLMObsSubmitter exists per process, so the swap is safe.
+#
+# Scenarios reuse the hospitality library's field names (`intent`,
+# `property_type`, `region`) for backwards-compat — `property_type` here
+# carries the EY engagement tier, `region` carries the client engagement
+# region. Span attribute keys are emitted under the `ey.*` prefix when
+# vertical_name="finance" (see LLMObsSubmitter.__init__).
+
+FINANCE_SCENARIOS: List[Dict[str, Any]] = [
+    {
+        "name": "Credit-Counterparty Risk Memo",
+        "user_input": "Draft a credit-risk memo for counterparty ACME Capital. Latest 10-K plus internal trade exposure attached. Highlight covenant breaches and concentration risk.",
+        "intent": "credit_risk_memo",
+        "search_query": "counterparty:acme_capital, exposure_band:tier1, jurisdiction:US, doc_types:[10K, swap_master, internal_credit_memo]",
+        "search_results": "10-K excerpt (covenant ratios), internal credit memo v3, ISDA master schedule, current swap exposure $1.2B, concentration limit breach (40% > 35% policy).",
+        "loyalty_profile": '{"engagement": "acme_audit_2026q2", "tier": "Tier 1", "client_lead": "Aneesh Pulukkul", "qrm_required": true, "client_jurisdictions": ["US", "UK"]}',
+        "rag_docs": "ACME Capital Q1 2026 10-K: revenue down 12% YoY, debt-to-EBITDA 4.8x (covenant 4.5x — breached), interest coverage 1.9x (covenant 2.0x — breached). Internal trade exposure on equity derivatives $1.2B notional, concentration 40% of tier-1 desk limit. EY engagement scope: Q2 review under SOX §404.",
+        "embedding_input": "credit risk memo, ACME Capital, covenant breach, concentration limit, equity derivatives, SOX 404 review",
+        "recommendation": "**Credit Risk Memo — ACME Capital (Q2 2026)**\n\n**Headline:** Two-covenant breach + concentration overage. Recommend status downgrade to Watch List.\n\n**Findings:**\n- Debt/EBITDA 4.8x vs 4.5x covenant — quantitative breach, no waiver in file\n- Interest coverage 1.9x vs 2.0x covenant — quantitative breach\n- Equity-derivatives exposure $1.2B = 40% of tier-1 limit (policy: 35%)\n\n**Recommended actions:**\n1. Escalate to ACME relationship manager for waiver request\n2. Reduce equity-derivatives exposure by ~$150M to bring within policy\n3. QRM review required before Q3 close (SOX §404 scope)\n\n**Confidence:** High — both breaches are quantitative and unambiguous.",
+        "model": "gpt-4.5",
+        "provider": "azure_openai",
+        "property_type": "Tier 1 Risk Advisory",
+        "region": "Americas",
+    },
+    {
+        "name": "Regulatory Compliance Q&A — SAR Filing",
+        "user_input": "Walk me through the SAR filing decision for the flagged wire to high-risk jurisdiction. Customer is a Silver-tier corporate client.",
+        "intent": "sar_filing_guidance",
+        "search_query": "sar_decision, jurisdiction:high_risk, customer_tier:corporate_silver, wire_value:>50k, fincen_threshold:10k",
+        "search_results": "FinCEN SAR threshold guidance §1020.320, internal SAR decision tree v2.4, customer KYC profile, prior SAR history (none in last 24 months).",
+        "loyalty_profile": '{"engagement": "globex_compliance_2026q2", "tier": "Tier 2", "client_lead": "Sivakumar Sundaram", "qrm_required": false}',
+        "rag_docs": "FinCEN §1020.320 requires a SAR within 30 days of detection when a transaction is suspected of involving funds from illegal activity, designed to evade BSA, has no apparent business purpose, or facilitates criminal activity. Wires to FATF grey-list jurisdictions over $50K trigger automatic enhanced due diligence per internal policy ECP-7.3. Customer KYC: no prior SAR, expected wire activity matches stated business purpose.",
+        "embedding_input": "SAR filing decision, FinCEN, high-risk jurisdiction, wire transfer, corporate client, enhanced due diligence",
+        "recommendation": "**SAR Filing Decision — Recommend FILE within 30 days.**\n\n**Reasoning:**\n- Wire size ($72K) exceeds the $50K trigger for enhanced due diligence under ECP-7.3\n- Destination jurisdiction is on the FATF grey list — by itself a SAR factor under FinCEN §1020.320\n- Stated business purpose is plausible (vendor payment) but unverified\n- Filing under FinCEN §1020.320(a)(2)(iii) — \"no apparent lawful purpose\" because purpose remains unverified\n\n**Required actions:**\n1. File SAR within 30 days of detection (today + 30 = file by 2026-06-18)\n2. Do NOT notify customer (tipping-off prohibition under §1020.320(e))\n3. Continue monitoring — no account closure required at this stage\n\n**Confidence:** Medium-high — file is the safer choice; the unverified purpose tips the decision.",
+        "model": "gpt-4.5",
+        "provider": "azure_openai",
+        "property_type": "Tier 2 Compliance",
+        "region": "Americas",
+    },
+    {
+        "name": "Audit Finding Synthesis — Q2 Internal Audit",
+        "user_input": "Summarise the internal audit findings for the Capital Markets desk Q2 review. Three separate audit reports attached.",
+        "intent": "audit_finding_synthesis",
+        "search_query": "audit_findings, desk:capital_markets, period:2026q2, doc_types:[trade_surveillance_audit, risk_limit_audit, books_records_audit]",
+        "search_results": "Trade surveillance audit (3 findings, 1 high), Risk limit audit (5 findings, 2 high), Books & records audit (2 findings, 0 high).",
+        "loyalty_profile": '{"engagement": "initech_audit_2026q2", "tier": "Tier 1", "client_lead": "Jaganathan T", "qrm_required": true}',
+        "rag_docs": "Trade surveillance audit: gap in pre-trade compliance check for FIX session timeouts (High), late trade-blotter reconciliation 3 instances (Medium), missing supervisor sign-off on 12 trades (Medium). Risk limit audit: VaR limit breach on 3 days unreported within SLA (High), stress-test parameter drift (High), margin call response time exceeds policy on 4 instances (Medium). Books & records audit: trade-time stamp variance across systems (Medium), missing trade-purpose annotation on 8% of trades (Low).",
+        "embedding_input": "internal audit findings synthesis, capital markets desk, trade surveillance, risk limits, books and records, Q2 2026",
+        "recommendation": "**Q2 2026 Internal Audit Summary — Capital Markets Desk**\n\n**Top-line:** 10 findings total (3 High, 5 Medium, 2 Low). Three High-severity items concentrate in pre-trade controls and VaR oversight.\n\n**High-severity findings (require immediate remediation):**\n1. **Pre-trade compliance check gap** on FIX session timeouts — trade surveillance audit\n2. **VaR limit breaches** unreported within SLA on 3 days — risk limit audit\n3. **Stress-test parameter drift** — risk limit audit\n\n**Concentration risk:** 2 of 3 High findings sit in the risk-limit control surface. Recommend a focused review of the risk infrastructure controls in Q3, not a desk-wide overhaul.\n\n**QRM gate:** Required before sign-off — all High-severity items require partner review under engagement policy.\n\n**Confidence:** High — synthesis is mechanical from the source reports.",
+        "model": "gpt-4.5",
+        "provider": "azure_openai",
+        "property_type": "Tier 1 Audit",
+        "region": "Americas",
+    },
+    {
+        "name": "Model Risk Validation — VaR Explanation",
+        "user_input": "Explain why the VaR model flagged the FX swap book yesterday. Senior management wants the plain-English version.",
+        "intent": "model_explanation",
+        "search_query": "var_explanation, book:fx_swaps, date:2026-05-18, model_version:varcalc_v3.2",
+        "search_results": "VaR run yesterday: 99% 1-day VaR = $48M (limit $30M). Top driver: GBP/USD vol shock contribution $32M. Stress-test overlay added $8M.",
+        "loyalty_profile": '{"engagement": "globex_model_validation_2026q2", "tier": "Tier 1", "client_lead": "Nihar Ranjan Kanungo"}',
+        "rag_docs": "VaRCalc v3.2 uses a 250-day historical simulation window with a stress overlay scaled by GARCH volatility forecast. GBP/USD historical-window vol jumped from 8% to 14% over the last 30 days following UK rate uncertainty, which pushes the 99% tail estimate up disproportionately when the book has long GBP swap exposure. Stress overlay adds a deterministic $8M for the gilt-curve scenario currently in the playbook.",
+        "embedding_input": "VaR model explanation, FX swaps, GBP/USD volatility, historical simulation, stress overlay, plain English",
+        "recommendation": "**Why the VaR model flagged the FX swap book — plain English:**\n\nYesterday's 99% 1-day VaR came in at **$48M** against a **$30M** limit — a $18M overage.\n\n**Two drivers — both real, not a model bug:**\n1. **GBP/USD got more volatile.** Over the last month, GBP/USD daily moves widened from ~8% to ~14% (annualised). The model uses 250 days of history, so the recent shock now contributes more to the tail estimate. **Impact: +$32M.**\n2. **The model's stress overlay added $8M** for the gilt-curve scenario currently in the standing playbook — that's by design, not a surprise.\n\n**What management should ask next:**\n- Is the $32M GBP/USD vol contribution acceptable given the book's directional exposure? If not, the desk should reduce GBP swap notional.\n- Is the gilt-curve stress scenario still the right one in the playbook, or has the rate uncertainty resolved enough to revisit it?\n\n**Confidence:** High — the math is auditable end-to-end via the VaRCalc v3.2 run logs.",
+        "model": "gpt-4.5",
+        "provider": "azure_openai",
+        "property_type": "Tier 1 Model Validation",
+        "region": "EMEA",
+    },
+    {
+        "name": "M&A Diligence — Target Filings Review",
+        "user_input": "Pull the material risks from the target company's last 3 years of 10-Ks for the M&A diligence brief. Target is a mid-cap industrial.",
+        "intent": "ma_diligence",
+        "search_query": "ma_target_diligence, doc_types:[10-K], years:[2023, 2024, 2025], target_sector:industrial_midcap",
+        "search_results": "10-K 2023 (clean), 10-K 2024 (material weakness disclosed in IT controls), 10-K 2025 (material weakness remediation in progress, two new pending litigations).",
+        "loyalty_profile": '{"engagement": "stark_ma_diligence_2026q2", "tier": "Tier 1", "client_lead": "Scott Llewelyn", "qrm_required": true}',
+        "rag_docs": "2024 10-K Item 9A: material weakness in IT general controls around access provisioning — remediation plan in progress. 2025 10-K Item 9A: remediation ongoing, retesting deferred to Q1 2026. Two new disclosed litigations: product-liability class action $40M reserve, environmental claim Superfund $12M reserve. 2023 10-K clean — no material weakness, no significant litigation.",
+        "embedding_input": "M&A diligence, target 10-K, material risks, IT controls weakness, litigation reserves, environmental claim",
+        "recommendation": "**Material Risk Summary — Target Filings (2023–2025):**\n\n**Three items deserve immediate buyer attention:**\n\n1. **IT controls material weakness (open 2 years).** Disclosed in 2024, still in remediation per 2025 10-K. Recommend a forensic IT-controls walkthrough during diligence — material weaknesses that persist often signal deeper governance issues.\n\n2. **Product-liability class action — $40M reserved.** Litigation disclosed in 2025 10-K with $40M reserve. Recommend independent reserve adequacy review by litigation counsel.\n\n3. **Environmental Superfund claim — $12M reserved.** Smaller dollar amount but Superfund liability can expand. Confirm reserve assumptions match EPA's current PRP scope.\n\n**Net read:** This is not a deal-killer profile, but it materially weakens the standard rep-and-warranty package. Recommend a specific R&W carve-out for the IT controls weakness and a separate environmental indemnity with a survival period of 6+ years.\n\n**Confidence:** High — all items disclosed in audited filings.",
+        "model": "gpt-4.5",
+        "provider": "azure_openai",
+        "property_type": "Tier 1 M&A Diligence",
+        "region": "Americas",
+    },
+]
+
+FINANCE_ERROR_SCENARIOS = [
+    {
+        "user_input": "Generate the full SOX §404 control narrative for all 14 sub-processes at once.",
+        "error_msg": "Context window exceeded: 131,072 token limit. Input context (158,402 tokens) includes 14 process narratives. Consider chunked retrieval per sub-process.",
+    },
+    {
+        "user_input": "Compare the credit risk profile of our entire counterparty book against the IFRS 9 staging methodology in real time.",
+        "error_msg": "Model inference timeout after 30000ms — Azure OpenAI endpoint eu-west-1 throttled (429 Too Many Requests). Retry budget exhausted.",
+    },
+    {
+        "user_input": "Synthesise the SAR draft including the customer's full bank account number and SSN inline.",
+        "error_msg": "Guardrail triggered: response contained PII (account number, SSN) in cleartext. AI gateway PII-redaction policy blocked output. Falling back to redacted template.",
+    },
+]
+
+FINANCE_INTENT_PROMPT_VERSIONS = [
+    {
+        "id": "risk-intent-classifier",
+        "version": "1.0.0",
+        "template": "You are the EY Risk Portfolio LLM agent's intent classifier. Classify the analyst request into one of: {{intents}}. Return JSON with intent and extracted entities.",
+        "variables": {"intents": "credit_risk_memo, sar_filing_guidance, audit_finding_synthesis, model_explanation, ma_diligence, regulatory_qa"},
+        "weight": 0.3,
+    },
+    {
+        "id": "risk-intent-classifier",
+        "version": "2.0.0",
+        "template": "You are the EY Risk Portfolio agent's intent classifier v2. Classify the analyst request and extract entities including counterparty, engagement, jurisdiction, document_types, and QRM applicability. Intents: {{intents}}. Return JSON.",
+        "variables": {"intents": "credit_risk_memo, sar_filing_guidance, audit_finding_synthesis, model_explanation, ma_diligence, regulatory_qa"},
+        "weight": 0.7,
+    },
+]
+
+FINANCE_RECOMMENDATION_PROMPT_VERSIONS = [
+    {
+        "id": "risk-recommendation-generator",
+        "version": "1.0.0",
+        "template": "You are the EY Risk Portfolio LLM agent. Generate an analyst-grade response. Be specific about findings, regulatory citations, and recommended actions. Use markdown formatting. Never include PII in cleartext.",
+        "variables": {},
+        "weight": 0.4,
+    },
+    {
+        "id": "risk-recommendation-generator",
+        "version": "2.1.0",
+        "template": "You are the EY Risk Portfolio LLM agent. Generate an analyst-grade response for a {{engagement_tier}} engagement. Prioritise: 1) regulatory accuracy, 2) explicit citations, 3) confidence calibration, 4) PII redaction at the source. Include a Confidence line. Format with markdown headers.",
+        "variables": {"engagement_tier": "Tier 1"},
+        "weight": 0.6,
+    },
+]
+
+FINANCE_MODEL_VARIANTS = [
+    {
+        "model": "gpt-4.1",
+        "provider": "azure_openai",
+        "temperature": 0.3,
+        "max_tokens": 4096,
+        "experiment_tag": "model-experiment:gpt41-baseline",
+        "weight": 0.45,
+    },
+    {
+        "model": "gpt-4.5",
+        "provider": "azure_openai",
+        "temperature": 0.25,
+        "max_tokens": 4096,
+        "experiment_tag": "model-experiment:gpt45-challenger",
+        "weight": 0.40,
+    },
+    {
+        "model": "gpt-4o-mini",
+        "provider": "azure_openai",
+        "temperature": 0.4,
+        "max_tokens": 2048,
+        "experiment_tag": "model-experiment:gpt4o-mini-cost-opt",
+        "weight": 0.15,
+    },
+]
+
+# The exact eval labels Jaganathan asked for, surfaced as LLM Obs custom
+# evaluations alongside the existing hallucination + relevance set.
+FINANCE_EVALUATION_DEFINITIONS = [
+    {
+        "label": "f1_score",
+        "metric_type": "score",
+        "range": (0.78, 0.94),
+        "error_range": (0.45, 0.70),
+        "description": "F1 score on the risk-portfolio eval set — Jaganathan's primary metric",
+    },
+    {
+        "label": "precision",
+        "metric_type": "score",
+        "range": (0.80, 0.95),
+        "error_range": (0.50, 0.72),
+        "description": "Precision on the risk-portfolio eval set",
+    },
+    {
+        "label": "recall",
+        "metric_type": "score",
+        "range": (0.76, 0.92),
+        "error_range": (0.40, 0.68),
+        "description": "Recall on the risk-portfolio eval set",
+    },
+    {
+        "label": "relevance",
+        "metric_type": "score",
+        "range": (0.84, 0.98),
+        "error_range": (0.35, 0.62),
+        "description": "Relevance of response to the analyst request",
+    },
+    {
+        "label": "hallucination_score",
+        "metric_type": "score",
+        "range": (0.0, 0.06),
+        "error_range": (0.18, 0.50),
+        "description": "Hallucination detection — lower is better",
+    },
+    {
+        "label": "regulatory_citation_accuracy",
+        "metric_type": "score",
+        "range": (0.85, 0.99),
+        "error_range": (0.30, 0.60),
+        "description": "Accuracy of regulatory citations (FinCEN/SOX/IFRS sections etc.)",
+    },
+    {
+        "label": "pii_leak_check",
+        "metric_type": "categorical",
+        "categories": ["pass", "pass", "pass", "pass"],
+        "error_categories": ["fail", "fail"],
+        "description": "Did the response leak PII in cleartext? Pass = no leak",
+    },
+]
+
+
+# ---------------------------------------------------------------------------
 # Weighted random selection helper
 # ---------------------------------------------------------------------------
 
@@ -431,20 +653,51 @@ class LLMObsSubmitter:
         self,
         endpoint: str = "otel-collector:4317",
         insecure: bool = True,
+        vertical_name: Optional[str] = None,
     ):
         self._tick_counter = 0
         self._interval = random.randint(3, 5)
         self._error_rate = 0.05
 
-        # Dedicated TracerProvider for the AI Stay Planner service
+        # ---- Vertical-aware library selection --------------------------
+        # The hospitality scenario set is the historical default. When the
+        # active vertical is finance, swap the module-level constants so
+        # the generated traces talk like an EY Risk Portfolio agent
+        # instead of an AI Stay Planner. Only one LLMObsSubmitter exists
+        # per process, so global reassignment is safe.
+        if vertical_name == "finance":
+            global SCENARIOS, ERROR_SCENARIOS, MODEL_VARIANTS
+            global EVALUATION_DEFINITIONS, INTENT_PROMPT_VERSIONS
+            global RECOMMENDATION_PROMPT_VERSIONS
+            SCENARIOS = FINANCE_SCENARIOS
+            ERROR_SCENARIOS = FINANCE_ERROR_SCENARIOS
+            MODEL_VARIANTS = FINANCE_MODEL_VARIANTS
+            EVALUATION_DEFINITIONS = FINANCE_EVALUATION_DEFINITIONS
+            INTENT_PROMPT_VERSIONS = FINANCE_INTENT_PROMPT_VERSIONS
+            RECOMMENDATION_PROMPT_VERSIONS = FINANCE_RECOMMENDATION_PROMPT_VERSIONS
+            self._service_name = "risk-eval-agent"
+            self._display_name = "EY Risk Portfolio"
+            self._ml_app = "risk-eval-agent"
+            self._scenario_attr_prefix = "ey"
+            self._service_host = "risk-eval-agent-01"
+            self._service_framework = "langgraph"
+        else:
+            self._service_name = "ai-stay-planner"
+            self._display_name = "Hospitality"
+            self._ml_app = "ai-stay-planner"
+            self._scenario_attr_prefix = "hospitality"
+            self._service_host = "ai-stay-planner-host-01"
+            self._service_framework = "langchain"
+
+        # Dedicated TracerProvider for the configured LLM-agent service.
         resource = Resource.create({
-            ResourceAttributes.SERVICE_NAME: "ai-stay-planner",
+            ResourceAttributes.SERVICE_NAME: self._service_name,
             ResourceAttributes.SERVICE_VERSION: "1.0.0",
             ResourceAttributes.DEPLOYMENT_ENVIRONMENT: "demo",
-            "host.name": "ai-stay-planner-host-01",
+            "host.name": self._service_host,
             "service.language": "python",
-            "service.framework": "langchain",
-            "demo.display_name": "Hospitality",
+            "service.framework": self._service_framework,
+            "demo.display_name": self._display_name,
         })
 
         exporter = OTLPSpanExporter(endpoint=endpoint, insecure=insecure)
@@ -457,7 +710,7 @@ class LLMObsSubmitter:
         self._provider = TracerProvider(resource=resource)
         self._provider.add_span_processor(self._processor)
         self._tracer = self._provider.get_tracer(
-            "ai-stay-planner", "1.0.0"
+            self._service_name, "1.0.0"
         )
 
         # Evaluation submitter for custom evals via HTTP API
@@ -465,7 +718,9 @@ class LLMObsSubmitter:
 
         logger.info(
             f"LLM Obs: OTel GenAI trace generator initialised "
-            f"(endpoint={endpoint}, semconv=v1.37+, evals={'enabled' if self._eval._enabled else 'disabled'})"
+            f"(endpoint={endpoint}, vertical={vertical_name or 'hospitality'}, "
+            f"service={self._service_name}, semconv=v1.37+, "
+            f"evals={'enabled' if self._eval._enabled else 'disabled'})"
         )
 
     def tick(self) -> None:
@@ -499,19 +754,21 @@ class LLMObsSubmitter:
         # Select model variant for this trace (A/B experiment)
         model_variant = _weighted_choice(MODEL_VARIANTS)
 
-        # Root agent span (INTERNAL — orchestrator)
+        # Root agent span (INTERNAL — orchestrator). Span name + scenario
+        # attribute keys are vertical-aware.
+        prefix = self._scenario_attr_prefix
         with self._tracer.start_as_current_span(
-            "AI Stay Planner",
+            self._display_name,
             kind=SpanKind.INTERNAL,
             attributes={
                 "gen_ai.system": model_variant["provider"],
                 "gen_ai.operation.name": "invoke_agent",
                 "session.id": session_id,
-                "hospitality.scenario": scenario["name"],
-                "hospitality.intent": scenario["intent"],
-                "hospitality.property_type": scenario["property_type"],
-                "hospitality.region": scenario["region"],
-                "ml_app": "ai-stay-planner",
+                f"{prefix}.scenario": scenario["name"],
+                f"{prefix}.intent": scenario["intent"],
+                f"{prefix}.property_type": scenario["property_type"],
+                f"{prefix}.region": scenario["region"],
+                "ml_app": self._ml_app,
                 model_variant["experiment_tag"].split(":")[0]: model_variant["experiment_tag"].split(":")[1],
             },
         ) as agent_span:
@@ -587,6 +844,7 @@ class LLMObsSubmitter:
                     label=eval_def["label"],
                     metric_type=eval_def["metric_type"],
                     value=value,
+                    ml_app=self._ml_app,
                     tags=eval_tags,
                 )
 
@@ -798,13 +1056,13 @@ class LLMObsSubmitter:
         model_variant = _weighted_choice(MODEL_VARIANTS)
 
         with self._tracer.start_as_current_span(
-            "AI Stay Planner",
+            self._display_name,
             kind=SpanKind.INTERNAL,
             attributes={
                 "gen_ai.system": model_variant["provider"],
                 "gen_ai.operation.name": "agent",
                 "session.id": session_id,
-                "ml_app": "ai-stay-planner",
+                "ml_app": self._ml_app,
                 "error": True,
                 model_variant["experiment_tag"].split(":")[0]: model_variant["experiment_tag"].split(":")[1],
                 "gen_ai.input.messages": _format_input_messages([
@@ -925,6 +1183,7 @@ class LLMObsSubmitter:
                     label=eval_def["label"],
                     metric_type=eval_def["metric_type"],
                     value=value,
+                    ml_app=self._ml_app,
                     tags=eval_tags,
                 )
 

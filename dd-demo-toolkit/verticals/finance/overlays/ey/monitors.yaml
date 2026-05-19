@@ -1,0 +1,134 @@
+# EY sub-vertical monitors — LLM eval scoring + multi-model + AI-data
+# pipeline freshness. Tag scheme strictly mirrors the finance vertical's
+# existing standards (no new tag keys).
+#
+# Query dimensions reference existing device tags emitted by the engine:
+# device_type, device_manufacturer, model (from `model` field on the
+# llm_eval_node device declaration), service_name. No new tag keys.
+#
+# Per STYLE_GUIDE.md §1.3, query alerts cannot use `||` / `&&` —
+# every threshold gets its own monitor. Per the user memory
+# "Avoid percentile metrics", these monitors stick to counts / rates /
+# gauges — no `p95:` / `p99:` aggregators on llm_eval gauges.
+
+monitors:
+
+  # ----- LLM eval scorecard: F1, precision, recall, relevance ----------
+  # The single most important monitor set for Jaganathan. He runs Ragas
+  # manually today; this is the "we do this continuously, in production,
+  # and alert when an eval score regresses" pitch.
+
+  - name: "[Finance/EY] LLM F1 Score Regression"
+    type: "query alert"
+    query: "avg(last_30m):avg:finserv.llm_eval.f1_score{device_type:llm_eval_node} by {model} < 0.75"
+    message: "📉 LLM F1 score dropped below 0.75 for {{model.name}}. Likely a prompt-template regression or a data-distribution shift on the eval set. Compare against the model-comparison playground before promoting."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  - name: "[Finance/EY] LLM Precision Regression"
+    type: "query alert"
+    query: "avg(last_30m):avg:finserv.llm_eval.precision{device_type:llm_eval_node} by {model} < 0.78"
+    message: "🎯 LLM precision below 0.78 for {{model.name}}. The model is generating more false positives — risk team will see more reviewable items per case."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  - name: "[Finance/EY] LLM Recall Regression"
+    type: "query alert"
+    query: "avg(last_30m):avg:finserv.llm_eval.recall{device_type:llm_eval_node} by {model} < 0.72"
+    message: "🔍 LLM recall below 0.72 for {{model.name}}. The model is missing true positives — risk findings may slip through silently."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  - name: "[Finance/EY] LLM Relevance Regression"
+    type: "query alert"
+    query: "avg(last_30m):avg:finserv.llm_eval.relevance{device_type:llm_eval_node} by {model} < 0.80"
+    message: "🧭 LLM relevance below 0.80 for {{model.name}}. Outputs drifting off-topic from the eval prompts — check retrieval / prompt-template version."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "signal_chain:2-leading-indicator"
+    priority: 3
+
+  # ----- Hallucination rate (per-model) --------------------------------
+  - name: "[Finance/EY] LLM Hallucination Rate Elevated"
+    type: "query alert"
+    query: "avg(last_15m):avg:finserv.llm_eval.hallucination_rate_pct{device_type:llm_eval_node} by {model} > 6"
+    message: "👻 Hallucination rate >6% for {{model.name}}. Consider failing back to the previous prompt-template version or routing to a higher-fidelity model via the AI gateway."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "signal_chain:3-symptom"
+      - "compliance:sox"
+    priority: 1
+
+  # ----- Multi-model cost guard ----------------------------------------
+  # Jaganathan's specific ask: "Which model has lowest F1? Highest token
+  # consumption?" Token-cost monitor anchors the cost half of that.
+  - name: "[Finance/EY] LLM Token Cost Anomaly"
+    type: "query alert"
+    query: "avg(last_30m):avg:finserv.llm_eval.cost_per_1k_tokens_usd{device_type:llm_eval_node} by {model} > 0.030"
+    message: "💸 Token cost above $0.030 / 1k tokens for {{model.name}}. Validate against the model-playground comparison — consider routing low-stakes evals to gpt-4o-mini via the AI gateway."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+    priority: 3
+
+  # ----- Guardrail policy enforcement ----------------------------------
+  # Anchors Scott's "policy enforcement on LLM layer" follow-up ask.
+  - name: "[Finance/EY] AI Gateway Guardrail Block Rate Elevated"
+    type: "query alert"
+    query: "avg(last_15m):avg:finserv.llm_eval.guardrail_block_rate_pct{device_type:llm_eval_node} by {model} > 3"
+    message: "🛡️ Guardrail block rate >3% for {{model.name}}. Likely a prompt-injection campaign or a new client-engagement with unfamiliar input distribution. Inspect the AI gateway audit trail."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "signal_chain:3-symptom"
+    priority: 2
+
+  # ----- Data-quality leading indicator (topic #4 — Scott's "hand in glove") -----
+  - name: "[Finance/EY] AI Feature Pipeline Stale"
+    type: "query alert"
+    query: "avg(last_15m):avg:finserv.ai_data.last_successful_run_age_min{device_type:feature_pipeline_node} > 30"
+    message: "🥶 Feature pipeline has not had a successful run in >30 min. Bad data is heading toward the LLM eval workload. Inspect the upstream Airflow DAG before scores diverge."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "signal_chain:1-root-cause"
+    priority: 1
+
+  - name: "[Finance/EY] AI Feature Pipeline Null Rate Spike"
+    type: "query alert"
+    query: "avg(last_15m):avg:finserv.ai_data.null_rate_pct{device_type:feature_pipeline_node} > 5"
+    message: "🕳️ Feature pipeline null rate >5%. Upstream data quality is degrading — LLM eval scores will follow within ~30 min. Page the data team before users see model drift."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "signal_chain:1-root-cause"
+    priority: 2

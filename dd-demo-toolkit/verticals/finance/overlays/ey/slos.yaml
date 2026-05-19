@@ -1,0 +1,47 @@
+# EY overlay SLOs — the leadership view for Scott. "SLOs give leadership
+# real-time visibility" is the framing from the brief.
+
+slos:
+
+  - name: "Risk Eval Agent — LLM F1 ≥ 0.80"
+    description: "Production LLM eval F1 score must stay above 0.80 on rolling 7-day window. Replaces manual Ragas threshold review."
+    type: metric
+    target: 95.0
+    timeframe: "7d"
+    query:
+      numerator: "sum:finserv.llm_eval.f1_above_threshold{device_type:llm_eval_node}.as_count()"
+      denominator: "sum:finserv.llm_eval.eval_runs_total{device_type:llm_eval_node}.as_count()"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+
+  - name: "Risk Eval Agent — Hallucination Rate < 4%"
+    description: "Hallucination rate across all risk-portfolio LLM workloads must stay under 4% over a rolling 30-day window. Anchors the compliance-controls narrative for QRM."
+    type: metric
+    target: 99.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:finserv.llm_eval.eval_runs_total{device_type:llm_eval_node}.as_count() - sum:finserv.llm_eval.hallucinations_total{device_type:llm_eval_node}.as_count()"
+      denominator: "sum:finserv.llm_eval.eval_runs_total{device_type:llm_eval_node}.as_count()"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"
+      - "compliance:sox"
+
+  - name: "AI Gateway Availability"
+    description: "Policy-enforcement gateway in front of Azure OpenAI must be available 99.9% of the time. Anchors Scott's gateway + registry follow-up."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:finserv.app.requests_total{service_name:ai-gateway-policy-enforcer}.as_count() - sum:finserv.app.errors_total{service_name:ai-gateway-policy-enforcer}.as_count()"
+      denominator: "sum:finserv.app.requests_total{service_name:ai-gateway-policy-enforcer}.as_count()"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Risk & Compliance"
+      - "incident_domain:ai-eval-pipeline"

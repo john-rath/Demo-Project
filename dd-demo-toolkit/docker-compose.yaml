@@ -108,3 +108,166 @@ services:
     restart: "no"
     profiles:
       - teardown-all
+
+  # =========================================================================
+  # Data Streams Monitoring stack — EY CT Consulting AOP demo
+  # =========================================================================
+  # All services here run only when the `data-obs` profile is supplied
+  # (e.g. via `make up-data-obs`). The default `make up` flow is untouched.
+  #
+  # Why a separate Datadog Agent here when otel-collector handles the rest:
+  # DSM is an APM feature that needs the dd-trace-py SDK + the Datadog
+  # Agent's APM intake on :8126. The OTel collector doesn't ingest DSM
+  # pathways. The two run side-by-side in this compose network; the
+  # simulator container talks to the otel-collector, the three Python
+  # workers below talk to the dd-agent.
+
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: dd-demo-kafka
+    # KRaft single-node mode — no Zookeeper needed. Good enough for a
+    # single-broker demo; not for production.
+    environment:
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    healthcheck:
+      # The producer / pipeline / eval workers all wait on this so they
+      # don't crash-loop while Kafka is still electing the controller.
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+    profiles:
+      - data-obs
+
+  # Datadog Agent — terminus for dd-trace-py spans + DSM stats from the
+  # three Python workers. Same secret-handling pattern as the otel-collector:
+  # never use env_file for DD_API_KEY, always require it from the compose
+  # shell env via :? (populated by `op run`).
+  datadog-agent:
+    image: gcr.io/datadoghq/agent:7
+    container_name: dd-demo-datadog-agent
+    environment:
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up-data-obs`}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_DATA_STREAMS_ENABLED=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE=name:dd-demo-kafka
+      - DD_TAGS=dd-demo-toolkit:true vertical:finance incident_domain:ai-eval-pipeline env:demo
+    volumes:
+      # Process + container discovery so the agent can attach the right
+      # service / version tags to traces and logs.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    restart: unless-stopped
+    profiles:
+      - data-obs
+
+  data-obs-producer:
+    build:
+      context: ./data_obs
+      dockerfile: Dockerfile
+    container_name: dd-demo-data-producer
+    command: ["python", "producer.py"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+      datadog-agent:
+        condition: service_started
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BOOTSTRAP=kafka:9092
+      - KAFKA_TOPIC_RAW=risk-feature-events-raw
+      - PRODUCER_INTERVAL_SEC=1.5
+      # dd-trace-py wiring
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=risk-data-ingester
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_TRACE_ENABLED=true
+      - DD_DATA_STREAMS_ENABLED=true
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:finance incident_domain:ai-eval-pipeline team:Risk & Compliance
+    restart: unless-stopped
+    profiles:
+      - data-obs
+
+  data-obs-feature-pipeline:
+    build:
+      context: ./data_obs
+      dockerfile: Dockerfile
+    container_name: dd-demo-feature-pipeline
+    command: ["python", "feature_pipeline.py"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+      datadog-agent:
+        condition: service_started
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BOOTSTRAP=kafka:9092
+      - KAFKA_TOPIC_RAW=risk-feature-events-raw
+      - KAFKA_TOPIC_ENRICHED=risk-eval-jobs
+      - KAFKA_GROUP_ID=risk-feature-pipeline
+      # Default low fault rate. Bump live (e.g. via `docker compose exec`
+      # or compose override file) during the data-quality cascade demo.
+      - DATA_QUALITY_FAULT_PCT=0.02
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=risk-feature-pipeline
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_TRACE_ENABLED=true
+      - DD_DATA_STREAMS_ENABLED=true
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:finance incident_domain:ai-eval-pipeline team:Risk & Compliance
+    restart: unless-stopped
+    profiles:
+      - data-obs
+
+  # IMPORTANT: DD_SERVICE here intentionally matches the LangGraph service
+  # name from verticals/finance/overlays/ey.yaml so Service Catalog shows
+  # one entity with both DSM lineage + LLM Obs evals.
+  data-obs-eval-consumer:
+    build:
+      context: ./data_obs
+      dockerfile: Dockerfile
+    container_name: dd-demo-eval-consumer
+    command: ["python", "eval_consumer.py"]
+    depends_on:
+      kafka:
+        condition: service_healthy
+      datadog-agent:
+        condition: service_started
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BOOTSTRAP=kafka:9092
+      - KAFKA_TOPIC_ENRICHED=risk-eval-jobs
+      - KAFKA_GROUP_ID=risk-eval-agent
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=risk-eval-agent
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_TRACE_ENABLED=true
+      - DD_DATA_STREAMS_ENABLED=true
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:finance incident_domain:ai-eval-pipeline team:Risk & Compliance
+    restart: unless-stopped
+    profiles:
+      - data-obs
