@@ -32,7 +32,8 @@ OP_RUN := op run --env-file=.env --
 .PHONY: help check-op migrate-secrets \
         build rebuild up up-d down logs ps \
         setup teardown teardown-all \
-        up-data-obs down-data-obs logs-data-obs \
+        up-data-obs down-data-obs logs-data-obs logs-dbt dbt-run-now \
+        logs-experiment \
         clean-orphans clean-all \
         ui ui-install test
 
@@ -141,6 +142,17 @@ down-data-obs: ## Stop only the EY DSM stack (leaves otel-collector + simulator 
 
 logs-data-obs: ## Tail logs from the EY DSM workers (producer / pipeline / eval)
 	$(COMPOSE) logs -f data-obs-producer data-obs-feature-pipeline data-obs-eval-consumer
+
+logs-dbt: ## Tail logs from the dbt runner (build cycles + datadog-ci upload)
+	$(COMPOSE) logs -f data-obs-dbt-runner
+
+dbt-run-now: check-op ## Trigger an immediate dbt build (no need to wait for the loop interval)
+	$(OP_RUN) $(COMPOSE) exec data-obs-dbt-runner bash -c 'cd /dbt_project && dbt build 2>&1 | tail -30'
+
+## -- LLM Obs Experiments (continuous, runs alongside simulator) --------------
+
+logs-experiment: ## Tail logs from the continuous EY LLM Obs experiment runner
+	$(COMPOSE) logs -f llm-experiment
 
 ## -- Cleanup -----------------------------------------------------------------
 

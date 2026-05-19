@@ -67,7 +67,15 @@ logger = logging.getLogger(__name__)
 # (start command, stop command, kind) in PROCESS_DEFS.
 PROCESS_DEFS: Dict[str, Dict[str, object]] = {
     "simulator": {
-        "argv": ["docker", "compose", "up", "--remove-orphans"],
+        # `--build` rebuilds the simulator image before starting. Builds
+        # are incremental — unchanged COPY layers are cached, so a no-op
+        # build is ~2-5s. When the toolkit Python (engine, plugins,
+        # overlays) HAS changed, the build picks it up and compose
+        # detects the new image SHA + recreates the container. Without
+        # `--build`, code edits required a separate `make build` or
+        # `docker compose build simulator` step before Start, which was
+        # a recurring footgun during EY-overlay iteration.
+        "argv": ["docker", "compose", "up", "--build", "--remove-orphans"],
         # For long-running services, "stop" sends SIGINT to the `up` proc
         # (compose's documented graceful-stop signal). Containers shut
         # down in dependency order. A separate `docker compose down` cleans

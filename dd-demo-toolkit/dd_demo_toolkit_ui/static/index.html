@@ -134,12 +134,16 @@
       <section class="card" id="card-simulator-control">
         <h2>Simulator</h2>
         <p class="muted">
-          Runs <code>docker compose up --remove-orphans</code> as a child of
-          the UI server. The stack (otel-collector + simulator) inherits the
-          op-resolved env from <code>make ui</code> — secrets stay in 1Password.
-          Start it here, watch the live log, click Stop to send SIGINT
-          (compose's graceful-shutdown signal); a follow-up
-          <code>docker compose down</code> cleans up orphans.
+          Runs <code>docker compose up --build --remove-orphans</code> as a
+          child of the UI server. The stack (otel-collector + simulator)
+          inherits the op-resolved env from <code>make ui</code> — secrets
+          stay in 1Password. <code>--build</code> rebuilds the simulator
+          image first (incremental — cached layers are ~2-5s; only edited
+          code triggers real work) so any change to the toolkit code or to
+          a vertical / overlay is picked up automatically on the next
+          Start. Click Stop to send SIGINT (compose's graceful-shutdown
+          signal); a follow-up <code>docker compose down</code> cleans up
+          orphans.
         </p>
         <div class="row process-row" data-process="simulator">
           <div class="process-status">

@@ -240,9 +240,85 @@ services:
     profiles:
       - data-obs
 
+  # --- Postgres warehouse + dbt-runner for Data Observability ----------
+  # The dbt sub-stack lights up Datadog's Data Observability product UI
+  # (separate from DSM): model lineage DAG, freshness, schema tests.
+  # Builds on the same `data-obs` profile so a single `make up-data-obs`
+  # spins up DSM + Data Quality in one shot.
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: dd-demo-postgres
+    environment:
+      - POSTGRES_USER=dbt
+      - POSTGRES_PASSWORD=dbt
+      - POSTGRES_DB=ey_risk
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbt -d ey_risk"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    profiles:
+      - data-obs
+
+  data-obs-dbt-runner:
+    build:
+      context: ./data_obs
+      dockerfile: dbt_runner/Dockerfile
+    container_name: dd-demo-dbt-runner
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DBT_POSTGRES_HOST=postgres
+      - DBT_POSTGRES_PORT=5432
+      - DBT_POSTGRES_USER=dbt
+      - DBT_POSTGRES_PASSWORD=dbt
+      - DBT_POSTGRES_DB=ey_risk
+      - DBT_POSTGRES_SCHEMA=analytics
+      - DBT_RUN_INTERVAL_SEC=600
+      - DBT_SERVICE_NAME=ey-risk-portfolio-dbt
+      - DD_ENV=demo
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      # DD_API_KEY required for the artifact upload to Datadog Data
+      # Observability. Same secret-handling pattern as the rest of the
+      # stack — sourced from the compose shell env (populated by op run),
+      # never from a literal in .env.
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up-data-obs`}
+    restart: unless-stopped
+    profiles:
+      - data-obs
+
   # IMPORTANT: DD_SERVICE here intentionally matches the LangGraph service
   # name from verticals/finance/overlays/ey.yaml so Service Catalog shows
   # one entity with both DSM lineage + LLM Obs evals.
+  # --- LLM Obs Experiment continuous runner -------------------------------
+  # Runs the EY Risk Portfolio evaluation experiment on a 3-minute loop
+  # (gpt-4.5 vs gpt-4o-mini head-to-head). Part of the default telemetry
+  # generation stack — comes up with `make up` alongside the simulator.
+  # Each cycle adds two new runs under the stable experiment names so
+  # Datadog shows a continuous F1 / precision / recall trend.
+  llm-experiment:
+    build:
+      context: ./data_obs/llm_experiments
+      dockerfile: Dockerfile
+    container_name: dd-demo-llm-experiment
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up`}
+      - DD_APP_KEY=${DD_APP_KEY:?DD_APP_KEY not set — run via `make up`}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - EXPERIMENT_PROJECT=${EXPERIMENT_PROJECT:-EY Risk Portfolio Eval}
+      - EXPERIMENT_DATASET=${EXPERIMENT_DATASET:-ey_risk_portfolio_eval_v1}
+      - EXPERIMENT_INTERVAL_SEC=${EXPERIMENT_INTERVAL_SEC:-180}
+      # Set EXPERIMENT_MODEL to limit to a single model; default runs
+      # both gpt-4.5 and gpt-4o-mini head-to-head every cycle.
+      - EXPERIMENT_MODEL=${EXPERIMENT_MODEL:-}
+    restart: unless-stopped
+
   data-obs-eval-consumer:
     build:
       context: ./data_obs

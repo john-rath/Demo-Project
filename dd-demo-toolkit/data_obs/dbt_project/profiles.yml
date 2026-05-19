@@ -1,0 +1,15 @@
+# dbt connection profile for the EY Risk Portfolio demo project.
+# The dbt-runner container mounts this at /root/.dbt/profiles.yml.
+
+ey_risk_portfolio:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DBT_POSTGRES_HOST', 'dd-demo-postgres') }}"
+      user: "{{ env_var('DBT_POSTGRES_USER', 'dbt') }}"
+      password: "{{ env_var('DBT_POSTGRES_PASSWORD', 'dbt') }}"
+      port: "{{ env_var('DBT_POSTGRES_PORT', '5432') | int }}"
+      dbname: "{{ env_var('DBT_POSTGRES_DB', 'ey_risk') }}"
+      schema: "{{ env_var('DBT_POSTGRES_SCHEMA', 'analytics') }}"
+      threads: 4

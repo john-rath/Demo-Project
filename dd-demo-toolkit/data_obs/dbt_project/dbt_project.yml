@@ -1,0 +1,31 @@
+name: 'ey_risk_portfolio'
+version: '1.0.0'
+config-version: 2
+
+profile: 'ey_risk_portfolio'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  ey_risk_portfolio:
+    +materialized: table
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+
+seeds:
+  ey_risk_portfolio:
+    +schema: raw
+    +quote_columns: false
+
+vars:
+  high_null_rate_threshold_pct: 5.0
+  high_concentration_threshold_pct: 35.0

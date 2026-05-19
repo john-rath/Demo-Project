@@ -1,0 +1,61 @@
+version: 2
+
+models:
+
+  - name: stg_counterparty_exposures
+    description: "Cleaned counterparty exposure snapshot with concentration % and covenant flag."
+    columns:
+      - name: counterparty
+        tests: [not_null]
+      - name: exposure_usd
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+      - name: concentration_pct
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 200
+
+  - name: stg_market_feeds
+    description: "Per-symbol market feed quality summary (observation count, null rate)."
+    columns:
+      - name: symbol
+        tests:
+          - not_null
+          - unique
+      - name: null_rate_pct
+        description: "Synthetic data quality signal — when this exceeds 5% the downstream LLM eval F1 starts regressing."
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      - name: last_received_at
+        tests: [not_null]
+
+  - name: counterparty_risk_summary
+    description: "Per-counterparty risk roll-up consumed by the Risk Eval Agent."
+    columns:
+      - name: counterparty
+        tests:
+          - not_null
+          - unique
+      - name: max_exposure_usd
+        tests: [not_null]
+      - name: max_concentration_pct
+        tests:
+          - not_null
+
+  - name: model_input_features
+    description: "Terminal eval-set table consumed by the LLM risk-eval workload."
+    columns:
+      - name: counterparty
+        tests: [not_null]
+      - name: symbol
+        tests: [not_null]
+      - name: data_quality_ok
+        description: "False when upstream null_rate breaches threshold — the LLM agent short-circuits."
+        tests: [not_null]

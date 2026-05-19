@@ -1,0 +1,51 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw feeds landed in Postgres from upstream pipelines (Kafka DSM workers + nightly batch)."
+    schema: raw
+    tables:
+
+      - name: raw_counterparty_exposure
+        description: "Per-counterparty exposure snapshot. Refreshed every 15 minutes."
+        loaded_at_field: received_at
+        freshness:
+          warn_after: { count: 30, period: minute }
+          error_after: { count: 90, period: minute }
+        columns:
+          - name: counterparty
+            description: "Counterparty legal entity."
+            tests:
+              - not_null
+          - name: exposure_usd
+            description: "USD notional exposure."
+            tests:
+              - not_null
+          - name: vol_30d
+            description: "30-day realised volatility."
+          - name: var_99_usd
+            description: "99th-percentile VaR in USD."
+          - name: received_at
+            description: "Timestamp the row landed in raw."
+            tests:
+              - not_null
+
+      - name: raw_market_feeds
+        description: "Normalized market data feed snapshots used as features for the LLM eval workload."
+        loaded_at_field: received_at
+        freshness:
+          warn_after: { count: 15, period: minute }
+          error_after: { count: 60, period: minute }
+        columns:
+          - name: feed_id
+            tests:
+              - not_null
+              - unique
+          - name: symbol
+            tests:
+              - not_null
+          - name: last_price
+          - name: bid_ask_spread_bps
+          - name: received_at
+            tests:
+              - not_null

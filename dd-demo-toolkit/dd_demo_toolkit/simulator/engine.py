@@ -69,6 +69,141 @@ class DeviceProfile:
             self.state[metric.name] = mid
 
 
+def _normalize_metrics_config(
+    metrics_config: Any,
+    env_prefix: str,
+    device_type: str,
+) -> List[Dict[str, Any]]:
+    """
+    Coerce a device's ``metrics`` block into the list-of-dicts shape the
+    rest of the engine expects.
+
+    Two vertical-config dialects exist in the wild:
+
+    1. BD-style (healthcare, hospitality, manufacturing, insurance, EY
+       overlay) — already a list of dicts with explicit ``name``,
+       ``type``, ``range``, ``drift``. Pass-through.
+
+    2. Finance-style — a dict keyed by short metric name with a body of
+       ``{ baseline, jitter }``. The engine never read this dialect, so
+       any finance-based simulator run crashed on ``metric_def.get`` (the
+       loop iterates the dict's KEYS, which are strings). We synthesise a
+       BD-style entry per pair: full name becomes
+       ``<env_prefix>.<device_type>.<short_name>`` (which is what the
+       existing finance monitors / dashboards already query for), range
+       is baseline ± 3·jitter clamped at 0, drift is jitter.
+
+    Anything else is returned untouched and will fail downstream with a
+    clearer error than the original AttributeError.
+    """
+    if isinstance(metrics_config, list):
+        return metrics_config
+    if not isinstance(metrics_config, dict):
+        return []
+
+    normalized: List[Dict[str, Any]] = []
+    for short_name, body in metrics_config.items():
+        if not isinstance(body, dict):
+            continue
+        baseline = float(body.get("baseline", 0))
+        jitter = float(body.get("jitter", max(abs(baseline) * 0.05, 1)))
+        full_name = f"{env_prefix}.{device_type}.{short_name}"
+        normalized.append({
+            "name": full_name,
+            "type": "gauge",
+            "unit": body.get("unit", ""),
+            "range": [max(0.0, baseline - 3 * jitter), baseline + 3 * jitter],
+            "drift": jitter,
+            "description": body.get("description", ""),
+        })
+    return normalized
+
+
+def _normalize_operations_config(ops_config: Any) -> List[Dict[str, Any]]:
+    """
+    Coerce a service's ``operations`` block into the list-of-dicts shape
+    the rest of the engine expects (``[{"name": ..., "latency_base_ms":
+    ..., "error_rate": ...}, ...]``).
+
+    Two dialects in the wild:
+
+    1. BD-style — list items already have an explicit ``name`` field and
+       ``latency_base_ms`` / ``latency_p99_ms``. Pass-through.
+
+    2. Finance-style — list items are SINGLE-KEY dicts where the key is
+       the operation name and the value carries ``latency_ms`` /
+       ``error_rate``. We flatten to ``{"name": <key>,
+       "latency_base_ms": <latency_ms>, ...}`` so the engine reads it
+       correctly. Without this, finance operations got
+       ``name=None`` and silently degraded to defaults.
+    """
+    if not isinstance(ops_config, list):
+        return []
+    normalized: List[Dict[str, Any]] = []
+    for op in ops_config:
+        if not isinstance(op, dict):
+            continue
+        if "name" in op:
+            normalized.append(op)
+            continue
+        # Finance-style: single-key dict { op_name: { latency_ms, error_rate } }
+        if len(op) == 1:
+            op_name, body = next(iter(op.items()))
+            if not isinstance(body, dict):
+                body = {}
+            normalized.append({
+                "name": op_name,
+                "latency_base_ms": body.get(
+                    "latency_base_ms", body.get("latency_ms", 100)
+                ),
+                "latency_p99_ms": body.get(
+                    "latency_p99_ms",
+                    body.get("latency_ms", 100) * 3,
+                ),
+                "error_rate": body.get("error_rate", 0.0),
+                "description": body.get("description", ""),
+            })
+    return normalized
+
+
+def _normalize_dependencies_config(deps_config: Any) -> List[Dict[str, Any]]:
+    """
+    Coerce a service's ``dependencies`` block into list-of-dicts shape.
+
+    Two dialects:
+
+    1. BD-style / EY-overlay — list of dicts with ``service`` (and
+       optional ``operation``, ``probability``). Pass-through.
+
+    2. Finance-style — bare list of service-name strings. We wrap each
+       into ``{"service": <name>, "operation": None, "probability": 1.0}``
+       so the engine's ``dep_config.get("service")`` call doesn't crash
+       on a string. This is the bug that kept the finance simulator
+       from ever booting prior to the EY overlay work.
+    """
+    if not isinstance(deps_config, list):
+        return []
+    normalized: List[Dict[str, Any]] = []
+    for dep in deps_config:
+        if isinstance(dep, str):
+            # Use empty string (not None) for `operation` — the engine's
+            # cross-service span code does `"POST" in dependency.operation`
+            # which crashes on None but cleanly falls through (→ "GET") on "".
+            normalized.append({
+                "service": dep,
+                "operation": "",
+                "probability": 1.0,
+            })
+        elif isinstance(dep, dict):
+            # Defensively rewrite an explicit None operation to "" too —
+            # otherwise a BD-style entry with `operation: null` would
+            # still crash the cross-service-span code.
+            if dep.get("operation") is None:
+                dep = {**dep, "operation": ""}
+            normalized.append(dep)
+    return normalized
+
+
 @dataclass
 class ServiceOperation:
     """Configuration for a service operation."""
@@ -271,7 +406,11 @@ class SimulatorEngine:
                 firmware = device_config.get("firmware", "1.0")
                 count = device_config.get("count", 1)
                 battery_powered = device_config.get("battery_powered", False)
-                metrics_config = device_config.get("metrics", [])
+                metrics_config = _normalize_metrics_config(
+                    device_config.get("metrics", []),
+                    env_prefix=self.env_prefix,
+                    device_type=device_type,
+                )
 
                 # Parse metrics
                 metrics = []
@@ -325,9 +464,12 @@ class SimulatorEngine:
             host = service_config.get("host", f"{name}-host-01")
             tags = service_config.get("tags", {})
 
-            # Parse operations
+            # Parse operations — normalize finance's single-key-dict form
+            # and BD's explicit-name form into the same shape first.
             operations = []
-            for op_config in service_config.get("operations", []):
+            for op_config in _normalize_operations_config(
+                service_config.get("operations", [])
+            ):
                 op = ServiceOperation(
                     name=op_config.get("name"),
                     latency_base_ms=op_config.get("latency_base_ms", 100),
@@ -337,9 +479,12 @@ class SimulatorEngine:
                 )
                 operations.append(op)
 
-            # Parse dependencies
+            # Parse dependencies — normalize finance's bare-string form
+            # and BD's dict form into the same shape first.
             dependencies = []
-            for dep_config in service_config.get("dependencies", []):
+            for dep_config in _normalize_dependencies_config(
+                service_config.get("dependencies", [])
+            ):
                 dep = ServiceDependency(
                     service=dep_config.get("service"),
                     operation=dep_config.get("operation"),
@@ -370,7 +515,11 @@ class SimulatorEngine:
             devices_config = category_config.get("devices", [])
 
             for device_config in devices_config:
-                metrics_config = device_config.get("metrics", [])
+                metrics_config = _normalize_metrics_config(
+                    device_config.get("metrics", []),
+                    env_prefix=self.env_prefix,
+                    device_type=device_config.get("type"),
+                )
 
                 for metric_def in metrics_config:
                     metric_name = metric_def.get("name")
