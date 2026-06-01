@@ -4,6 +4,7 @@ Datadog API client wrapper for creating and managing dashboards, monitors, noteb
 
 import logging
 import os
+import random
 import time
 from typing import Optional, Dict, Any, List
 import requests
@@ -12,13 +13,28 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-# Retry policy for transient Datadog API failures. Only 5xx and
-# connection / read timeouts are retried; 4xx errors are deterministic
-# and won't get better. The backoff is short enough to keep a deploy
-# pass under a minute even when several requests retry.
-_RETRY_STATUS_CODES = {500, 502, 503, 504}
-_RETRY_MAX_ATTEMPTS = 3
+# Retry policy for transient Datadog API failures.
+# 429 (rate-limit) and 5xx (server error) are retried; other 4xx are
+# deterministic and won't improve with retries.
+_RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
+_RETRY_MAX_ATTEMPTS = 6
 _RETRY_BACKOFF_BASE_SEC = 1.5
+_RETRY_BACKOFF_MAX_SEC = 60.0
+
+# GET requests that list large result sets (notebooks, dashboards) take
+# longer than simple POSTs — give them more time before timing out.
+_TIMEOUT_GET_SEC = 30
+_TIMEOUT_WRITE_SEC = 10
+
+
+def _jittered_backoff(attempt: int, base: float = _RETRY_BACKOFF_BASE_SEC) -> float:
+    """Full-jitter exponential backoff capped at _RETRY_BACKOFF_MAX_SEC.
+
+    Spreads retries across concurrent callers to avoid thundering herd
+    against the Datadog rate limiter.
+    """
+    cap = min(_RETRY_BACKOFF_MAX_SEC, base * (2 ** attempt))
+    return random.uniform(0, cap)
 
 
 class DatadogAPIClient:
@@ -112,19 +128,20 @@ class DatadogAPIClient:
         """
         url = f"{self.base_url}{endpoint}"
         method_upper = method.upper()
+        timeout = _TIMEOUT_GET_SEC if method_upper == "GET" else _TIMEOUT_WRITE_SEC
 
         for attempt in range(1, _RETRY_MAX_ATTEMPTS + 1):
             try:
                 if method_upper == "GET":
-                    response = requests.get(url, headers=self.headers, params=params, timeout=10)
+                    response = requests.get(url, headers=self.headers, params=params, timeout=timeout)
                 elif method_upper == "POST":
-                    response = requests.post(url, headers=self.headers, json=json_data, params=params, timeout=10)
+                    response = requests.post(url, headers=self.headers, json=json_data, params=params, timeout=timeout)
                 elif method_upper == "PUT":
-                    response = requests.put(url, headers=self.headers, json=json_data, params=params, timeout=10)
+                    response = requests.put(url, headers=self.headers, json=json_data, params=params, timeout=timeout)
                 elif method_upper == "PATCH":
-                    response = requests.patch(url, headers=self.headers, json=json_data, params=params, timeout=10)
+                    response = requests.patch(url, headers=self.headers, json=json_data, params=params, timeout=timeout)
                 elif method_upper == "DELETE":
-                    response = requests.delete(url, headers=self.headers, params=params, timeout=10)
+                    response = requests.delete(url, headers=self.headers, params=params, timeout=timeout)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -133,22 +150,37 @@ class DatadogAPIClient:
 
             except requests.exceptions.HTTPError as e:
                 status = e.response.status_code if e.response is not None else None
-                # Retry transient server errors; let client errors fail fast.
                 if status in _RETRY_STATUS_CODES and attempt < _RETRY_MAX_ATTEMPTS:
-                    wait = _RETRY_BACKOFF_BASE_SEC * (2 ** (attempt - 1))
-                    logger.warning(
-                        "Datadog API %s %s returned %d, retrying in %.1fs "
-                        "(attempt %d/%d)",
-                        method_upper, endpoint, status, wait,
-                        attempt, _RETRY_MAX_ATTEMPTS,
-                    )
+                    if status == 429:
+                        # Respect Retry-After if the server sends it; otherwise
+                        # use jittered backoff with a longer base for rate limits.
+                        retry_after = None
+                        if e.response is not None:
+                            try:
+                                retry_after = float(e.response.headers.get("Retry-After", ""))
+                            except (ValueError, TypeError):
+                                pass
+                        wait = retry_after if retry_after is not None else _jittered_backoff(attempt, base=5.0)
+                        logger.warning(
+                            "Datadog API %s %s rate-limited (429), retrying in %.1fs "
+                            "(attempt %d/%d)",
+                            method_upper, endpoint, wait, attempt, _RETRY_MAX_ATTEMPTS,
+                        )
+                    else:
+                        wait = _jittered_backoff(attempt)
+                        logger.warning(
+                            "Datadog API %s %s returned %d, retrying in %.1fs "
+                            "(attempt %d/%d)",
+                            method_upper, endpoint, status, wait,
+                            attempt, _RETRY_MAX_ATTEMPTS,
+                        )
                     time.sleep(wait)
                     continue
                 # Final attempt or non-retriable status: surface the failure.
                 body = ""
                 if e.response is not None:
                     try:
-                        body = e.response.text[:1000]  # Limit to 1000 chars
+                        body = e.response.text[:1000]
                     except Exception:
                         pass
                 raise RuntimeError(
@@ -157,9 +189,8 @@ class DatadogAPIClient:
                 )
             except (requests.exceptions.ConnectionError,
                     requests.exceptions.Timeout) as e:
-                # Network-level transient failures — same retry policy.
                 if attempt < _RETRY_MAX_ATTEMPTS:
-                    wait = _RETRY_BACKOFF_BASE_SEC * (2 ** (attempt - 1))
+                    wait = _jittered_backoff(attempt)
                     logger.warning(
                         "Datadog API %s %s network error (%s), retrying in %.1fs "
                         "(attempt %d/%d)",
