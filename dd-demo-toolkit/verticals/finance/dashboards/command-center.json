@@ -29,8 +29,7 @@
           {
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
             "queries": [
@@ -63,8 +62,7 @@
           {
             "formulas": [
               {
-                "formula": "query1 * 100",
-                "display_type": "line"
+                "formula": "query1 * 100"
               }
             ],
             "queries": [
@@ -97,8 +95,7 @@
           {
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
             "queries": [
@@ -131,8 +128,7 @@
           {
             "formulas": [
               {
-                "formula": "query1 * 100",
-                "display_type": "line"
+                "formula": "query1 * 100"
               }
             ],
             "queries": [
@@ -165,8 +161,7 @@
           {
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
             "queries": [
@@ -199,8 +194,7 @@
           {
             "formulas": [
               {
-                "formula": "query1 * 100",
-                "display_type": "line"
+                "formula": "query1 * 100"
               }
             ],
             "queries": [
@@ -240,11 +234,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -274,11 +268,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -308,11 +302,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -342,11 +336,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -376,11 +370,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -410,11 +404,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -444,11 +438,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "area"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -478,11 +472,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -512,11 +506,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -546,11 +540,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -580,11 +574,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -619,15 +613,14 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               },
               {
-                "formula": "query2",
-                "display_type": "line"
+                "formula": "query2"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -657,11 +650,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "area"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -691,11 +684,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -725,11 +718,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "bars"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -759,11 +752,11 @@
             ],
             "formulas": [
               {
-                "formula": "query1",
-                "display_type": "line"
+                "formula": "query1"
               }
             ],
-            "response_format": "timeseries"
+            "response_format": "timeseries",
+            "display_type": "line"
           }
         ],
         "yaxis": {
@@ -786,7 +779,6 @@
         "widgets": [
           {
             "definition": {
-              "title": "Retail Banking Services",
               "type": "note",
               "content": "\ud83c\udfe6 **Online Banking Portal** \u00b7 **Mobile Banking API** \u00b7 **Payment Processing Engine** \u00b7 **Loan Origination**\n\nStatus: Monitoring for payment latency, mobile auth, and loan processing performance.",
               "background_color": "white",
@@ -802,7 +794,6 @@
           },
           {
             "definition": {
-              "title": "Capital Markets Services",
               "type": "note",
               "content": "\ud83d\udcc8 **Trading Platform** \u00b7 **Market Data Aggregator** \u00b7 **Risk Calculation Engine**\n\nStatus: Monitoring order flow, feed latency, and risk calculations.",
               "background_color": "white",
