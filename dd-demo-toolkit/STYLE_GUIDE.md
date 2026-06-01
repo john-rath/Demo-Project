@@ -310,6 +310,54 @@ Overlays don't get their own metric namespace — they ride the base one.
 }
 ```
 
+### 4.2b Dashboard widget — queries/formulas format requires `response_format`
+
+The Datadog dashboard API validates timeseries requests against `anyOf` schemas:
+- **Legacy format**: `{"q": "<metric>", "display_type": "line"}`
+- **New format**: `{"queries": [...], "formulas": [...], "response_format": "timeseries"}`
+
+A request that has `queries` but is **missing `response_format`** matches neither schema
+and is rejected with `is not valid under any of the given schemas`. This is a silent
+schema mismatch — the error message doesn't say "missing response_format".
+
+✅ Minimal single-query timeseries request:
+```json
+{
+  "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:metric{tag}"}],
+  "response_format": "timeseries",
+  "display_type": "line"
+}
+```
+
+✅ With explicit formula (needed for multi-query or aliasing):
+```json
+{
+  "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:metric{tag}"}],
+  "formulas": [{"formula": "query1", "display_type": "line"}],
+  "response_format": "timeseries"
+}
+```
+
+❌ Missing `response_format` — rejected by API despite having `queries` and `display_type`:
+```json
+{
+  "queries": [...],
+  "display_type": "line",
+  "on_right_yaxis": false
+}
+```
+
+**Also**: `on_right_yaxis` at the request root is a legacy field; omit it in new-format requests
+(its default is `false`, so removing it has no effect).
+
+### 4.2c `query_value` widgets do not support `suffix`
+
+The `suffix` field is **not** in the Datadog `query_value` widget schema and causes a 400.
+Use `custom_unit` (for a unit label after the number) or `unit` (auto) instead, or omit it.
+
+❌ `"suffix": "%"` — API returns 400 Invalid widget definition.
+✅ `"custom_unit": "%"` — or omit if the metric name implies the unit.
+
 ### 4.3 Template variables
 Always include at least:
 ```json
@@ -468,9 +516,14 @@ in YAML for non-linear flows. Details in WORKFLOW_ACTIONS.md.
 
 ### 8.2 Time range
 `time_range: "1h"` for live demos, `"4h"` for post-mortems, `"1d"` for trend analyses.
+Valid `live_span` values: `1m, 5m, 10m, 15m, 30m, 1h, 4h, 1d, 2d, 1w, 1mo, 3mo, 6mo, 1y, alert`.
 
 ### 8.3 Every timeseries cell needs `formulas`
 See §1.5. This is the #1 cause of empty notebooks.
+
+### 8.4b Notebook `type` valid values
+`postmortem, runbook, investigation, documentation, report, workspace, threat_hunting`.
+Any other value (e.g. `executive_report`) causes a 400 API error on create.
 
 ### 8.4 ROI section requirements (customer-facing notebooks)
 Required sub-sections:
@@ -593,6 +646,11 @@ overlay-only teardown.
 - [ ] No `||` / `&&` in monitor query alert queries
 - [ ] All notebook timeseries cells have `formulas:` populated
 - [ ] All scalar widgets have `aggregator:` set explicitly
+- [ ] No `suffix:` field on `query_value` widgets (use `custom_unit:` or omit)
+- [ ] Dashboard timeseries requests using `queries:` have `response_format: "timeseries"` and no legacy `on_right_yaxis` at root
+- [ ] SLO metric queries use `.as_count()` on both numerator and denominator
+- [ ] Notebook `type:` is one of: `postmortem, runbook, investigation, documentation, report, workspace, threat_hunting`
+- [ ] After editing vertical files, run `make build` (now includes `--profile setup`) before `make setup`
 - [ ] Workflow descriptions ≤ 300 characters
 - [ ] If adding a plugin: disjoint from existing plugins along all 4 axes (spatial, namespace, incident_domain, temporal)
 - [ ] If customer-facing notebook: includes ROI / Business Impact section

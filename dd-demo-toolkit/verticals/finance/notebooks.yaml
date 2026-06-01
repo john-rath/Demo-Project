@@ -13,7 +13,7 @@ notebooks:
 
   - id: "executive-report-digital-banking"
     name: "📊 Executive Report: Digital Banking Operations (30-Day Summary)"
-    type: executive_report
+    type: report
     description: "30-day health dashboard for bank leadership. Transaction volumes, payment success rates, fraud detection effectiveness, ATM fleet availability, SLO compliance, customer experience metrics, and key incidents/resolutions."
     time_range: "30d"
     tags:

@@ -101,10 +101,10 @@ migrate-secrets: ## Print step-by-step instructions to migrate a plain .env to 1
 ## -- Build / lifecycle -------------------------------------------------------
 
 build: ## Build images (uses cache; faster)
-	$(COMPOSE) build
+	$(COMPOSE) --profile setup --profile teardown --profile teardown-all build
 
 rebuild: ## Build images from scratch (--no-cache; slower, deterministic)
-	$(COMPOSE) build --no-cache
+	$(COMPOSE) --profile setup --profile teardown --profile teardown-all build --no-cache
 
 up: check-op ## Start otel-collector + simulator (resolves secrets via op run)
 	$(OP_RUN) $(COMPOSE) up $(UP_FLAGS)

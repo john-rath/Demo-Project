@@ -1,12 +1,12 @@
 {
-  "title": "Global Financial Services Platform — Command Center",
+  "title": "Global Financial Services Platform \u2014 Command Center",
   "description": "Real-time observability across trading, payments, fraud detection, and risk infrastructure. Mission-critical financial services operations dashboard.",
   "layout_type": "ordered",
   "widgets": [
     {
       "definition": {
         "type": "note",
-        "content": "# Global Financial Services Command Center\n### Real-time Operations & SLA Monitoring\n\nTrading Platform · Payment Systems · Fraud Detection · Risk Management · Compliance\n\nObserving **65+ infrastructure nodes** across **4 regions** · **3 environments** · **4 business units**",
+        "content": "# Global Financial Services Command Center\n### Real-time Operations & SLA Monitoring\n\nTrading Platform \u00b7 Payment Systems \u00b7 Fraud Detection \u00b7 Risk Management \u00b7 Compliance\n\nObserving **65+ infrastructure nodes** across **4 regions** \u00b7 **3 environments** \u00b7 **4 business units**",
         "background_color": "vivid_blue",
         "font_size": "14",
         "text_align": "center",
@@ -29,7 +29,8 @@
           {
             "formulas": [
               {
-                "formula": "query1"
+                "formula": "query1",
+                "display_type": "line"
               }
             ],
             "queries": [
@@ -62,7 +63,8 @@
           {
             "formulas": [
               {
-                "formula": "query1 * 100"
+                "formula": "query1 * 100",
+                "display_type": "line"
               }
             ],
             "queries": [
@@ -78,8 +80,7 @@
         ],
         "autoscale": true,
         "precision": 2,
-        "custom_links": [],
-        "suffix": "%"
+        "custom_links": []
       },
       "layout": {
         "x": 2,
@@ -96,7 +97,8 @@
           {
             "formulas": [
               {
-                "formula": "query1"
+                "formula": "query1",
+                "display_type": "line"
               }
             ],
             "queries": [
@@ -129,7 +131,8 @@
           {
             "formulas": [
               {
-                "formula": "query1 * 100"
+                "formula": "query1 * 100",
+                "display_type": "line"
               }
             ],
             "queries": [
@@ -145,8 +148,7 @@
         ],
         "autoscale": true,
         "precision": 2,
-        "custom_links": [],
-        "suffix": "%"
+        "custom_links": []
       },
       "layout": {
         "x": 6,
@@ -163,7 +165,8 @@
           {
             "formulas": [
               {
-                "formula": "query1"
+                "formula": "query1",
+                "display_type": "line"
               }
             ],
             "queries": [
@@ -179,8 +182,7 @@
         ],
         "autoscale": true,
         "precision": 2,
-        "custom_links": [],
-        "suffix": "%"
+        "custom_links": []
       },
       "layout": {
         "x": 8,
@@ -197,7 +199,8 @@
           {
             "formulas": [
               {
-                "formula": "query1 * 100"
+                "formula": "query1 * 100",
+                "display_type": "line"
               }
             ],
             "queries": [
@@ -213,8 +216,7 @@
         ],
         "autoscale": true,
         "precision": 2,
-        "custom_links": [],
-        "suffix": "%"
+        "custom_links": []
       },
       "layout": {
         "x": 10,
@@ -229,15 +231,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.payment_gateway.avg_processing_ms{$region,$environment,service_name:payment-processing-engine}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -258,15 +265,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.fraud_detection_node.model_latency_ms{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -287,15 +299,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.database_cluster.replication_lag_ms{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -316,15 +333,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.matching_engine.rejected_orders_total{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -345,15 +367,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.payment_gateway.decline_rate_pct{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -374,15 +401,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.cache_cluster.hit_rate_pct{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -403,15 +435,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "area",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.fix_gateway.sessions_active{$region,$environment} by {device_id}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "area"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -432,19 +469,24 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.market_data_feed.latency_us{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
-          "label": "Latency (µs)",
+          "label": "Latency (\u00b5s)",
           "scale": "linear"
         }
       },
@@ -461,15 +503,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.wire_transfer_node.avg_settlement_ms{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -490,15 +537,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.database_cluster.connection_pool_pct{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -519,15 +571,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.fraud_detection_node.false_positive_rate_pct{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -548,8 +605,6 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
@@ -561,11 +616,22 @@
                 "name": "query2",
                 "query": "avg:finserv.hsm_module.key_slots_used_pct{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              },
+              {
+                "formula": "query2",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
-          "label": "Temperature (°C) / Key Slots (%)",
+          "label": "Temperature (\u00b0C) / Key Slots (%)",
           "scale": "linear"
         }
       },
@@ -582,15 +648,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "area",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.risk_engine.var_calculations_per_sec{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "area"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -611,15 +682,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.message_broker.consumer_lag{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -640,15 +716,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "bars",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "avg:finserv.waf_appliance.blocked_rate_pct{$region,$environment}"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "bars"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -669,15 +750,20 @@
         "type": "timeseries",
         "requests": [
           {
-            "display_type": "line",
-            "on_right_yaxis": false,
             "queries": [
               {
                 "data_source": "metrics",
                 "name": "query1",
                 "query": "sum:finserv.app.errors_total{service_name:mobile-banking-api} / sum:finserv.app.requests_total{service_name:mobile-banking-api} * 100"
               }
-            ]
+            ],
+            "formulas": [
+              {
+                "formula": "query1",
+                "display_type": "line"
+              }
+            ],
+            "response_format": "timeseries"
           }
         ],
         "yaxis": {
@@ -702,7 +788,7 @@
             "definition": {
               "title": "Retail Banking Services",
               "type": "note",
-              "content": "🏦 **Online Banking Portal** · **Mobile Banking API** · **Payment Processing Engine** · **Loan Origination**\n\nStatus: Monitoring for payment latency, mobile auth, and loan processing performance.",
+              "content": "\ud83c\udfe6 **Online Banking Portal** \u00b7 **Mobile Banking API** \u00b7 **Payment Processing Engine** \u00b7 **Loan Origination**\n\nStatus: Monitoring for payment latency, mobile auth, and loan processing performance.",
               "background_color": "white",
               "font_size": "13",
               "text_align": "left"
@@ -718,7 +804,7 @@
             "definition": {
               "title": "Capital Markets Services",
               "type": "note",
-              "content": "📈 **Trading Platform** · **Market Data Aggregator** · **Risk Calculation Engine**\n\nStatus: Monitoring order flow, feed latency, and risk calculations.",
+              "content": "\ud83d\udcc8 **Trading Platform** \u00b7 **Market Data Aggregator** \u00b7 **Risk Calculation Engine**\n\nStatus: Monitoring order flow, feed latency, and risk calculations.",
               "background_color": "white",
               "font_size": "13",
               "text_align": "left"

@@ -5,8 +5,8 @@ slos:
     target: 99.99
     timeframe: "30d"
     query:
-      numerator: "sum:finserv.app.requests_total{service_name:online-banking-portal} - sum:finserv.app.errors_total{service_name:online-banking-portal}"
-      denominator: "sum:finserv.app.requests_total{service_name:online-banking-portal}"
+      numerator: "sum:finserv.app.requests_total{service_name:online-banking-portal}.as_count() - sum:finserv.app.errors_total{service_name:online-banking-portal}.as_count()"
+      denominator: "sum:finserv.app.requests_total{service_name:online-banking-portal}.as_count()"
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
@@ -14,14 +14,14 @@ slos:
       - "tier:Tier 1"
       - "sla_critical:true"
 
-  - name: "Payment Processing Latency (p99 < 500ms)"
-    description: "99.5% of payment transactions must complete authorization within 500ms (p99 latency). Impacts customer experience and reduces payment gateway timeouts."
+  - name: "Payment Processing Availability"
+    description: "99.5% of payment authorization requests must succeed. Tracks error rate for the payment processing engine; failures indicate gateway timeouts, downstream dependency issues, or capacity constraints."
     type: metric
     target: 99.5
     timeframe: "30d"
     query:
-      numerator: "count:finserv.app.latency_ms{service_name:payment-processing-engine,operation:authorize_payment} where latency_ms < 500"
-      denominator: "count:finserv.app.latency_ms{service_name:payment-processing-engine,operation:authorize_payment}"
+      numerator: "sum:finserv.app.requests_total{service_name:payment-processing-engine}.as_count() - sum:finserv.app.errors_total{service_name:payment-processing-engine}.as_count()"
+      denominator: "sum:finserv.app.requests_total{service_name:payment-processing-engine}.as_count()"
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
@@ -29,14 +29,14 @@ slos:
       - "tier:Tier 1"
       - "sla_critical:true"
 
-  - name: "Fraud Detection Model Latency (p95 < 100ms)"
-    description: "Fraud detection ML model must score 95% of transactions within 100ms (p95 latency). Higher latency increases false negatives and operational delays."
+  - name: "Fraud Detection Service Availability"
+    description: "Fraud detection service must successfully score 99% of transactions. Failures indicate model serving issues, feature pipeline delays, or HSM dependency problems that increase fraud risk exposure."
     type: metric
     target: 99.0
     timeframe: "30d"
     query:
-      numerator: "count:finserv.fraud_detection_node.model_latency_ms where model_latency_ms < 100"
-      denominator: "count:finserv.fraud_detection_node.model_latency_ms"
+      numerator: "sum:finserv.app.requests_total{service_name:fraud-detection-service}.as_count() - sum:finserv.app.errors_total{service_name:fraud-detection-service}.as_count()"
+      denominator: "sum:finserv.app.requests_total{service_name:fraud-detection-service}.as_count()"
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
@@ -50,8 +50,8 @@ slos:
     target: 99.9
     timeframe: "30d"
     query:
-      numerator: "sum:finserv.app.success_total{service_name:trading-platform,operation:fill_order}"
-      denominator: "sum:finserv.app.requests_total{service_name:trading-platform,operation:fill_order}"
+      numerator: "sum:finserv.app.success_total{service_name:trading-platform,operation:fill_order}.as_count()"
+      denominator: "sum:finserv.app.requests_total{service_name:trading-platform,operation:fill_order}.as_count()"
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
