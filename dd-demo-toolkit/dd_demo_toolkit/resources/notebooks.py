@@ -240,6 +240,7 @@ class NotebookManager:
                     "metadata": {
                         "type": config.get("type", "investigation"),
                     },
+                    "tags": tags,
                 },
                 "type": "notebooks",
             }

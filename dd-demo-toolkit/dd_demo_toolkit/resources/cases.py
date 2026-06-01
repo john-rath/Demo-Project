@@ -259,10 +259,13 @@ class CaseManager:
                 ]
                 scope_label = "all toolkit-managed verticals"
             else:
-                # Existing title-based matching keyed to the vertical.
+                # Tag-based filter (new cases); title-based as fallback for
+                # legacy cases deployed before tag injection was fixed.
+                target_tag = f"vertical:{vertical_name}"
                 cases = [
                     c for c in all_cases
-                    if f"[{vertical_name.title()}]" in c.get("attributes", {}).get("title", "")
+                    if target_tag in (c.get("attributes", {}).get("tags") or [])
+                    or f"[{vertical_name.title()}]" in c.get("attributes", {}).get("title", "")
                     or f"dd-demo-{vertical_name}" in str(c.get("attributes", {}).get("title", ""))
                 ]
                 scope_label = f"vertical '{vertical_name}'"
@@ -511,10 +514,12 @@ class CaseManager:
         # - data.type = "case"
         # - data.attributes: title, priority (P1-P5), type (STANDARD)
         # - data.relationships.project: must reference an existing project
+        tags = [f"vertical:{vertical_name}", "dd-demo-toolkit:true"]
         attributes = {
             "title": title,
             "priority": priority,
             "type": "STANDARD",
+            "tags": tags,
         }
 
         # Description goes in attributes if the API supports it
