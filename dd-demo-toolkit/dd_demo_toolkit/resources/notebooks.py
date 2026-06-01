@@ -373,7 +373,7 @@ class NotebookManager:
         target_tag = f"vertical:{vertical_name}"
         deployed = [
             n for n in notebook_list
-            if target_tag in n.get("attributes", {}).get("tags", [])
+            if target_tag in (n.get("attributes", {}).get("tags") or [])
         ]
 
         result["notebooks"] = deployed
