@@ -227,6 +227,30 @@ notebook instead — those have generous limits.
 If you can't filter for a resource using only the keys above, redesign.
 Don't add a new key to make filtering easier.
 
+### 2.6 Teardown identification per resource type
+
+Not every Datadog API supports arbitrary tag keys. The table below
+documents how each resource manager identifies toolkit-managed resources
+at teardown time. **If you add a new resource type, follow the pattern
+for its API or pick the closest equivalent.**
+
+| Resource | Identified by | Reason for approach |
+|---|---|---|
+| Dashboards | `[dd-demo-toolkit:{vertical}]` marker in description | List API does not return tags |
+| Monitors | `vertical:{v}` + `dd-demo-toolkit:true` tags | Full tag support |
+| Notebooks | Name match against `notebooks.yaml` | API enforces a platform-wide tag-key allowlist; `vertical` and `dd-demo-toolkit` are not on it — injecting them returns 400 |
+| SLOs | `vertical:{v}` + `dd-demo-toolkit:true` tags | Full tag support |
+| Workflows | `vertical:{v}` + `dd-demo-toolkit:true` tags (server-side filter) | Full tag support |
+| Incidents | `vertical:{v}` + `dd-demo-toolkit:true` tags (server-side filter) | Full tag support |
+| Cases | Title match against `cases.yaml` | List response does not expose tags |
+| Services | N/A — deregistration not supported by the API | Datadog Service Catalog has no delete/deregister endpoint |
+
+For name/title-based resources (notebooks, cases): the manager loads the
+vertical's YAML at teardown time and deletes any API object whose
+name/title exactly matches a configured entry. This means **renaming a
+resource in YAML without a corresponding teardown first will orphan the
+old copy** — always teardown before renaming.
+
 ---
 
 ## 3. Metric naming convention
