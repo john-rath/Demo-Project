@@ -19,9 +19,42 @@ logger = logging.getLogger(__name__)
 class CaseManager:
     """Manages creation and lifecycle of Datadog cases."""
 
-    def __init__(self) -> None:
-        """Initialize the case manager."""
+    def __init__(self, verticals_dir: str = "verticals") -> None:
         self._project_id: Optional[str] = None
+        self.verticals_dir = Path(verticals_dir)
+
+    def _get_expected_titles(self, vertical_name: Optional[str]) -> set:
+        """
+        Return the set of case titles defined in cases.yaml for one or all
+        verticals.  The Cases API doesn't expose tags on list responses, so
+        teardown uses title-matching against the YAML configs.
+        """
+        if vertical_name is not None:
+            return self._titles_from_yaml(self.verticals_dir / vertical_name)
+
+        titles: set = set()
+        for vdir in self.verticals_dir.iterdir():
+            if vdir.is_dir():
+                titles |= self._titles_from_yaml(vdir)
+                overlays_dir = vdir / "overlays"
+                if overlays_dir.is_dir():
+                    for odir in overlays_dir.iterdir():
+                        if odir.is_dir():
+                            titles |= self._titles_from_yaml(odir)
+        return titles
+
+    @staticmethod
+    def _titles_from_yaml(path: Path) -> set:
+        cases_file = path / "cases.yaml"
+        if not cases_file.exists():
+            return set()
+        try:
+            with open(cases_file) as f:
+                config = yaml.safe_load(f)
+        except Exception:
+            return set()
+        entries = config if isinstance(config, list) else (config or {}).get("cases", [])
+        return {c.get("title") for c in (entries or []) if c.get("title")}
 
     def _ensure_project(self, api_client: DatadogAPIClient, vertical_name: str) -> Optional[str]:
         """
@@ -249,26 +282,15 @@ class CaseManager:
             # (Cases API filter syntax doesn't support tag-based queries).
             response = api_client.list_cases()
             all_cases = response.get("data", [])
-            if vertical_name is None:
-                # Match any case carrying the toolkit tag on its attributes.
-                cases = [
-                    c for c in all_cases
-                    if "dd-demo-toolkit:true" in (
-                        c.get("attributes", {}).get("tags") or []
-                    )
-                ]
-                scope_label = "all toolkit-managed verticals"
-            else:
-                # Tag-based filter (new cases); title-based as fallback for
-                # legacy cases deployed before tag injection was fixed.
-                target_tag = f"vertical:{vertical_name}"
-                cases = [
-                    c for c in all_cases
-                    if target_tag in (c.get("attributes", {}).get("tags") or [])
-                    or f"[{vertical_name.title()}]" in c.get("attributes", {}).get("title", "")
-                    or f"dd-demo-{vertical_name}" in str(c.get("attributes", {}).get("title", ""))
-                ]
-                scope_label = f"vertical '{vertical_name}'"
+            # The Cases API doesn't expose tags on list responses, so match
+            # by title against cases.yaml.  _get_expected_titles handles both
+            # single-vertical and all-verticals sweeps.
+            expected_titles = self._get_expected_titles(vertical_name)
+            scope_label = f"vertical '{vertical_name}'" if vertical_name else "all toolkit-managed verticals"
+            cases = [
+                c for c in all_cases
+                if c.get("attributes", {}).get("title") in expected_titles
+            ]
             result["total"] = len(cases)
             result["cases"] = cases
             logger.info(f"Found {len(cases)} case(s) for {scope_label}")
@@ -514,12 +536,12 @@ class CaseManager:
         # - data.type = "case"
         # - data.attributes: title, priority (P1-P5), type (STANDARD)
         # - data.relationships.project: must reference an existing project
-        tags = [f"vertical:{vertical_name}", "dd-demo-toolkit:true"]
+        # Tags are not exposed on list responses, so teardown uses title-
+        # matching against cases.yaml instead of tag-based filtering.
         attributes = {
             "title": title,
             "priority": priority,
             "type": "STANDARD",
-            "tags": tags,
         }
 
         # Description goes in attributes if the API supports it
