@@ -2,7 +2,6 @@
   "title": "Payment Processor — OTel Baseline",
   "description": "Chapter 2 dashboard proving Datadog as a first-class OTel destination for payment processor infrastructure. Six sections map to the 221-requirement Visualisation layer MUSTs.",
   "layout_type": "ordered",
-  "tags": ["vertical:finance", "dd-demo-toolkit:true", "incident_domain:payment-authorization"],
   "template_variables": [
     {
       "name": "region",
@@ -49,7 +48,7 @@
                     }
                   ],
                   "response_format": "timeseries",
-                  "display_type": "bar"
+                  "display_type": "bars"
                 }
               ]
             },
