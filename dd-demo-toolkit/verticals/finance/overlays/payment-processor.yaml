@@ -1,0 +1,262 @@
+# Payment Processor sub-vertical overlay for the finance vertical.
+#
+# Layered on `finance` to showcase Datadog as the observability platform
+# for a global payment processor that standardises on OpenTelemetry for
+# instrumentation. Covers four demo chapters:
+#   Chapter 1 — vendor self-assessment recap (scorecard notebook + eval case)
+#   Chapter 2 — OTel baseline story (OTel dashboard + monitors + cascade)
+#   Chapter 3 — add-ons over OTel (Bits AI, Pipelines, DBM, LLM Obs taste)
+#   Chapter 4 — cost-driver reference (unit economics notebook)
+#
+# SECURITY: This overlay contains NO customer names. The overlay is named
+# "payment-processor" everywhere to remain reusable across demos.
+#
+# Metric-declaration format: explicit list-of-dicts with full metric names
+# (`finserv.tokenization.*`, `finserv.authorization.*`, `finserv.clearing.*`)
+# so that monitor / SLO / dashboard queries are deterministic.
+#
+# Tag scheme — strictly the existing finance keyspace (per CLAUDE.md §6.3):
+#   - vertical:finance              auto-injected
+#   - dd-demo-toolkit:true          auto-injected
+#   - incident_domain:payment-authorization  existing key, new value
+#   - signal_chain:<position>       same scheme as base
+#
+# 4-axis disjointness from base finance plugins:
+#   Spatial    — ap-southeast-1 / production / payment_authorization +
+#                network_tokenization devices
+#   Namespace  — finserv.tokenization.*, finserv.authorization.*,
+#                finserv.clearing.* — zero overlap with base or EY overlay
+#   Domain     — incident_domain:payment-authorization
+#   Temporal   — first cascade fires 110–130 ticks (~27–32 min) after start;
+#                inter-event idle 150–180 ticks (won't repeat in 1h demo)
+
+device_categories:
+
+  # Token vaults and ingress gateways that handle PAN tokenisation.
+  # These devices sit in the innermost PCI-DSS scope.
+  network_tokenization:
+    ip_base: '10.52'
+    devices:
+
+    - type: tokenization_vault
+      manufacturer: Thales
+      model: VaultPro-HSM
+      firmware: "4.2.1"
+      count: 6
+      metrics:
+      - name: finserv.tokenization.request_latency_ms
+        type: gauge
+        unit: ms
+        range: [18, 95]
+        drift: 3.0
+      - name: finserv.tokenization.throughput_tps
+        type: gauge
+        unit: "1"
+        range: [8000, 22000]
+        drift: 400.0
+      - name: finserv.tokenization.vault_utilization_pct
+        type: gauge
+        unit: "%"
+        range: [45, 72]
+        drift: 2.5
+      - name: finserv.tokenization.hsm_key_ops_per_sec
+        type: gauge
+        unit: "1"
+        range: [12000, 35000]
+        drift: 600.0
+      - name: finserv.tokenization.error_rate
+        type: gauge
+        unit: "1"
+        range: [0.001, 0.005]
+        drift: 0.0005
+
+    - type: token_gateway
+      manufacturer: F5
+      model: Token-GW-8200
+      firmware: "15.1.0"
+      count: 6
+      metrics:
+      - name: finserv.tokenization.gateway_latency_ms
+        type: gauge
+        unit: ms
+        range: [8, 35]
+        drift: 1.5
+      - name: finserv.tokenization.error_rate
+        type: gauge
+        unit: "1"
+        range: [0.0005, 0.003]
+        drift: 0.0002
+
+  # Authorization switches and fraud switches that make real-time
+  # approve/decline decisions on every card transaction.
+  payment_authorization:
+    ip_base: '10.53'
+    devices:
+
+    - type: authorization_switch
+      manufacturer: Custom
+      model: AuthSwitch-RTOS
+      firmware: "6.1.4"
+      count: 8
+      metrics:
+      - name: finserv.authorization.decision_latency_ms
+        type: gauge
+        unit: ms
+        range: [28, 120]
+        drift: 4.0
+      - name: finserv.authorization.approval_rate_pct
+        type: gauge
+        unit: "%"
+        range: [97.2, 99.5]
+        drift: 0.15
+      - name: finserv.authorization.decline_rate_pct
+        type: gauge
+        unit: "%"
+        range: [0.5, 2.8]
+        drift: 0.12
+      - name: finserv.authorization.throughput_tps
+        type: gauge
+        unit: "1"
+        range: [15000, 45000]
+        drift: 800.0
+
+    - type: fraud_switch
+      manufacturer: Custom
+      model: FraudSwitch-ML
+      firmware: "3.0.2"
+      count: 4
+      metrics:
+      - name: finserv.authorization.fraud_score_latency_ms
+        type: gauge
+        unit: ms
+        range: [12, 55]
+        drift: 2.0
+      - name: finserv.authorization.false_positive_rate_pct
+        type: gauge
+        unit: "%"
+        range: [0.8, 3.2]
+        drift: 0.15
+
+  # Clearing nodes and settlement gateways that process the end-of-day
+  # batch and bridge to SWIFT / ACH networks.
+  clearing_settlement:
+    ip_base: '10.54'
+    devices:
+
+    - type: clearing_node
+      manufacturer: FIS
+      model: ClearPath-64
+      firmware: "9.4.0"
+      count: 6
+      metrics:
+      - name: finserv.clearing.queue_depth
+        type: gauge
+        unit: "1"
+        range: [200, 8500]
+        drift: 150.0
+      - name: finserv.clearing.processing_latency_ms
+        type: gauge
+        unit: ms
+        range: [85, 380]
+        drift: 12.0
+      - name: finserv.clearing.batch_error_rate
+        type: gauge
+        unit: "1"
+        range: [0.0001, 0.002]
+        drift: 0.0001
+
+    - type: settlement_gateway
+      manufacturer: SWIFT
+      model: GPI-Bridge-v2
+      firmware: "2.2.0"
+      count: 4
+      metrics:
+      - name: finserv.clearing.settlement_latency_ms
+        type: gauge
+        unit: ms
+        range: [320, 1850]
+        drift: 45.0
+      - name: finserv.clearing.settlement_failures_total
+        type: gauge
+        unit: "1"
+        range: [0, 4]
+        drift: 0.2
+
+# Services added to the simulator engine for trace generation.
+# These services are also registered in services.yaml for Service Catalog.
+services:
+- name: tokenization-service
+  host: tokenization-svc-01
+  language: python
+  framework: FastAPI
+  operations:
+  - name: "POST /v1/tokenize"
+    latency_base_ms: 32
+    latency_p99_ms: 110
+    error_rate: 0.002
+  - name: "POST /v1/detokenize"
+    latency_base_ms: 28
+    latency_p99_ms: 95
+    error_rate: 0.001
+  - name: "GET /v1/token/status"
+    latency_base_ms: 12
+    latency_p99_ms: 40
+    error_rate: 0.0005
+  dependencies:
+  - service: authorization-engine
+    operation: "POST /v1/auth/authorize"
+    probability: 0.85
+
+- name: authorization-engine
+  host: auth-engine-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "POST /v1/auth/authorize"
+    latency_base_ms: 65
+    latency_p99_ms: 220
+    error_rate: 0.008
+  - name: "POST /v1/auth/reverse"
+    latency_base_ms: 48
+    latency_p99_ms: 160
+    error_rate: 0.003
+  - name: "GET /v1/auth/health"
+    latency_base_ms: 8
+    latency_p99_ms: 25
+    error_rate: 0.0001
+  dependencies:
+  - service: clearing-processor
+    operation: "POST /v1/clear/submit"
+    probability: 0.35
+
+- name: clearing-processor
+  host: clearing-proc-01
+  language: go
+  framework: net/http
+  operations:
+  - name: "POST /v1/clear/submit"
+    latency_base_ms: 185
+    latency_p99_ms: 620
+    error_rate: 0.005
+  - name: "GET /v1/clear/batch/status"
+    latency_base_ms: 45
+    latency_p99_ms: 150
+    error_rate: 0.002
+  dependencies:
+  - service: settlement-gateway
+    operation: "POST /v1/settle/submit"
+    probability: 0.6
+
+- name: settlement-gateway
+  host: settlement-gw-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "POST /v1/settle/submit"
+    latency_base_ms: 820
+    latency_p99_ms: 2400
+    error_rate: 0.012
+  - name: "GET /v1/settle/status"
+    latency_base_ms: 35
+    latency_p99_ms: 120
+    error_rate: 0.001

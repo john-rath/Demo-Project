@@ -1,0 +1,53 @@
+# Payment Processor overlay SLOs — Chapter 2 OTel baseline story.
+# Three SLOs map directly to Visualisation requirement VIS-PR-003 (MUST):
+# SLO tracking with compliance %, error budget, burn rate, month-end projection.
+# Tags include compliance:pci-dss to anchor the regulatory story.
+
+slos:
+
+  - name: "Tokenization Service Availability"
+    description: "HSM-backed tokenization must be available 99.99% of the time on a rolling 30-day window. Any tokenization outage blocks every downstream card transaction — cardholder data is inaccessible without a live token."
+    type: metric
+    target: 99.99
+    timeframe: "30d"
+    query:
+      numerator: "sum:finserv.app.requests_total{service_name:tokenization-service}.as_count() - sum:finserv.app.errors_total{service_name:tokenization-service}.as_count()"
+      denominator: "sum:finserv.app.requests_total{service_name:tokenization-service}.as_count()"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "compliance:pci-dss"
+      - "sla_critical:true"
+
+  - name: "Authorization Transaction Success Rate"
+    description: "Authorization engine must approve or decline ≥99.5% of transactions without error on a rolling 7-day window. Errors (as opposed to declines) signal infrastructure failure, not fraud logic."
+    type: metric
+    target: 99.5
+    timeframe: "7d"
+    query:
+      numerator: "sum:finserv.app.requests_total{service_name:authorization-engine}.as_count() - sum:finserv.app.errors_total{service_name:authorization-engine}.as_count()"
+      denominator: "sum:finserv.app.requests_total{service_name:authorization-engine}.as_count()"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "compliance:pci-dss"
+      - "sla_critical:true"
+
+  - name: "Settlement Processing SLA"
+    description: "99% of settlement submissions must complete without failure on a rolling 30-day window. Settlement failures have direct regulatory reporting consequences — each failed settlement requires manual reconciliation with SWIFT/ACH counterparties."
+    type: metric
+    target: 99.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:finserv.app.requests_total{service_name:settlement-gateway}.as_count() - sum:finserv.app.errors_total{service_name:settlement-gateway}.as_count()"
+      denominator: "sum:finserv.app.requests_total{service_name:settlement-gateway}.as_count()"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "compliance:pci-dss"

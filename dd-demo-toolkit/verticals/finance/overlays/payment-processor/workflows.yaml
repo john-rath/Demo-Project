@@ -1,0 +1,48 @@
+# Payment Processor overlay workflow — Chapter 3 agentic remediation story.
+# Triggered by the Authorization Decline Rate Spike monitor.
+# Demonstrates automated investigation + case creation without human-in-the-loop.
+
+workflows:
+
+  - name: "[Finance/Payment Processor] Authorization Anomaly Auto-Triage"
+    description: "When authorization decline rate spikes, enriches context with payment volume, checks fraud switch false positive rate to confirm retry-storm signature, posts summary to payments-ops, and creates a pre-diagnosed investigation case."
+    trigger:
+      type: monitor
+      monitor_tags: ["incident_domain:payment-authorization"]
+    steps:
+      - name: measure_payment_volume
+        type: datadog_query
+        description: "Capture current authorization throughput to assess blast radius"
+        parameters:
+          query: "avg(last_5m):avg:finserv.authorization.throughput_tps{device_type:authorization_switch}"
+
+      - name: measure_fraud_fp_rate
+        type: datadog_query
+        description: "Check fraud switch false positive rate to confirm retry-storm signature"
+        parameters:
+          query: "avg(last_5m):avg:finserv.authorization.false_positive_rate_pct{device_type:fraud_switch}"
+
+      - name: check_retry_storm
+        type: condition
+        description: "Confirm retry-storm: FP rate > 4% while throughput is still elevated"
+        parameters:
+          condition: "{{steps.measure_fraud_fp_rate.result}} > 4"
+
+      - name: notify_payments_ops
+        type: slack_message
+        parameters:
+          channel: "#payments-ops"
+          message: "🚨 Authorization decline rate spike detected. Current auth TPS: {{steps.measure_payment_volume.result}}. Fraud switch FP rate: {{steps.measure_fraud_fp_rate.result}}%. Retry-storm signature confirmed. Probable root cause: fraud scoring model threshold misconfiguration. Recommended action: roll back fraud scoring config. Investigation case being created."
+
+      - name: create_investigation_case
+        type: datadog_case
+        description: "Create pre-diagnosed case with linked monitors for on-call engineer"
+        parameters:
+          title: "Auth Cascade: Payment Authorization Degradation — Auto-Triage"
+          priority: "P1"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "workflow-type:auto-remediation"

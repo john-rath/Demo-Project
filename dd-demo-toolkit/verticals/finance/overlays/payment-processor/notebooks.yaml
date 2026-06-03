@@ -1,0 +1,542 @@
+# Payment Processor overlay notebooks — one per demo chapter.
+# Chapter 1: Vendor self-assessment scorecard (report)
+# Chapter 2: Auth cascade incident investigation (investigation)
+# Chapter 3: Add-ons over OTel — Bits AI, Pipelines, DBM, LLM Obs, Workflow (documentation)
+# Chapter 4: Cost-driver unit economics reference (report)
+
+notebooks:
+
+  # -----------------------------------------------------------------------
+  # Chapter 1 — Self-assessment recap
+  # -----------------------------------------------------------------------
+  - id: "pp-vendor-self-assessment-scorecard"
+    name: "Vendor Assessment: Datadog vs. 221-Requirement OTel Scorecard"
+    type: report
+    description: "Vendor self-assessment scorecard for the 221-requirement OTel observability evaluation. Scoring model, layer results, Visualisation layer spotlight, tier outcome, and validation approach."
+    time_range: "30d"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "audience:leadership"
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Vendor Assessment: Datadog vs. 221-Requirement OTel Scorecard
+
+              ## Scoring Model
+
+              Each of the 221 requirements is scored on a simple rubric:
+
+              | Score | Meaning |
+              |-------|---------|
+              | **1.0** | PASS — fully met, documented, demoed |
+              | **0.5** | PARTIAL — met with a workaround or undocumented gap |
+              | **0.0** | FAIL — not met |
+
+              Weights by requirement tier:
+
+              | Tier | Count | Weight per req |
+              |------|-------|---------------|
+              | MUST | 75 | 0.6% |
+              | SHOULD | 112 | 0.4% |
+              | COULD | 34 | 0.3% |
+
+              **Composite score = Σ(score × weight) / Σ(weight)**
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Layer Results
+
+              | Layer | MUST pass rate | SHOULD pass rate | COULD pass rate | Weighted contribution |
+              |-------|---------------|-----------------|----------------|----------------------|
+              | **Instrumentation** | 100% | 97% | 91% | 31% |
+              | **Collection** | 100% | 96% | 88% | 19% |
+              | **Connection** | 100% | 98% | 94% | 19% |
+              | **Visualisation** | 100% | 99% | 97% | 30% |
+
+              > All 75 MUSTs score 1.0. One COULD scores 0.5 (VIS-AC-008 — see below).
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Visualisation Layer Spotlight
+
+              The Visualisation tab is the layer this audience cares most about. Results:
+
+              - **22 MUSTs** — all score **1.0 (PASS)**
+              - **1 PARTIAL** — VIS-AC-008: WAN-offline cached dashboard view
+
+              ### VIS-AC-008 Gap Detail
+
+              | Field | Value |
+              |-------|-------|
+              | Requirement | Dashboard must render from local cache when WAN link is severed |
+              | Tier | COULD (0.3% weight) |
+              | Score | 0.5 (PARTIAL) |
+              | Gap | Datadog dashboards require agent connectivity to render live data |
+              | **Documented workaround** | **Scheduled PDF delivery via Datadog Scheduled Reports** — snapshots delivered to distribution list before expected WAN maintenance windows |
+
+              This is the only gap in the Visualisation layer and carries the lowest possible tier weight.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Tier Outcome
+
+              **Composite score: 99.0% → STRONG PASS → Premium tier**
+
+              The Premium tier threshold is 97%. A STRONG PASS at 99% places this vendor
+              in the top tier of the evaluation framework with no blockers to production
+              adoption.
+
+              ---
+
+              ## Validation Approach
+
+              > "The vendor validates itself; the customer spot-checks via documentation;
+              > incomplete documentation = automatic fail."
+
+              All scored items link to public Datadog documentation, GA release notes, or
+              live demos recorded during this evaluation. Any requirement scored PASS but
+              lacking a documentation link is re-scored as PARTIAL automatically.
+        type: "notebook_cells"
+
+  # -----------------------------------------------------------------------
+  # Chapter 2 — OTel baseline incident RCA
+  # -----------------------------------------------------------------------
+  - id: "pp-auth-cascade-investigation"
+    name: "Incident Investigation: Payment Authorization Cascade"
+    type: investigation
+    description: "RCA walkthrough for the payment authorization cascade: auth switch latency degrades, fraud switch false positive rate climbs, clearing queue backs up, settlement gateway errors surface. All metrics from the payment_processor_auth_cascade plugin."
+    time_range: "4h"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "signal_chain_root:auth-decision-latency"
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Incident Investigation: Payment Authorization Cascade
+
+              **Symptom:** Authorization decline rate alert fired in ap-southeast-1.
+              Settlement gateway error rate climbing. Customer transactions failing.
+
+              **This notebook walks the full cascade** from root cause to recovery
+              using metrics emitted by OTel-instrumented payment processor services.
+
+              ---
+              ## Step 1 — Confirm the authorization latency spike (root cause)
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "latency"
+                    query: "avg:finserv.authorization.decision_latency_ms{device_type:authorization_switch} by {region}"
+                formulas:
+                  - formula: "latency"
+                    alias: "Auth decision latency (ms)"
+                display_type: "line"
+            markers:
+              - value: "y = 180"
+                display_type: "error dashed"
+                label: "Alert threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Step 2 — Leading indicators: decline rate + fraud switch false positives
+
+              Auth latency → retries → fraud switch overload → false positive spike → declines.
+              This is the "retry storm" signature: all three metrics fire within the same 5-min window.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "declines"
+                    query: "avg:finserv.authorization.decline_rate_pct{device_type:authorization_switch} by {region}"
+                  - data_source: "metrics"
+                    name: "fp_rate"
+                    query: "avg:finserv.authorization.false_positive_rate_pct{device_type:fraud_switch} by {region}"
+                formulas:
+                  - formula: "declines"
+                    alias: "Decline rate %"
+                  - formula: "fp_rate"
+                    alias: "Fraud FP rate %"
+                display_type: "line"
+            markers:
+              - value: "y = 5"
+                display_type: "error dashed"
+                label: "Decline alert threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Step 3 — Downstream symptom: clearing queue backlog build-up
+
+              Declined transactions stay in the clearing queue awaiting manual review.
+              Queue depth grows at 3–4× normal rate once decline rate exceeds 5%.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "queue"
+                    query: "avg:finserv.clearing.queue_depth{device_type:clearing_node} by {region}"
+                formulas:
+                  - formula: "queue"
+                    alias: "Clearing queue depth"
+                display_type: "line"
+            markers:
+              - value: "y = 15000"
+                display_type: "error dashed"
+                label: "Critical threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Step 4 — Terminal symptom: settlement gateway timeout
+
+              Settlement gateway starts failing once clearing queue hits critical depth.
+              SWIFT/ACH cut-off windows create regulatory risk if not resolved within 20 min.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "failures"
+                    query: "avg:finserv.clearing.settlement_failures_total{device_type:settlement_gateway} by {region}"
+                formulas:
+                  - formula: "failures"
+                    alias: "Settlement failures"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Step 5 — Recovery timeline
+
+              Fraud switch thresholds auto-tuned → auth latency returns to baseline →
+              clearing drains → settlement gateway error rate drops to zero.
+
+              **Time to resolution:** ~22 min (ramp_up + degraded + cascading + recovery phases).
+              **Bits AI identified root cause** (fraud scoring model threshold misconfiguration)
+              within 3 min of the first alert — before clearing queue reached critical depth.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "query_table"
+            requests:
+              - response_format: "scalar"
+                queries:
+                  - data_source: "metrics"
+                    name: "peak_latency"
+                    query: "max:finserv.authorization.decision_latency_ms{device_type:authorization_switch}"
+                    aggregator: "max"
+                  - data_source: "metrics"
+                    name: "peak_declines"
+                    query: "max:finserv.authorization.decline_rate_pct{device_type:authorization_switch}"
+                    aggregator: "max"
+                  - data_source: "metrics"
+                    name: "peak_queue"
+                    query: "max:finserv.clearing.queue_depth{device_type:clearing_node}"
+                    aggregator: "max"
+                formulas:
+                  - formula: "peak_latency"
+                    alias: "Peak auth latency (ms)"
+                  - formula: "peak_declines"
+                    alias: "Peak decline rate %"
+                  - formula: "peak_queue"
+                    alias: "Peak clearing queue"
+        type: "notebook_cells"
+
+  # -----------------------------------------------------------------------
+  # Chapter 3 — Add-ons over OTel
+  # -----------------------------------------------------------------------
+  - id: "pp-beyond-otel-addons"
+    name: "Beyond OTel: Datadog Add-Ons for Payment Operations"
+    type: documentation
+    description: "Five Datadog capabilities that extend beyond what OTel alone provides: Bits AI investigation, Observability Pipelines governance, Database Monitoring, LLM Observability taste, and Workflow Automation."
+    time_range: "1h"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "audience:technical"
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Beyond OTel: Datadog Add-Ons for Payment Operations
+
+              OTel gets your data into Datadog. These five capabilities show what
+              Datadog adds on top that OTel alone cannot provide.
+
+              ---
+
+              ## 1. Bits AI Investigation
+
+              > **"OTel gives you the data; Bits AI gives you the answer."**
+
+              ### Live demo script (run after cascade has fired, ~27 min in)
+
+              1. Watchdog fires on **Authorization Decision Latency Spike** monitor
+              2. Open Bits AI from the monitor alert
+              3. Bits AI surfaces:
+                 - Authorization switch decision latency elevated 340ms in ap-southeast-1
+                 - Fraud switch false positive rate climbing (retry storm signature)
+                 - Clearing queue depth growing at 3× normal rate
+                 - **Probable root cause: fraud scoring model threshold misconfiguration
+                   after recent deploy** (config drift detected via Fleet Automation)
+              4. Correlated signals listed with confidence scores
+              5. Suggested next step: roll back fraud scoring config via the auto-triage workflow
+              6. Case auto-created with linked monitors and timeline
+
+              **Why OTel alone can't do this:** Bits AI correlates metrics, logs, traces, and
+              deployment events across the entire observability data model. OTel is an
+              instrumentation and transport standard — it has no correlation or AI layer.
+
+              > ⚠️ **Demo timing:** This investigation only works live if the
+              > `payment_processor_auth_cascade` plugin has fired (~27 min after `make up`).
+              > Start Chapter 3 after confirming the cascade is in progress.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+
+              ## 2. Observability Pipelines
+
+              > **"OTel gets data in; Observability Pipelines governs where it goes and what survives."**
+
+              ### What to show
+
+              | Pipeline rule | Business rationale |
+              |---------------|-------------------|
+              | Payment auth traces → APM + 7-year archive | PCI-DSS audit trail requirement |
+              | Debug logs → dropped after 7 days | Cost control — debug noise has no long-term value |
+              | Keep 100% of error spans, 10% of success spans | Tail-based sampling: full fidelity on failures |
+              | PAN fields redacted at pipeline level | Belt-and-suspenders PCI-DSS — Sensitive Data Scanner is the first gate |
+
+              ### Cost reduction story
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "bytes_in"
+                    query: "sum:datadog.estimated_usage.logs.ingested_bytes{*}"
+                  - data_source: "metrics"
+                    name: "bytes_indexed"
+                    query: "sum:datadog.estimated_usage.logs.ingested_events{*}"
+                formulas:
+                  - formula: "bytes_in"
+                    alias: "Bytes ingested"
+                  - formula: "bytes_indexed"
+                    alias: "Events indexed"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+
+              ## 3. Database Monitoring (DDOT vs. Pure OTel)
+
+              > **"Pure OTel gives you spans; DDOT gives you spans + query-level DB insight without code changes."**
+
+              ### Why this matters for payment processing
+
+              The `authorization-engine` hits a DB on every transaction. At 15,000–45,000 TPS,
+              a single slow query pattern can cascade into authorization latency degradation —
+              exactly the root cause in Chapter 2's incident.
+
+              | Capability | Pure OTel | Datadog (DDOT) |
+              |-----------|-----------|---------------|
+              | Span duration per DB call | ✓ | ✓ |
+              | Query fingerprint | ✗ | ✓ |
+              | Lock wait time | ✗ | ✓ |
+              | Connection pool exhaustion | ✗ | ✓ |
+              | Explain plan (no code change) | ✗ | ✓ |
+
+              **Demo script:** Open the authorization-engine DB dashboard → top-10 slowest
+              queries by avg latency → connection pool vs. auth decision latency correlation
+              (they should correlate during the cascade — DB wait is amplifying auth latency).
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+
+              ## 4. LLM Observability (taste only)
+
+              > **"Not OTel, but here's what Datadog adds when AI enters the stack."**
+
+              Payment processors increasingly use LLMs for dispute resolution, fraud
+              narrative generation, and customer communications. This is a single-screen
+              taste — the full story is a separate workstream.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "cost"
+                    query: "avg:finserv.llm_eval.cost_per_1k_tokens_usd{device_type:llm_eval_node} by {model}"
+                  - data_source: "metrics"
+                    name: "halluc"
+                    query: "avg:finserv.llm_eval.hallucination_rate_pct{device_type:llm_eval_node} by {model}"
+                formulas:
+                  - formula: "cost"
+                    alias: "Cost $/1k tokens by model"
+                  - formula: "halluc"
+                    alias: "Hallucination rate % by model"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+
+              ## 5. Workflow Automation
+
+              > **"Agentic remediation without a human in the loop."**
+
+              The **Authorization Anomaly Auto-Triage** workflow is triggered by the
+              Authorization Decline Rate Spike monitor. Steps:
+
+              1. Enrich context with current payment volume from Datadog metrics
+              2. Query fraud switch false positive rate to confirm retry-storm signature
+              3. Post summary to #payments-ops Slack channel
+              4. Create investigation case in Datadog Case Management with linked monitors
+
+              The workflow runs automatically — the on-call engineer receives a pre-diagnosed
+              case rather than a raw alert. For a deeper auth outage, a follow-on workflow
+              step can trigger a fraud scoring config rollback via the authorization-engine API.
+
+              > Open the workflow in Datadog Workflow Automation to show the visual step
+              > editor. Do not run it live during the demo — demonstrate the design, not execution.
+        type: "notebook_cells"
+
+  # -----------------------------------------------------------------------
+  # Chapter 4 — Cost-driver reference
+  # -----------------------------------------------------------------------
+  - id: "pp-unit-economics-reference"
+    name: "Unit Economics Reference: Datadog Cost Drivers"
+    type: report
+    description: "Two-slide reference for the cost conversation in Chapter 4. Not a number — a structure. Maps each payment processor service to the Datadog products it drives and the unit of consumption."
+    time_range: "30d"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "audience:leadership"
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Unit Economics Reference: Datadog Cost Drivers
+
+              > **Not a number — a structure.**
+              > This notebook gives your finance stakeholders the vocabulary to
+              > ask the right questions. Actual pricing requires a formal sizing
+              > exercise against your traffic volumes.
+
+              ---
+
+              ## Datadog Products and Their Billing Units
+
+              | Product | Billing unit | Relevant for payment processor |
+              |---------|-------------|-------------------------------|
+              | **APM** | Host-hour + span GB ingested | authorization-engine, tokenization-service, clearing-processor, settlement-gateway |
+              | **Infrastructure Monitoring** | Host-hour | All service hosts + authorization_switch, tokenization_vault device hosts |
+              | **Log Management** | GB ingested + GB indexed | Authorization decision logs, PCI audit trail, settlement confirmation logs |
+              | **RUM** | Session | Customer-facing payment UI (if applicable) |
+              | **NPM** | Host-hour | Network paths between tokenization vault, auth switch, clearing node |
+              | **Synthetics** | Test run | End-to-end payment flow synthetic monitors |
+              | **Database Monitoring** | Host-hour (DB host) | authorization-engine DB cluster |
+              | **Observability Pipelines** | GB processed | Log routing and PCI-scope redaction pipeline |
+
+              ---
+
+              ## Per-Service Cost Driver Mapping
+
+              | Service | Primary cost drivers | Notes |
+              |---------|---------------------|-------|
+              | `tokenization-service` | APM + Infra | High TPS → significant span volume; HSM vault hosts are infra-billed |
+              | `authorization-engine` | APM + Infra + DBM | DB call per transaction → DBM host billing; span volume scales with TPS |
+              | `clearing-processor` | APM + Infra + Logs | Batch processing logs are large; archive for 7-year PCI retention |
+              | `settlement-gateway` | APM + Infra + Logs | Settlement confirmation logs have regulatory retention requirements |
+
+              ---
+
+              ## Cost Levers
+
+              1. **Sampling:** Keep 100% of error spans, 10% of success spans via Observability Pipelines → reduces APM span GB by ~70% without losing fidelity on failures
+              2. **Log tiering:** Route debug logs to low-cost Flex Logs; keep error + audit logs in standard index
+              3. **Retention:** Set APM retention to match compliance requirements (7 years for PCI-DSS) only on payment auth traces — use shorter retention for clearing-processor debug spans
+        type: "notebook_cells"

@@ -1,0 +1,26 @@
+# Payment Processor overlay cases.
+# Case 1 (Chapter 1): Vendor evaluation artifact — pre-staged before the demo.
+# Case 2 (Chapter 3): Bits AI investigation artifact — pre-staged with enough
+#   context that Bits AI can surface a coherent root cause during the live demo.
+
+cases:
+
+  - title: "Payment Processor Observability Platform Vendor Validation"
+    description: "Formal evaluation of Datadog as the observability platform for the payment processor OTel standardisation initiative. Scope: 221-requirement spreadsheet across four layers (Instrumentation, Collection, Connection, Visualisation). Current status: vendor self-assessment complete, composite score 99% (STRONG PASS, Premium tier). Outstanding: customer spot-check of documentation for 3 SHOULD requirements in the Instrumentation layer. Decision target: end of current sprint."
+    priority: "P2"
+    type: "STANDARD"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+
+  - title: "Auth Cascade: Payment Authorization Degradation — ap-southeast-1"
+    description: "Authorization switch decision latency elevated 340ms above baseline in ap-southeast-1 production. Fraud switch false positive rate climbing — retry storm signature. Clearing queue at 3× normal depth. Settlement gateway errors beginning. Probable root cause: fraud scoring model threshold misconfiguration after deploy at 14:32 UTC. Recommended action: roll back fraud scoring config to previous version via Authorization Anomaly Auto-Triage workflow. Linked monitors: Authorization Decision Latency Spike, Authorization Decline Rate Spike, Fraud Switch False Positive Rate Elevated, Clearing Queue Backlog Critical."
+    priority: "P1"
+    type: "STANDARD"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"

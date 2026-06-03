@@ -1,0 +1,62 @@
+# Payment Processor overlay — Service Catalog entries.
+# Uses EY-overlay schema (dd-service, display-name, owner) for consistency
+# with the overlay pattern. Tag `instrumentation:opentelemetry` signals that
+# these services are OTel-instrumented — key for the Chapter 2 OTel story.
+
+services:
+
+  - dd-service: tokenization-service
+    display-name: "Tokenization Service"
+    description: "PCI-DSS-scoped FastAPI service that issues and resolves payment tokens backed by HSM-hardened tokenization vaults. All instrumentation is OpenTelemetry SDK — no Datadog agent on service hosts. Tier 1 for cardholder-data availability SLA."
+    owner: "Payments"
+    tier: "Tier 1"
+    languages: ["python"]
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "compliance:pci-dss"
+      - "instrumentation:opentelemetry"
+
+  - dd-service: authorization-engine
+    display-name: "Authorization Engine"
+    description: "Java Spring Boot service that issues real-time approve/decline decisions on every transaction, calling the fraud-switch ML model inline. Instrumented with OpenTelemetry Java agent; DB calls traced end-to-end via DDOT for query-level visibility without code changes."
+    owner: "Payments"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "compliance:pci-dss"
+      - "instrumentation:opentelemetry"
+
+  - dd-service: clearing-processor
+    display-name: "Clearing Processor"
+    description: "Go service that batches authorized transactions into clearing files and submits them to the settlement gateway. Instrumented with OpenTelemetry Go SDK. Batch latency directly impacts settlement SLA compliance."
+    owner: "Payments"
+    tier: "Tier 2"
+    languages: ["go"]
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "compliance:pci-dss"
+      - "instrumentation:opentelemetry"
+
+  - dd-service: settlement-gateway
+    display-name: "Settlement Gateway"
+    description: "Java Spring Boot bridge to SWIFT GPI and ACH networks. Handles final fund settlement with external counterparties. Instrumented with OpenTelemetry Java agent. Settlement failures have direct regulatory reporting implications."
+    owner: "Payments"
+    tier: "Tier 2"
+    languages: ["java"]
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "compliance:pci-dss"
+      - "instrumentation:opentelemetry"
