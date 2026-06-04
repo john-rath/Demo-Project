@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dev deps
+        working-directory: dd-demo-toolkit
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,ui]'
+      - name: black --check
+        working-directory: dd-demo-toolkit
+        run: black --check dd_demo_toolkit dd_demo_toolkit_ui
+      - name: isort --check
+        working-directory: dd-demo-toolkit
+        run: isort --check-only dd_demo_toolkit dd_demo_toolkit_ui
+      - name: flake8
+        working-directory: dd-demo-toolkit
+        run: flake8 dd_demo_toolkit dd_demo_toolkit_ui --max-line-length=100 --extend-ignore=E203,W503
+
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        working-directory: dd-demo-toolkit
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[dev,ui]'
+      - name: Run tests
+        working-directory: dd-demo-toolkit
+        run: pytest
+
+  validate-verticals:
+    # Every vertical's YAML/JSON/plugins must parse cleanly.
+    # Catches the "phantom-metric" / "broken-dashboard" class of bug that
+    # otherwise only shows up on stage during a customer demo.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        vertical: [finance, healthcare, hospitality, insurance, manufacturing]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        working-directory: dd-demo-toolkit
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: dd-demo validate --vertical ${{ matrix.vertical }}
+        working-directory: dd-demo-toolkit
+        run: dd-demo validate --vertical ${{ matrix.vertical }}
+
+  docker-build:
+    # Catches Dockerfile regressions and lockfile/dep drift early.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build simulator image
+        working-directory: dd-demo-toolkit
+        run: docker build -t dd-demo-toolkit:ci .
+      - name: Build data_obs image
+        working-directory: dd-demo-toolkit/data_obs
+        run: docker build -t dd-demo-data-obs:ci .
+      - name: Build dbt_runner image
+        working-directory: dd-demo-toolkit/data_obs
+        run: docker build -t dd-demo-dbt-runner:ci -f dbt_runner/Dockerfile .
+      - name: Build llm_experiments image
+        working-directory: dd-demo-toolkit/data_obs/llm_experiments
+        run: docker build -t dd-demo-llm-experiments:ci .
