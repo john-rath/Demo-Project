@@ -193,6 +193,35 @@ dispense latency recovery, opens BD ticket."
 Put the narrative in the parent monitor's `message` field or a linked
 notebook instead — those have generous limits.
 
+### 1.8 Cases API status changes use `/status`, not `/close`
+
+The Cases v2 API has several non-obvious quirks:
+
+1. **`POST /api/v2/cases/{id}/close` does not exist.** Sending a request
+   to that URL returns 404. Status changes go through the status endpoint:
+   ```
+   POST /api/v2/cases/{id}/status
+   Body: {"data": {"type": "case", "attributes": {"status": "CLOSED"}}}
+   ```
+   Valid status values: `"OPEN"`, `"IN_PROGRESS"`, `"CLOSED"`.
+
+2. **`PATCH /api/v2/cases/{id}` does not accept `status`.** PATCH only
+   accepts `title`, `description`, and `priority`. Status transitions
+   MUST go through `POST /api/v2/cases/{id}/status`.
+
+3. **Archive body uses `"type": "case"` (SINGULAR)**, not `"cases"`:
+   ```
+   POST /api/v2/cases/{id}/archive
+   Body: {"data": {"type": "case"}}
+   ```
+   The `type` field is inconsistently named across the API — the close
+   endpoint uses `"case"` (singular) in attributes but the create
+   endpoint also uses singular `"case"`. When in doubt, use singular.
+
+4. **`list_cases` must be paginated.** The Cases API uses 1-indexed
+   pages (`page[number]` starts at 1, not 0). Without pagination,
+   teardown only sees the first page and misses older cases.
+
 ---
 
 ## 2. Tag standards (strict)

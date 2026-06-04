@@ -557,20 +557,60 @@ class DatadogAPIClient:
         """
         return self._request("PATCH", f"/api/v2/cases/{case_id}", json_data=payload)
 
+    def close_case(self, case_id: str) -> Dict[str, Any]:
+        """Transition a case to CLOSED status.
+
+        The dedicated /close action endpoint does not exist in the v2 API.
+        Status changes go through POST /api/v2/cases/{id}/status instead.
+        """
+        return self._request(
+            "POST",
+            f"/api/v2/cases/{case_id}/status",
+            json_data={"data": {"type": "case", "attributes": {"status": "CLOSED"}}},
+        )
+
+    def archive_case(self, case_id: str) -> Dict[str, Any]:
+        """Archive a case so it no longer appears in the Cases UI default view.
+
+        Body type is the singular "case" (not "cases") per the CaseEmptyRequest schema.
+        """
+        return self._request(
+            "POST",
+            f"/api/v2/cases/{case_id}/archive",
+            json_data={"data": {"type": "case"}},
+        )
+
     def list_cases(self, filter_query: Optional[str] = None) -> Dict[str, Any]:
         """
-        List cases, optionally filtered by query.
+        List cases, paging through every result.
+
+        The /api/v2/cases endpoint paginates with page[size] / page[number].
+        Without pagination, teardown only sees the first page, so older
+        toolkit-managed cases survive across demo runs.
 
         Args:
             filter_query: Optional filter query.
 
         Returns:
-            API response with cases list.
+            API response shaped as {"data": [<all pages>]}.
         """
-        params = {}
+        page_size = 100
+        page_number = 1  # Cases API uses 1-indexed pages (page 0 → 400)
+        all_cases: List[Dict[str, Any]] = []
+        params: Dict[str, Any] = {"page[size]": page_size}
         if filter_query:
             params["filter"] = filter_query
-        return self._request("GET", "/api/v2/cases", params=params)
+
+        while True:
+            params["page[number]"] = page_number
+            response = self._request("GET", "/api/v2/cases", params=params)
+            page = response.get("data", []) or []
+            all_cases.extend(page)
+            if len(page) < page_size:
+                break
+            page_number += 1
+
+        return {"data": all_cases}
 
     # ===== Case Management Projects API =====
 

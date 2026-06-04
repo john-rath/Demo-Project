@@ -319,7 +319,10 @@ class CaseManager:
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
-        Close/archive demo cases for a vertical.
+        Close and archive demo cases for a vertical.
+
+        Cases already in CLOSED or ARCHIVED state are skipped (the API
+        returns 404 on PATCH for terminal-state cases).
 
         Args:
             api_client: Datadog API client instance.
@@ -350,29 +353,43 @@ class CaseManager:
         scope_label = "all toolkit-managed verticals" if vertical_name is None else f"vertical '{vertical_name}'"
         logger.info(f"Found {len(cases)} case(s) to close for {scope_label}")
 
+        # The Cases API returns status as lowercase ("open", "closed") in list
+        # responses but accepts uppercase ("CLOSED") on PATCH.  Normalise to
+        # uppercase for comparison so both forms are handled.
+        _TERMINAL = {"CLOSED", "ARCHIVED"}
+
         for case in cases:
             try:
                 case_id = case.get("id")
                 case_title = case.get("attributes", {}).get("title", "")
+                current_status = case.get("attributes", {}).get("status", "").upper()
 
                 if not case_id:
-                    error_msg = f"Case missing ID"
-                    result["errors"].append(error_msg)
+                    result["errors"].append("Case missing ID")
                     result["total_errors"] += 1
-                    logger.error(error_msg)
+                    logger.error("Case missing ID")
+                    continue
+
+                # Skip cases already in a terminal state — the API rejects
+                # PATCH on closed/archived cases with 404.
+                if current_status in _TERMINAL:
+                    logger.debug(f"Skipping case '{case_title}' (already {current_status})")
                     continue
 
                 if dry_run:
-                    logger.info(f"[DRY RUN] Would close case '{case_title}' (ID: {case_id})")
+                    logger.info(f"[DRY RUN] Would close+archive case '{case_title}' (ID: {case_id})")
                     result["closed_ids"].append(case_id)
                     result["closed_titles"].append(case_title)
                     result["total_closed"] += 1
                 else:
-                    self.update_case(api_client, case_id, status="CLOSED")
+                    # Use the /status action endpoint (not PATCH) — PATCH does
+                    # not accept status changes in the v2 API.
+                    api_client.close_case(case_id)
+                    api_client.archive_case(case_id)
                     result["closed_ids"].append(case_id)
                     result["closed_titles"].append(case_title)
                     result["total_closed"] += 1
-                    logger.info(f"Closed case '{case_title}' (ID: {case_id})")
+                    logger.info(f"Closed and archived case '{case_title}' (ID: {case_id})")
 
             except Exception as e:
                 error_msg = f"Error closing case {case.get('id')}: {str(e)}"
