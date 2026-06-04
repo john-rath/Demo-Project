@@ -20,7 +20,7 @@ class CaseManager:
     """Manages creation and lifecycle of Datadog cases."""
 
     def __init__(self, verticals_dir: str = "verticals") -> None:
-        self._project_id: Optional[str] = None
+        self._project_cache: Dict[str, Optional[str]] = {}
         self.verticals_dir = Path(verticals_dir)
 
     def _get_expected_titles(self, vertical_name: Optional[str]) -> set:
@@ -63,72 +63,61 @@ class CaseManager:
         entries = config if isinstance(config, list) else (config or {}).get("cases", [])
         return {c.get("title") for c in (entries or []) if c.get("title")}
 
-    def _ensure_project(self, api_client: DatadogAPIClient, vertical_name: str) -> Optional[str]:
+    def _ensure_project(self, api_client: DatadogAPIClient, project_name: str) -> Optional[str]:
         """
-        Ensure a Case Management project exists for the demo toolkit.
+        Ensure a Case Management project with the given name exists.
 
-        Looks for an existing project named 'dd-demo-toolkit' or creates one.
-        Caches the project ID for subsequent calls within the same session.
+        Looks for an existing project with that exact name; creates one if
+        none is found.  Results are cached per project name so multiple
+        deploy() calls within the same session don't re-list projects.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Vertical name (used in project key).
+            project_name: Desired project name (vertical or sub-vertical name).
 
         Returns:
             Project ID string, or None if project could not be found/created.
         """
-        if self._project_id:
-            return self._project_id
+        if project_name in self._project_cache:
+            return self._project_cache[project_name]
 
-        # Try to find an existing project
         try:
             response = api_client.list_case_projects()
             projects = response.get("data", [])
             for project in projects:
-                attrs = project.get("attributes", {})
-                name = attrs.get("name", "")
-                if name == "dd-demo-toolkit" or name == f"dd-demo-{vertical_name}":
-                    self._project_id = project.get("id")
-                    logger.info(f"Found existing Case Management project '{name}' (ID: {self._project_id})")
-                    return self._project_id
-
-            # If we have any projects at all, use the first one as fallback
-            if projects:
-                fallback = projects[0]
-                self._project_id = fallback.get("id")
-                fallback_name = fallback.get("attributes", {}).get("name", "unknown")
-                logger.info(
-                    f"No dd-demo-toolkit project found. Using existing project "
-                    f"'{fallback_name}' (ID: {self._project_id})"
-                )
-                return self._project_id
-
+                if project.get("attributes", {}).get("name") == project_name:
+                    pid = project.get("id")
+                    self._project_cache[project_name] = pid
+                    logger.info(f"Found existing Case Management project '{project_name}' (ID: {pid})")
+                    return pid
         except RuntimeError as e:
             logger.warning(f"Failed to list Case Management projects: {e}")
+            self._project_cache[project_name] = None
+            return None
 
-        # No projects exist — try to create one
+        # Project not found — create it.  The key must be unique in the org;
+        # derive it from the name (alpha chars only, uppercase, max 10 chars).
+        key = ''.join(c for c in project_name.upper() if c.isalpha())[:10]
         try:
             payload = {
                 "data": {
                     "type": "project",
-                    "attributes": {
-                        "name": "dd-demo-toolkit",
-                        "key": "DEMO",
-                    }
+                    "attributes": {"name": project_name, "key": key},
                 }
             }
             response = api_client.create_case_project(payload)
             project_data = response.get("data", {})
-            self._project_id = project_data.get("id")
-            if self._project_id:
-                logger.info(f"Created Case Management project 'dd-demo-toolkit' (ID: {self._project_id})")
-                return self._project_id
-            else:
-                logger.error("Created project but no ID in response")
-                return None
+            pid = project_data.get("id")
+            if pid:
+                self._project_cache[project_name] = pid
+                logger.info(f"Created Case Management project '{project_name}' (ID: {pid})")
+                return pid
+            logger.error(f"Created project '{project_name}' but no ID in response")
         except RuntimeError as e:
-            logger.error(f"Failed to create Case Management project: {e}")
-            return None
+            logger.error(f"Failed to create Case Management project '{project_name}': {e}")
+
+        self._project_cache[project_name] = None
+        return None
 
     def create_case(
         self,
@@ -474,8 +463,17 @@ class CaseManager:
 
         logger.info(f"Deploying {len(cases)} case(s) for vertical '{vertical_name}'")
 
+        # Determine project name: sub-vertical name when deploying an overlay,
+        # otherwise the base vertical name.
+        path_parts = vertical_path_obj.parts
+        if "overlays" in path_parts:
+            overlay_idx = list(path_parts).index("overlays")
+            project_name = path_parts[overlay_idx + 1]
+        else:
+            project_name = vertical_name or vertical_path_obj.name
+
         # Cases require a project — ensure one exists before creating any cases
-        project_id = self._ensure_project(api_client, vertical_name)
+        project_id = self._ensure_project(api_client, project_name)
         if not project_id and not dry_run:
             error_msg = (
                 "Cannot create cases: no Case Management project available. "
