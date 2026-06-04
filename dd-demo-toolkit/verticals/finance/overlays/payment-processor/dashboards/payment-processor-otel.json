@@ -35,16 +35,24 @@
           },
           {
             "definition": {
-              "title": "OTel Span Volume by Service",
+              "title": "Auth & Tokenization Throughput (TPS)",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "spans" }],
+                  "formulas": [
+                    { "formula": "auth", "alias": "Authorization Engine" },
+                    { "formula": "token", "alias": "Tokenization Service" }
+                  ],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "spans",
-                      "query": "sum:otelcol.exporter.sent_spans{*} by {service}"
+                      "name": "auth",
+                      "query": "avg:finserv.authorization.throughput_tps{$region,$environment,device_type:authorization_switch}"
+                    },
+                    {
+                      "data_source": "metrics",
+                      "name": "token",
+                      "query": "avg:finserv.tokenization.throughput_tps{$region,$environment,device_type:tokenization_vault}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -56,38 +64,38 @@
           },
           {
             "definition": {
-              "title": "OTel Collector Refused Spans",
+              "title": "Tokenization Gateway Latency (ms)",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "refused" }],
+                  "formulas": [{ "formula": "lat" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "refused",
-                      "query": "sum:otelcol.receiver.refused_spans{*} by {service}"
+                      "name": "lat",
+                      "query": "avg:finserv.tokenization.gateway_latency_ms{$region,$environment,device_type:token_gateway} by {region}"
                     }
                   ],
                   "response_format": "timeseries",
                   "display_type": "line"
                 }
               ],
-              "yaxis": { "label": "Refused spans/interval", "scale": "linear" }
+              "yaxis": { "label": "Latency (ms)", "scale": "linear" }
             },
             "layout": { "x": 6, "y": 1, "width": 6, "height": 3 }
           },
           {
             "definition": {
-              "title": "Authorization Engine Request Rate",
+              "title": "Authorization Engine TPS",
               "type": "query_value",
               "requests": [
                 {
-                  "formulas": [{ "formula": "reqs" }],
+                  "formulas": [{ "formula": "tps" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "reqs",
-                      "query": "sum:finserv.app.requests_total{service_name:authorization-engine}",
+                      "name": "tps",
+                      "query": "avg:finserv.authorization.throughput_tps{device_type:authorization_switch}",
                       "aggregator": "avg"
                     }
                   ],
@@ -99,16 +107,16 @@
           },
           {
             "definition": {
-              "title": "Tokenization Service Request Rate",
+              "title": "Tokenization Service TPS",
               "type": "query_value",
               "requests": [
                 {
-                  "formulas": [{ "formula": "reqs" }],
+                  "formulas": [{ "formula": "tps" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "reqs",
-                      "query": "sum:finserv.app.requests_total{service_name:tokenization-service}",
+                      "name": "tps",
+                      "query": "avg:finserv.tokenization.throughput_tps{device_type:tokenization_vault}",
                       "aggregator": "avg"
                     }
                   ],
@@ -120,16 +128,16 @@
           },
           {
             "definition": {
-              "title": "Clearing Processor Request Rate",
+              "title": "Clearing Queue Depth",
               "type": "query_value",
               "requests": [
                 {
-                  "formulas": [{ "formula": "reqs" }],
+                  "formulas": [{ "formula": "depth" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "reqs",
-                      "query": "sum:finserv.app.requests_total{service_name:clearing-processor}",
+                      "name": "depth",
+                      "query": "avg:finserv.clearing.queue_depth{device_type:clearing_node}",
                       "aggregator": "avg"
                     }
                   ],
@@ -141,16 +149,16 @@
           },
           {
             "definition": {
-              "title": "Settlement Gateway Request Rate",
+              "title": "Settlement Latency (avg ms)",
               "type": "query_value",
               "requests": [
                 {
-                  "formulas": [{ "formula": "reqs" }],
+                  "formulas": [{ "formula": "lat" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "reqs",
-                      "query": "sum:finserv.app.requests_total{service_name:settlement-gateway}",
+                      "name": "lat",
+                      "query": "avg:finserv.clearing.settlement_latency_ms{device_type:settlement_gateway}",
                       "aggregator": "avg"
                     }
                   ],
@@ -182,67 +190,67 @@
           },
           {
             "definition": {
-              "title": "OTel Collector CPU Usage",
+              "title": "Auth Switch Decision Latency by Region",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "cpu" }],
+                  "formulas": [{ "formula": "lat" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "cpu",
-                      "query": "avg:otelcol.process.cpu_seconds{*} by {service}"
+                      "name": "lat",
+                      "query": "avg:finserv.authorization.decision_latency_ms{$region,$environment,device_type:authorization_switch} by {region}"
                     }
                   ],
                   "response_format": "timeseries",
                   "display_type": "line"
                 }
               ],
-              "yaxis": { "label": "CPU seconds", "scale": "linear" }
+              "yaxis": { "label": "Latency (ms)", "scale": "linear" }
             },
             "layout": { "x": 0, "y": 1, "width": 4, "height": 3 }
           },
           {
             "definition": {
-              "title": "OTel Collector Memory Usage",
+              "title": "Tokenization Vault Utilization by Region",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "mem" }],
+                  "formulas": [{ "formula": "util" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "mem",
-                      "query": "avg:otelcol.process.memory_rss{*} by {service}"
+                      "name": "util",
+                      "query": "avg:finserv.tokenization.vault_utilization_pct{$region,$environment,device_type:tokenization_vault} by {region}"
                     }
                   ],
                   "response_format": "timeseries",
                   "display_type": "line"
                 }
               ],
-              "yaxis": { "label": "Memory (bytes)", "scale": "linear" }
+              "yaxis": { "label": "Utilization %", "scale": "linear" }
             },
             "layout": { "x": 4, "y": 1, "width": 4, "height": 3 }
           },
           {
             "definition": {
-              "title": "Collector Queue Length",
+              "title": "Clearing Batch Error Rate by Region",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "queue" }],
+                  "formulas": [{ "formula": "err" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "queue",
-                      "query": "avg:otelcol.exporter.queue_size{*} by {service}"
+                      "name": "err",
+                      "query": "avg:finserv.clearing.batch_error_rate{$region,$environment,device_type:clearing_node} by {region}"
                     }
                   ],
                   "response_format": "timeseries",
                   "display_type": "line"
                 }
               ],
-              "yaxis": { "label": "Queue depth", "scale": "linear" }
+              "yaxis": { "label": "Error rate", "scale": "linear" }
             },
             "layout": { "x": 8, "y": 1, "width": 4, "height": 3 }
           }
@@ -297,24 +305,18 @@
           },
           {
             "definition": {
-              "title": "Auth Error Rate by Service",
+              "title": "Fraud Score Latency by Region",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "err_rate" }],
+                  "formulas": [{ "formula": "lat" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "errors",
-                      "query": "sum:finserv.app.errors_total{service_name:authorization-engine} by {region}"
-                    },
-                    {
-                      "data_source": "metrics",
-                      "name": "total",
-                      "query": "sum:finserv.app.requests_total{service_name:authorization-engine} by {region}"
+                      "name": "lat",
+                      "query": "avg:finserv.authorization.fraud_score_latency_ms{$region,$environment,device_type:fraud_switch} by {region}"
                     }
                   ],
-                  "formulas": [{ "formula": "errors / total * 100", "alias": "Auth error rate %" }],
                   "response_format": "timeseries",
                   "display_type": "line"
                 }
