@@ -32,7 +32,14 @@ class NotebookManager:
         way to find toolkit-created notebooks.
         """
         if vertical_name is not None:
-            return self._names_from_yaml(self.verticals_dir / vertical_name)
+            vertical_dir = self.verticals_dir / vertical_name
+            names = self._names_from_yaml(vertical_dir)
+            overlays_dir = vertical_dir / "overlays"
+            if overlays_dir.is_dir():
+                for odir in overlays_dir.iterdir():
+                    if odir.is_dir():
+                        names |= self._names_from_yaml(odir)
+            return names
 
         # All-verticals sweep: collect from every vertical and its overlays.
         names: set = set()

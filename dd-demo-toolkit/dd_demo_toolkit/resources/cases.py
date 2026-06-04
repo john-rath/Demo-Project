@@ -30,7 +30,14 @@ class CaseManager:
         teardown uses title-matching against the YAML configs.
         """
         if vertical_name is not None:
-            return self._titles_from_yaml(self.verticals_dir / vertical_name)
+            vertical_dir = self.verticals_dir / vertical_name
+            titles = self._titles_from_yaml(vertical_dir)
+            overlays_dir = vertical_dir / "overlays"
+            if overlays_dir.is_dir():
+                for odir in overlays_dir.iterdir():
+                    if odir.is_dir():
+                        titles |= self._titles_from_yaml(odir)
+            return titles
 
         titles: set = set()
         for vdir in self.verticals_dir.iterdir():
