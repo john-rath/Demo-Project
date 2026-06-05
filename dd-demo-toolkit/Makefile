@@ -182,7 +182,7 @@ ui-install: ## Create .venv-ui (Python 3.13) and install editable + UI extras
 	./.venv-ui/bin/pip install --quiet --upgrade pip
 	./.venv-ui/bin/pip install -e '.[dev,ui]'
 
-ui: check-op build ## Build images, then launch the local web UI on http://127.0.0.1:8765
+ui: check-op build up-d ## Build images, start collector + simulator, then launch the UI on http://127.0.0.1:8765
 	$(OP_RUN) ./.venv-ui/bin/dd-demo-ui
 
 test: ## Run the unit + static analysis test suite (no secrets needed)
