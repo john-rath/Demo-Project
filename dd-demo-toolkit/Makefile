@@ -35,7 +35,7 @@ OP_RUN := op run --env-file=.env --
         up-data-obs down-data-obs logs-data-obs logs-dbt dbt-run-now \
         logs-experiment \
         clean-orphans clean-all \
-        ui ui-install test
+        ui ui-install test validate
 
 help: ## List available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -185,5 +185,8 @@ ui-install: ## Create .venv-ui (Python 3.13) and install editable + UI extras
 ui: check-op ## Launch the local web UI on http://127.0.0.1:8765
 	$(OP_RUN) ./.venv-ui/bin/dd-demo-ui
 
-test: ## Run the toolkit + UI test suite (no secrets needed — tests are mocked)
-	./.venv-ui/bin/pytest tests/ --no-cov -q
+test: ## Run the unit + static analysis test suite (no secrets needed)
+	./.venv/bin/pytest tests/ --no-cov -q -m "not integration"
+
+validate: check-op ## Run live dashboard data checks against Datadog (requires make up first)
+	$(OP_RUN) ./.venv/bin/pytest tests/ -m integration -v --no-cov

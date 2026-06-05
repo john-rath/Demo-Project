@@ -60,6 +60,31 @@ from dd_demo_toolkit.simulator.plugins import IncidentPlugin
 
 logger = logging.getLogger("payment_processor_auth_cascade")
 
+# Synthetic Visa/MC/Amex/Discover prefixes — realistic format but not real PANs.
+# The card.pan field in each log is picked up by Datadog's built-in
+# "Credit Card Number" SDS rule and masked before storage.
+_FAKE_PAN_PREFIXES = ["4532", "5425", "3714", "6011"]
+
+_MERCHANTS = [
+    "AMZN Mktp US*2K8F9", "UBER* Trip", "APPLE.COM/BILL",
+    "NETFLIX.COM", "WHOLEFDS #10456", "DELTA AIR 006-123456789",
+    "MARRIOTT INT 07823", "GOOGLE *YouTube Premium",
+    "COSTCO WHSE #0432", "SHELL OIL 12345678",
+]
+
+_DECLINE_REASONS = [
+    "AUTHORIZATION_TIMEOUT",
+    "FRAUD_SCORE_EXCEEDED",
+    "VELOCITY_LIMIT_REACHED",
+    "ISSUER_TIMEOUT",
+]
+
+
+def _fake_pan() -> str:
+    prefix = random.choice(_FAKE_PAN_PREFIXES)
+    digits = "".join(str(random.randint(0, 9)) for _ in range(12))
+    return f"{prefix}-{digits[:4]}-{digits[4:8]}-{digits[8:]}"
+
 
 def _clamp(value: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, value))
@@ -193,6 +218,7 @@ class PaymentProcessorAuthCascade(IncidentPlugin):
                 }
 
         self._apply_overrides(phase, phase_tick)
+        self._inject_tx_logs(phase, engine)
         if phase != "normal":
             logger.info(
                 "PP AUTH CASCADE [%s t=%d] auth=%d fraud=%d vault=%d clear=%d settle=%d",
@@ -201,6 +227,53 @@ class PaymentProcessorAuthCascade(IncidentPlugin):
                 len(self._token_vaults), len(self._clearing_nodes),
                 len(self._settlement_gateways),
             )
+
+    # ------------------------------------------------------------------
+    # Declined-transaction log injection
+    # ------------------------------------------------------------------
+
+    def _inject_tx_logs(self, phase: str, engine: Any) -> None:
+        """Write one declined-auth transaction log into incident_state each tick.
+
+        Engine.py reads these inside the authorization-engine's active root span
+        (_emit_incident_tx_logs), so LoggingHandler auto-injects trace_id/span_id.
+        The card.pan field uses synthetic Visa-format data; Datadog's SDS
+        Credit Card Number rule redacts it before the log record is indexed.
+        """
+        if not hasattr(engine, "incident_state"):
+            return
+        state = engine.incident_state.get("payment_processor_auth_cascade")
+        if state is None:
+            return
+        if phase not in ("degraded", "cascading"):
+            state.pop("tx_logs", None)
+            return
+
+        pan = _fake_pan()
+        amount = round(random.uniform(12.50, 8750.00), 2)
+        merchant = random.choice(_MERCHANTS)
+        reason = random.choice(_DECLINE_REASONS)
+
+        state["tx_logs"] = [
+            {
+                "service": "authorization-engine",
+                "level": "warning",
+                "message": (
+                    "Authorization DECLINED pan=%s amount=%.2f merchant=%r "
+                    "reason=%s region=%s"
+                ) % (pan, amount, merchant, reason, self.CASCADE_REGION),
+                "extra": {
+                    "card.pan": pan,
+                    "transaction.amount": amount,
+                    "merchant.name": merchant,
+                    "authorization.decline_reason": reason,
+                    "authorization.decision": "DECLINED",
+                    "region": self.CASCADE_REGION,
+                    "device_type": "authorization_switch",
+                    "environment": self.CASCADE_ENV,
+                },
+            }
+        ]
 
     # ------------------------------------------------------------------
     # Fleet indexing — only ap-southeast-1 / production devices

@@ -24,7 +24,7 @@ from dd_demo_toolkit.resources.manager import ResourceManager
 
 ALL_RESOURCE_TYPES = [
     "dashboards", "monitors", "notebooks", "slos", "services",
-    "workflows", "incidents", "cases",
+    "workflows", "incidents", "cases", "sds",
 ]
 
 

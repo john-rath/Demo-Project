@@ -26,7 +26,7 @@
           {
             "definition": {
               "type": "note",
-              "content": "**OTel Ingestion Health** — Datadog as a first-class OTel destination. Span volume, refused spans, and SDK instrumentation coverage across payment processor services. VIS-PR-001 (MUST): pre-built dashboards deployable via code.",
+              "content": "**OTel Ingestion Health** — Datadog as a first-class OTel destination. Span volume, refused spans, and SDK instrumentation coverage across payment processor services. VIS-PR-001 (MUST): pre-built dashboards deployable via code.\n\n**Reading the scalars:** \"Received\" and \"Forwarded\" will differ slightly — that's expected batching lag, not data loss. Only \"Refused\" indicates a real problem: green (0) means the pipeline is healthy; red (>0) means backpressure.",
               "background_color": "blue",
               "font_size": "14",
               "text_align": "left"
@@ -35,28 +35,20 @@
           },
           {
             "definition": {
-              "title": "Auth & Tokenization Throughput (TPS)",
+              "title": "Span Volume by Exporter",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [
-                    { "formula": "auth", "alias": "Authorization Engine" },
-                    { "formula": "token", "alias": "Tokenization Service" }
-                  ],
+                  "formulas": [{ "formula": "spans" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "auth",
-                      "query": "avg:finserv.authorization.throughput_tps{$region,$environment,device_type:authorization_switch}"
-                    },
-                    {
-                      "data_source": "metrics",
-                      "name": "token",
-                      "query": "avg:finserv.tokenization.throughput_tps{$region,$environment,device_type:tokenization_vault}"
+                      "name": "spans",
+                      "query": "sum:otelcol_exporter_sent_spans{*} by {exporter}"
                     }
                   ],
                   "response_format": "timeseries",
-                  "display_type": "bars"
+                  "display_type": "area"
                 }
               ]
             },
@@ -64,109 +56,105 @@
           },
           {
             "definition": {
-              "title": "Tokenization Gateway Latency (ms)",
+              "title": "Metric Points Exported & Refused Spans",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "lat" }],
+                  "formulas": [
+                    { "formula": "pts", "alias": "Metric points exported" },
+                    { "formula": "refused", "alias": "Refused spans" }
+                  ],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "lat",
-                      "query": "avg:finserv.tokenization.gateway_latency_ms{$region,$environment,device_type:token_gateway} by {region}"
+                      "name": "pts",
+                      "query": "sum:otelcol_exporter_sent_metric_points{*}"
+                    },
+                    {
+                      "data_source": "metrics",
+                      "name": "refused",
+                      "query": "sum:otelcol_receiver_refused_spans{*}"
                     }
                   ],
                   "response_format": "timeseries",
                   "display_type": "line"
                 }
-              ],
-              "yaxis": { "label": "Latency (ms)", "scale": "linear" }
+              ]
             },
             "layout": { "x": 6, "y": 1, "width": 6, "height": 3 }
           },
           {
             "definition": {
-              "title": "Authorization Engine TPS",
+              "title": "Received Spans (OTLP in)",
               "type": "query_value",
+              "autoscale": true,
+              "precision": 0,
               "requests": [
                 {
-                  "formulas": [{ "formula": "tps" }],
+                  "formulas": [{ "formula": "acc", "number_format": { "unit": { "type": "canonical_unit", "unit_name": "span" } } }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "tps",
-                      "query": "avg:finserv.authorization.throughput_tps{device_type:authorization_switch}",
-                      "aggregator": "avg"
+                      "name": "acc",
+                      "query": "sum:otelcol_receiver_accepted_spans{*}",
+                      "aggregator": "sum"
                     }
                   ],
                   "response_format": "scalar"
                 }
               ]
             },
-            "layout": { "x": 0, "y": 4, "width": 3, "height": 2 }
+            "layout": { "x": 0, "y": 4, "width": 4, "height": 2 }
           },
           {
             "definition": {
-              "title": "Tokenization Service TPS",
+              "title": "Forwarded to Datadog",
               "type": "query_value",
+              "autoscale": true,
+              "precision": 0,
               "requests": [
                 {
-                  "formulas": [{ "formula": "tps" }],
+                  "formulas": [{ "formula": "sent", "number_format": { "unit": { "type": "canonical_unit", "unit_name": "span" } } }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "tps",
-                      "query": "avg:finserv.tokenization.throughput_tps{device_type:tokenization_vault}",
-                      "aggregator": "avg"
+                      "name": "sent",
+                      "query": "sum:otelcol_exporter_sent_spans{*}",
+                      "aggregator": "sum"
                     }
                   ],
                   "response_format": "scalar"
                 }
               ]
             },
-            "layout": { "x": 3, "y": 4, "width": 3, "height": 2 }
+            "layout": { "x": 4, "y": 4, "width": 4, "height": 2 }
           },
           {
             "definition": {
-              "title": "Clearing Queue Depth",
+              "title": "Refused Spans — 0 is healthy",
               "type": "query_value",
+              "autoscale": true,
+              "precision": 0,
               "requests": [
                 {
-                  "formulas": [{ "formula": "depth" }],
+                  "formulas": [{ "formula": "ref", "number_format": { "unit": { "type": "canonical_unit", "unit_name": "span" } } }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "depth",
-                      "query": "avg:finserv.clearing.queue_depth{device_type:clearing_node}",
-                      "aggregator": "avg"
+                      "name": "ref",
+                      "query": "sum:otelcol_receiver_refused_spans{*}",
+                      "aggregator": "sum"
                     }
                   ],
-                  "response_format": "scalar"
+                  "response_format": "scalar",
+                  "conditional_formats": [
+                    { "comparator": "=", "value": 0, "palette": "white_on_green" },
+                    { "comparator": ">", "value": 0, "palette": "white_on_red" }
+                  ]
                 }
               ]
             },
-            "layout": { "x": 6, "y": 4, "width": 3, "height": 2 }
-          },
-          {
-            "definition": {
-              "title": "Settlement Latency (avg ms)",
-              "type": "query_value",
-              "requests": [
-                {
-                  "formulas": [{ "formula": "lat" }],
-                  "queries": [
-                    {
-                      "data_source": "metrics",
-                      "name": "lat",
-                      "query": "avg:finserv.clearing.settlement_latency_ms{device_type:settlement_gateway}",
-                      "aggregator": "avg"
-                    }
-                  ],
-                  "response_format": "scalar"
-                }
-              ]
-            },
-            "layout": { "x": 9, "y": 4, "width": 3, "height": 2 }
+            "layout": { "x": 8, "y": 4, "width": 4, "height": 2 }
           }
         ]
       },
@@ -190,67 +178,66 @@
           },
           {
             "definition": {
-              "title": "Auth Switch Decision Latency by Region",
+              "title": "Collector CPU (seconds)",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "lat" }],
+                  "formulas": [{ "formula": "cpu" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "lat",
-                      "query": "avg:finserv.authorization.decision_latency_ms{$region,$environment,device_type:authorization_switch} by {region}"
+                      "name": "cpu",
+                      "query": "sum:otelcol_process_cpu_seconds{*}"
                     }
                   ],
                   "response_format": "timeseries",
                   "display_type": "line"
                 }
               ],
-              "yaxis": { "label": "Latency (ms)", "scale": "linear" }
+              "yaxis": { "label": "CPU seconds", "scale": "linear" }
             },
             "layout": { "x": 0, "y": 1, "width": 4, "height": 3 }
           },
           {
             "definition": {
-              "title": "Tokenization Vault Utilization by Region",
+              "title": "Collector Memory RSS (bytes)",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "util" }],
+                  "formulas": [{ "formula": "mem" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "util",
-                      "query": "avg:finserv.tokenization.vault_utilization_pct{$region,$environment,device_type:tokenization_vault} by {region}"
+                      "name": "mem",
+                      "query": "avg:otelcol_process_memory_rss{*}"
                     }
                   ],
                   "response_format": "timeseries",
                   "display_type": "line"
                 }
               ],
-              "yaxis": { "label": "Utilization %", "scale": "linear" }
+              "yaxis": { "label": "Bytes", "scale": "linear" }
             },
             "layout": { "x": 4, "y": 1, "width": 4, "height": 3 }
           },
           {
             "definition": {
-              "title": "Clearing Batch Error Rate by Region",
+              "title": "Batch Flush Events (throughput indicator)",
               "type": "timeseries",
               "requests": [
                 {
-                  "formulas": [{ "formula": "err" }],
+                  "formulas": [{ "formula": "flushes" }],
                   "queries": [
                     {
                       "data_source": "metrics",
-                      "name": "err",
-                      "query": "avg:finserv.clearing.batch_error_rate{$region,$environment,device_type:clearing_node} by {region}"
+                      "name": "flushes",
+                      "query": "sum:otelcol_processor_batch_batch_size_trigger_send{*}"
                     }
                   ],
                   "response_format": "timeseries",
-                  "display_type": "line"
+                  "display_type": "bars"
                 }
-              ],
-              "yaxis": { "label": "Error rate", "scale": "linear" }
+              ]
             },
             "layout": { "x": 8, "y": 1, "width": 4, "height": 3 }
           }
@@ -267,7 +254,7 @@
           {
             "definition": {
               "type": "note",
-              "content": "**VIS-AC-001 (MUST):** Metric anomaly → correlated log → root trace in ≤3 clicks.\n\n**Live demo path:** (1) Auth decline rate spike on this chart → (2) click spike to open correlated log stream with SDS-redacted PAN fields → (3) click trace ID in log to open waterfall. Two MUSTs in one story: VIS-AC-001 single-pane + INS-L-001 PCI-DSS data masking via Sensitive Data Scanner.",
+              "content": "**VIS-AC-001 (MUST):** Metric anomaly → correlated log → root trace in ≤3 clicks.\n\n**Live demo path:** (1) Auth decline rate spike → context menu → **View logs** → Log Explorer opens at the spike timestamp. (2) In Log Explorer, find `WARNING Authorization DECLINED` entries from `authorization-engine` — the `card.pan` field is masked (e.g. `4532-****-****-7892`) by the Datadog **Sensitive Data Scanner** Credit Card Number rule (INS-L-001). (3) Click the trace ID in any log → APM waterfall opens.\n\n**Prerequisite:** SDS Credit Card Number rule must be enabled in Datadog → Logs → Sensitive Data Scanner.",
               "background_color": "yellow",
               "font_size": "14",
               "text_align": "left"
@@ -539,7 +526,7 @@
           },
           {
             "definition": {
-              "title": "Network Auth Success Rate",
+              "title": "Payment Authorization Approval Rate",
               "type": "query_value",
               "requests": [
                 {

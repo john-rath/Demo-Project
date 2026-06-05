@@ -141,7 +141,7 @@ class DatadogAPIClient:
                 elif method_upper == "PATCH":
                     response = requests.patch(url, headers=self.headers, json=json_data, params=params, timeout=timeout)
                 elif method_upper == "DELETE":
-                    response = requests.delete(url, headers=self.headers, params=params, timeout=timeout)
+                    response = requests.delete(url, headers=self.headers, json=json_data, params=params, timeout=timeout)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -634,3 +634,98 @@ class DatadogAPIClient:
             API response with created project details.
         """
         return self._request("POST", "/api/v2/cases/projects", json_data=payload)
+
+    # ===== Sensitive Data Scanner API (v2) =====
+    #
+    # SDS uses fingerprint-based optimistic locking: every mutating request
+    # must include the current fingerprint in meta.fingerprint, and the
+    # response returns a new fingerprint that must be used for the next write.
+    # All calls must therefore be sequential within a single deploy/teardown.
+
+    def get_sds_config(self) -> Dict[str, Any]:
+        """Return the full SDS config including the root config ID, groups, and rules."""
+        return self._request("GET", "/api/v2/sensitive-data-scanner/config")
+
+    def create_sds_group(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create an SDS scanning group.
+
+        Args:
+            payload: Request body with data (type + attributes + relationships.configuration).
+
+        Returns:
+            API response with the new group id.
+        """
+        return self._request(
+            "POST",
+            "/api/v2/sensitive-data-scanner/config/groups",
+            json_data=payload,
+        )
+
+    def delete_sds_group(self, group_id: str) -> Dict[str, Any]:
+        """
+        Delete an SDS scanning group (and its rules, which are auto-deleted).
+
+        Args:
+            group_id: ID of the group to delete.
+
+        Returns:
+            API response.
+        """
+        return self._request(
+            "DELETE",
+            f"/api/v2/sensitive-data-scanner/config/groups/{group_id}",
+        )
+
+    def create_sds_rule(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create an SDS scanning rule inside an existing group.
+
+        Args:
+            payload: Request body with data (type + attributes + relationships.group).
+
+        Returns:
+            API response with the new rule id.
+        """
+        return self._request(
+            "POST",
+            "/api/v2/sensitive-data-scanner/config/rules",
+            json_data=payload,
+        )
+
+    def delete_sds_rule(self, rule_id: str) -> Dict[str, Any]:
+        """
+        Delete an SDS scanning rule.
+
+        Args:
+            rule_id: ID of the rule to delete.
+
+        Returns:
+            API response.
+        """
+        return self._request(
+            "DELETE",
+            f"/api/v2/sensitive-data-scanner/config/rules/{rule_id}",
+        )
+
+    # ===== Metrics Query API =====
+
+    def query_metrics(self, query: str, from_ts: int, to_ts: int) -> Dict[str, Any]:
+        """
+        Query a metric time series via GET /api/v1/query.
+
+        Args:
+            query: Datadog metrics query string, e.g.
+                   "avg:finserv.authorization.throughput_tps{*}"
+            from_ts: Start of the query window as a Unix timestamp (seconds).
+            to_ts:   End of the query window as a Unix timestamp (seconds).
+
+        Returns:
+            API response with a "series" list; each series has a "pointlist"
+            of [timestamp_ms, value] pairs.  An empty "series" means no data.
+        """
+        return self._request("GET", "/api/v1/query", params={
+            "query": query,
+            "from": from_ts,
+            "to": to_ts,
+        })

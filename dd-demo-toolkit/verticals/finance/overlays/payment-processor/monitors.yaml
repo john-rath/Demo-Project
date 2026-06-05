@@ -93,8 +93,8 @@ monitors:
 
   - name: "[Finance/Payment Processor] OTel Collector Span Drop Rate"
     type: "query alert"
-    query: "avg(last_5m):sum:otelcol.receiver.refused_spans{service:payment-processor-otel-collector} > 500"
-    message: "📡 OTel collector is refusing >500 spans/interval for service:payment-processor-otel-collector. Traces from tokenization-service and authorization-engine may be incomplete, which will break single-pane-of-glass drilldown. Check collector queue depth and memory limits. Fleet Automation shows collector config version and last-seen timestamp — compare against last push."
+    query: "avg(last_5m):sum:otelcol_receiver_refused_spans{job:otel-collector} > 500"
+    message: "📡 OTel collector is refusing >500 spans/interval (job:otel-collector). Traces from tokenization-service and authorization-engine may be incomplete, which will break single-pane-of-glass drilldown. Check collector queue depth and memory limits. Fleet Automation shows collector config version and last-seen timestamp — compare against last push."
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"

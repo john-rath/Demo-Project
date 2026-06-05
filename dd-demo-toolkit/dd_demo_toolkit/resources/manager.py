@@ -17,6 +17,7 @@ from dd_demo_toolkit.resources.services import ServiceCatalogManager
 from dd_demo_toolkit.resources.workflows import WorkflowManager
 from dd_demo_toolkit.resources.incidents import IncidentManager
 from dd_demo_toolkit.resources.cases import CaseManager
+from dd_demo_toolkit.resources.sds import SDSManager
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ class ResourceManager:
         "workflows": WorkflowManager,
         "incidents": IncidentManager,
         "cases": CaseManager,
+        "sds": SDSManager,
     }
 
     def __init__(self, verticals_dir: str = "verticals") -> None:
@@ -53,6 +55,7 @@ class ResourceManager:
         self.workflow_manager = WorkflowManager()
         self.incident_manager = IncidentManager()
         self.case_manager = CaseManager(verticals_dir=verticals_dir)
+        self.sds_manager = SDSManager()
 
     def deploy_all(
         self,
@@ -201,6 +204,11 @@ class ResourceManager:
                         str(overlay_path), api_client, tags, dry_run,
                         vertical_name=vertical_name,
                     )
+                elif resource_type == "sds":
+                    result = self.sds_manager.deploy(
+                        str(overlay_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
 
                 results[resource_type] = result
                 total_created += result.get("total_created", 0)
@@ -311,6 +319,10 @@ class ResourceManager:
                     logger.info("Incidents are typically declared dynamically rather than deployed from YAML")
                 elif resource_type == "cases":
                     result = self.case_manager.deploy(
+                        str(vertical_path), api_client, tags, dry_run
+                    )
+                elif resource_type == "sds":
+                    result = self.sds_manager.deploy(
                         str(vertical_path), api_client, tags, dry_run
                     )
 
@@ -440,6 +452,8 @@ class ResourceManager:
                     result = self.incident_manager.teardown(api_client, vertical_name, dry_run)
                 elif resource_type == "cases":
                     result = self.case_manager.teardown(api_client, vertical_name, dry_run)
+                elif resource_type == "sds":
+                    result = self.sds_manager.teardown(api_client, vertical_name, dry_run)
 
                 results[resource_type] = result
                 total_deleted += result.get("total_deleted", 0)
@@ -554,6 +568,14 @@ class ResourceManager:
         except Exception as e:
             logger.error(f"Error listing cases: {str(e)}")
             results["cases"] = {"error": str(e), "total": 0}
+
+        try:
+            sds_status = self.sds_manager.list_deployed(api_client, vertical_name)
+            results["sds"] = sds_status
+            total_resources += sds_status.get("total", 0)
+        except Exception as e:
+            logger.error(f"Error listing SDS resources: {str(e)}")
+            results["sds"] = {"error": str(e), "total": 0}
 
         results["summary"] = {
             "total_resources": total_resources,

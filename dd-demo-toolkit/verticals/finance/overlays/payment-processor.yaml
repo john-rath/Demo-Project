@@ -94,6 +94,7 @@ device_categories:
     devices:
 
     - type: authorization_switch
+      service: authorization-engine
       manufacturer: Custom
       model: AuthSwitch-RTOS
       firmware: "6.1.4"

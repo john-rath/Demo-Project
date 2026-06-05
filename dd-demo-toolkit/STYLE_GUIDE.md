@@ -224,6 +224,52 @@ The Cases v2 API has several non-obvious quirks:
 
 ---
 
+### 1.9 Every dashboard widget must show live data after `make up`
+
+Dashboards with empty charts ruin live demos. Every metric query in every
+dashboard must use a metric the simulator actually emits.
+
+**Rule**: all metric names in a dashboard must start with the parent
+vertical's `env_prefix` (from `verticals/<v>/config.yaml`). Overlay
+dashboards inherit the parent vertical's prefix.
+
+| Vertical | `env_prefix` | Dashboard metrics must start with |
+|----------|-------------|-----------------------------------|
+| finance | finserv | `finserv.` |
+| healthcare | hospital | `hospital.` |
+| hospitality | hospitality | `hospitality.` |
+| insurance | insurer | `insurer.` |
+| manufacturing | mfg | `mfg.` |
+
+**Common violations to avoid**:
+
+1. **`otelcol.*` metrics are valid — but only because the OTel Collector is
+   in the stack.** The `dd-demo-otel-collector` container runs in every
+   `make up` session and is configured in `otel-collector-config.yaml` to
+   export its own self-telemetry (spans exported, refused spans, CPU, memory)
+   via a `prometheus` receiver → Datadog pipeline. `otelcol.*` is the only
+   approved platform-prefix exception to the env_prefix rule. Do not add
+   other non-env_prefix namespaces without a corresponding service in
+   docker-compose.
+
+2. **`system.*` / `docker.*` / `kubernetes.*`** — require a Datadog Agent
+   sidecar; not available in the demo simulator.
+
+3. **`{env_prefix}.app.*` for device-category widgets** — the `.app.*`
+   namespace is emitted by named services (e.g. `service_name:mobile-banking-api`),
+   not by device simulators (e.g. `device_type:authorization_switch`). Match
+   the metric namespace to the device type.
+
+**Automated enforcement**:
+- `make test` → `tests/test_dashboard_query_coverage.py` — static, no
+  credentials required; fails on any metric that doesn't match env_prefix.
+- `make validate` → `tests/test_dashboard_live_data.py` — live Datadog
+  API check; fails if any metric has zero data points in the past hour.
+  Run this after `make up` to confirm the simulator is emitting every
+  metric referenced in every dashboard.
+
+---
+
 ## 2. Tag standards (strict)
 
 ### 2.1 Auto-injected — never add to YAML manually
@@ -273,6 +319,8 @@ for its API or pick the closest equivalent.**
 | Incidents | `vertical:{v}` + `dd-demo-toolkit:true` tags (server-side filter) | Full tag support |
 | Cases | Title match against `cases.yaml` | List response does not expose tags |
 | Services | N/A — deregistration not supported by the API | Datadog Service Catalog has no delete/deregister endpoint |
+| SDS Groups | `[dd-demo-toolkit:vertical:{v}]` marker appended to description | SDS group GET response does not include tags; the manager appends the marker at deploy time so `sds.yaml` descriptions stay clean |
+| SDS Rules | `vertical:{v}` + `dd-demo-toolkit:true` tags | Full tag support; tags appear in rule GET response |
 
 For name/title-based resources (notebooks, cases): the manager loads the
 vertical's YAML at teardown time and deletes any API object whose
@@ -703,11 +751,12 @@ overlay-only teardown.
 - [ ] Dashboard timeseries requests using `queries:` have `response_format: "timeseries"` and no legacy `on_right_yaxis` at root
 - [ ] SLO metric queries use `.as_count()` on both numerator and denominator
 - [ ] Notebook `type:` is one of: `postmortem, runbook, investigation, documentation, report, workspace, threat_hunting`
-- [ ] After editing vertical files, run `make build` (now includes `--profile setup`) before `make setup`
+- [ ] **After editing any file under `verticals/`, run `make build` before `make setup`** — the `verticals/` directory is baked into the Docker image at build time (no live volume mount). `make setup` alone re-deploys whatever was in the image when it was last built, silently deploying stale content and making the live dashboard look unchanged.
 - [ ] Workflow descriptions ≤ 300 characters
 - [ ] If adding a plugin: disjoint from existing plugins along all 4 axes (spatial, namespace, incident_domain, temporal)
 - [ ] If customer-facing notebook: includes ROI / Business Impact section
 - [ ] Resource type validates with `dd-demo setup --vertical <v> --dry-run`
+- [ ] If adding SDS resources: group create uses `/api/v2/sensitive-data-scanner/config/groups` (not `/config/scanning-groups`) and the payload must include `relationships.configuration.data.id` (the root config ID from GET). No fingerprinting — the SDS v2 API is stateless.
 
 ---
 
@@ -732,4 +781,4 @@ When you hit a new bug class — *file the fix here* before closing the
 ticket. The whole point of this document is that future contributors
 shouldn't repeat the same investigation.
 
-Last updated: 2026-05-06 (BD overlay launch — Pyxis MedStation cascade).
+Last updated: 2026-06-03 (dashboard data coverage directive — §1.9; cases API quirks — §1.8).

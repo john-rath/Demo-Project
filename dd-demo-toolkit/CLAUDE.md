@@ -456,6 +456,12 @@ teardown.
 
 ## 7. Working-on-this-project tips
 
+- **`make build` before `make setup` after any file edit.** The `verticals/`
+  directory (dashboards, monitors, YAML, plugins, overlays) is baked into
+  the Docker image at build time — there is no live volume mount. Running
+  `make setup` without rebuilding re-deploys the image's stale copy, making
+  the live Datadog dashboard appear unchanged even though the local file is
+  correct. The fix is always `make build && make setup`.
 - After any vertical rename, run a case-insensitive grep for the old name
   across the whole repo — dashboards JSON, YAML, Python plugins, core
   simulator code, and README table rows all need to agree.

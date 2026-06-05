@@ -115,3 +115,6 @@ testpaths = ["tests"]
 # matches the supervisor's per-test lifecycle.
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: live Datadog API checks requiring credentials; run via 'make validate' after 'make up'",
+]
