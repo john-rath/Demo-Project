@@ -70,10 +70,10 @@ class TestConfigLoading:
         """Test that services config exists and has required fields."""
         loader = ConfigLoader()
         verticals = ["healthcare", "finance", "manufacturing", "insurance"]
-        services_file_template = Path(__file__).parent.parent / "verticals" / "{}" / "services.yaml"
+        verticals_base = Path(__file__).parent.parent / "verticals"
 
         for vertical in verticals:
-            services_file = services_file_template.format(vertical)
+            services_file = verticals_base / vertical / "services.yaml"
             assert services_file.exists(), f"{vertical} services.yaml not found"
 
             with open(services_file) as f:
@@ -84,10 +84,11 @@ class TestConfigLoading:
             assert len(services) > 0, f"{vertical} has no services defined"
 
             for service in services:
-                assert "name" in service, f"{vertical} service missing name"
-                assert isinstance(
-                    service["name"], str
-                ), f"{vertical} service name must be string"
+                # verticals use either Service Catalog v2 ('dd-service') or plain 'name'
+                assert "dd-service" in service or "name" in service, \
+                    f"{vertical} service missing identifier field (dd-service or name)"
+                identifier = service.get("dd-service") or service.get("name")
+                assert isinstance(identifier, str), f"{vertical} service identifier must be string"
 
 
 class TestConfigValidation:
@@ -167,32 +168,28 @@ class TestConfigValidation:
 class TestVerticalListing:
     """Test vertical discovery and listing."""
 
-    def test_list_verticals_returns_all_four(self):
-        """Test that list_verticals returns all four verticals."""
+    def test_list_verticals_returns_all_five(self):
+        """Test that list_verticals returns all five verticals."""
         loader = ConfigLoader()
         verticals = loader.list_verticals()
 
-        assert len(verticals) == 4, f"Expected 4 verticals, got {len(verticals)}"
-        vertical_names = [v["name"] for v in verticals]
-        expected = ["healthcare", "finance", "manufacturing", "insurance"]
+        assert len(verticals) == 5, f"Expected 5 verticals, got {len(verticals)}"
+        expected = ["finance", "healthcare", "hospitality", "insurance", "manufacturing"]
         for exp in expected:
             assert (
-                exp in vertical_names
+                exp in verticals
             ), f"Expected vertical '{exp}' not found in list"
 
     def test_list_verticals_includes_metadata(self):
-        """Test that each vertical in list has expected metadata."""
+        """Test that each vertical name in list is non-empty and loadable."""
         loader = ConfigLoader()
         verticals = loader.list_verticals()
 
-        for vertical in verticals:
-            assert "name" in vertical, "Vertical missing 'name'"
-            assert "display_name" in vertical, "Vertical missing 'display_name'"
-            assert "description" in vertical, "Vertical missing 'description'"
-            assert isinstance(vertical["name"], str), "Vertical name must be string"
-            assert isinstance(
-                vertical["display_name"], str
-            ), "Vertical display_name must be string"
+        for vertical_name in verticals:
+            assert isinstance(vertical_name, str) and vertical_name, "Vertical name must be non-empty string"
+            config = loader.load_vertical(vertical_name)
+            assert "display_name" in config["vertical"], f"{vertical_name} missing display_name"
+            assert isinstance(config["vertical"]["display_name"], str), "display_name must be string"
 
 
 class TestPlaceholderResolution:
@@ -223,8 +220,7 @@ class TestPlaceholderResolution:
         loader = ConfigLoader()
         verticals = loader.list_verticals()
 
-        for vertical_info in verticals:
-            vertical_name = vertical_info["name"]
+        for vertical_name in verticals:
             config = loader.load_vertical(vertical_name)
             env_prefix = config["vertical"].get("env_prefix")
             assert env_prefix is not None, f"{vertical_name} missing env_prefix"

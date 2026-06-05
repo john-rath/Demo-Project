@@ -25,6 +25,20 @@ locations:
     - Wealth Management
     - Risk & Compliance
 
+# Which regions each environment is active in.
+# Combos not listed here receive no devices.
+environment_topology:
+  production: [us-east-1, us-west-2, eu-west-1, ap-southeast-1]
+  staging:    [us-east-1]
+  dr-site:    [us-west-2]
+
+# Metric scale multipliers applied at emit time per environment.
+# Internal drift/clamping runs on normalized state; scale is cosmetic only.
+environment_scale:
+  production: 3.0
+  staging:    0.15
+  dr-site:    0.05
+
 device_categories:
   trading_infrastructure:
     ip_base: '10.10'

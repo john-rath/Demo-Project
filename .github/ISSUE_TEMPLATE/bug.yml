@@ -1,0 +1,51 @@
+name: Bug report
+description: Something in the toolkit broke or doesn't work as documented.
+labels: [bug, triage]
+body:
+  - type: dropdown
+    id: vertical
+    attributes:
+      label: Vertical affected
+      options:
+        - healthcare
+        - finance
+        - hospitality
+        - insurance
+        - manufacturing
+        - "n/a (core / UI / data_obs)"
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command that fails
+      description: Exact command, e.g. `make setup` or `dd-demo simulate --vertical finance`
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened
+      description: Paste the relevant log output (redact API keys).
+    validations:
+      required: true
+  - type: input
+    id: validate
+    attributes:
+      label: Output of `dd-demo validate --vertical <name>`
+      description: Run this for the affected vertical and paste the summary line.
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: |
+        macOS or Linux, Python version, Docker runtime (Desktop / Colima),
+        `op --version`, last `git log -1 --oneline`.
+    validations:
+      required: true

@@ -284,6 +284,8 @@ class SimulatorEngine:
         self.vertical_name = config["vertical"]["name"]
         self.env_prefix = config["vertical"]["env_prefix"]
         self.display_name = config["vertical"]["display_name"]
+        self._env_topology: Dict[str, List[str]] = config.get("environment_topology", {})
+        self._env_scale: Dict[str, float] = config.get("environment_scale", {})
 
         # Build service catalog first (needed for per-service provider setup)
         self.services: Dict[str, ServiceProfile] = {}
@@ -392,6 +394,37 @@ class SimulatorEngine:
 
         locations = list(generate_locations(dimensions))
 
+        # Filter to topology-allowed (region, environment) pairs when configured.
+        # Combos that lack region or environment dimensions are kept as-is.
+        if self._env_topology:
+            allowed = {
+                (region, env)
+                for env, regions in self._env_topology.items()
+                for region in regions
+            }
+            locations = [
+                loc for loc in locations
+                if (loc.get("region"), loc.get("environment")) in allowed
+                or "region" not in loc
+                or "environment" not in loc
+            ]
+
+        # Reorder locations so consecutive indices cycle through all
+        # region/environment pairs before repeating the same pair in another BU.
+        # Without this, a global counter causes small-count device types to land
+        # entirely within one or two region/env combos (e.g. all in us-east-1/prod),
+        # leaving staging and dr-site empty on the dashboard.
+        #
+        # After sorting by (non-geo dims..., region, environment), the first N
+        # entries (one per unique region/env pair) cover all environments, so any
+        # device type with count >= number_of_region_env_pairs hits every env.
+        non_env_dim_names = [d["name"] for d in dimensions if d["name"] not in ("region", "environment")]
+        locations.sort(key=lambda loc: (
+            tuple(loc.get(d, "") for d in non_env_dim_names),
+            loc.get("region", ""),
+            loc.get("environment", ""),
+        ))
+
         # Create devices for each category
         device_categories = self.config.get("device_categories", {})
 
@@ -425,9 +458,14 @@ class SimulatorEngine:
                     )
                     metrics.append(metric)
 
-                # Create device instances
+                # Create device instances.
+                # Use a per-type location_counter (reset to 0 for each device type)
+                # so every type starts at index 0 in the reordered locations list,
+                # guaranteeing the same even spread across region/env pairs.
+                # device_id_counter stays global to ensure unique device IDs.
+                location_counter = 0
                 for _ in range(count):
-                    location_idx = device_id_counter % len(locations)
+                    location_idx = location_counter % len(locations)
                     location = locations[location_idx]
 
                     if department_pool:
@@ -447,6 +485,7 @@ class SimulatorEngine:
                     )
                     self.fleet.append(device)
                     device_id_counter += 1
+                    location_counter += 1
 
         logger.info(
             f"Built fleet with {len(self.fleet)} devices across "
@@ -642,8 +681,10 @@ class SimulatorEngine:
 
     def _emit_device_metrics(self, device: DeviceProfile) -> None:
         """Emit device metrics via OTel."""
+        env = device.location.get("environment", "")
+        scale = self._env_scale.get(env, 1.0)
         for metric in device.metrics:
-            value = device.state[metric.name]
+            value = device.state[metric.name] * scale
             instrument = self.instruments.get(metric.name)
             if instrument is None:
                 continue

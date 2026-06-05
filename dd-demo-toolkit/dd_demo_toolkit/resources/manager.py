@@ -47,12 +47,12 @@ class ResourceManager:
         self.verticals_dir = Path(verticals_dir)
         self.dashboard_manager = DashboardManager()
         self.monitor_manager = MonitorManager()
-        self.notebook_manager = NotebookManager()
+        self.notebook_manager = NotebookManager(verticals_dir=verticals_dir)
         self.slo_manager = SLOManager()
         self.service_manager = ServiceCatalogManager()
         self.workflow_manager = WorkflowManager()
         self.incident_manager = IncidentManager()
-        self.case_manager = CaseManager()
+        self.case_manager = CaseManager(verticals_dir=verticals_dir)
 
     def deploy_all(
         self,

@@ -1,4 +1,14 @@
 notebooks:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Notebook 1 — Incident Investigation: Payment Processing Cascade
+  #
+  # Primary Bits AI SRE contrast notebook. Walk through the exact steps an
+  # SRE would take manually (DB lag → payments → fraud → cache), then use
+  # this as the "before" when showing what Bits AI surfaced in 5 minutes.
+  # Cascade scope: us-east-1 / production / database_cluster + payment_gateway
+  # + fraud_detection_node + cache_cluster devices.
+  # ─────────────────────────────────────────────────────────────────────────
   - id: "incident-investigation-payment-cascade"
     name: "💳 Incident Investigation: Payment Processing Cascade"
     type: investigation
@@ -10,10 +20,342 @@ notebooks:
       - "incident_domain:payment-cascade"
       - "business_unit:Retail Banking"
       - "audience:sre"
+    cells:
 
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Payment Processing Cascade — Manual RCA Walkthrough
+
+              **Symptom report:** Payments-ops Slack: *"Card decline rate up ~4x
+              in us-east-1. Online banking showing timeouts. Fraud queue backing
+              up. What's going on?"*
+
+              **On-call starts here.** Three alerts fired simultaneously —
+              payment gateway timeouts, fraud detection backlog, online banking
+              error rate. The instinct is to look at the payment gateway first
+              because that's the customer-visible surface. That instinct is wrong.
+
+              This notebook walks the correct path: upstream-first, following the
+              causal chain backwards from symptom to root cause.
+
+              > **Demo note:** This is what your SRE spends 45 minutes doing at
+              > 2 AM. Bits AI SRE surfaces the same causal chain in under 5 minutes.
+
+              ---
+              ## Step 1 — Check the quiet leading indicator: DB replication lag
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lag"
+                    query: "avg:finserv.database_cluster.replication_lag_ms{environment:production,region:us-east-1} by {device_id}"
+                formulas:
+                  - formula: "lag"
+                    alias: "Replication lag (ms)"
+                display_type: "line"
+            yaxis:
+              scale: "linear"
+            markers:
+              - value: "y = 200"
+                display_type: "warning dashed"
+                label: "Warning threshold"
+              - value: "y = 350"
+                display_type: "error dashed"
+                label: "Cascade trigger"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "pool"
+                    query: "avg:finserv.database_cluster.connection_pool_pct{environment:production,region:us-east-1} by {device_id}"
+                  - data_source: "metrics"
+                    name: "deadlocks"
+                    query: "sum:finserv.database_cluster.deadlocks_total{environment:production,region:us-east-1}"
+                formulas:
+                  - formula: "pool"
+                    alias: "Connection pool used %"
+                  - formula: "deadlocks"
+                    alias: "Deadlocks (count)"
+                display_type: "line"
+            markers:
+              - value: "y = 85"
+                display_type: "error dashed"
+                label: "Pool saturation"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              **DB replication lag climbed from ~85ms baseline to 340ms+
+              about 2 minutes before the payment alerts fired.** Connection pool
+              simultaneously tightened from ~68% to 90%+. Deadlocks appeared
+              shortly after.
+
+              This is the two-minute lead that identifies DB lag as **causal**,
+              not coincidental. Every downstream service queues transactions
+              against a database that is increasingly slow to acknowledge writes.
+
+              ---
+              ## Step 2 — Confirm the downstream symptom: payment gateway
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lat"
+                    query: "avg:finserv.payment_gateway.avg_processing_ms{environment:production,region:us-east-1} by {device_id}"
+                formulas:
+                  - formula: "lat"
+                    alias: "Avg processing latency (ms)"
+                display_type: "line"
+            markers:
+              - value: "y = 500"
+                display_type: "warning dashed"
+                label: "SLA warning"
+              - value: "y = 800"
+                display_type: "error dashed"
+                label: "SLA breach"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "decline"
+                    query: "avg:finserv.payment_gateway.decline_rate_pct{environment:production,region:us-east-1} by {device_id}"
+                  - data_source: "metrics"
+                    name: "timeout"
+                    query: "avg:finserv.payment_gateway.timeout_rate_pct{environment:production,region:us-east-1} by {device_id}"
+                formulas:
+                  - formula: "decline"
+                    alias: "Decline rate %"
+                  - formula: "timeout"
+                    alias: "Timeout rate %"
+                display_type: "line"
+            markers:
+              - value: "y = 4"
+                display_type: "error dashed"
+                label: "Decline alert threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Payment gateway processing latency climbs from 285ms baseline
+              to 800–1100ms. Decline rate spikes from ~2.1% to ~6.5%.
+              Timeout rate follows. **These are symptoms, not causes** — the
+              gateway is waiting on slow DB round-trips for every transaction
+              authorization check.
+
+              ---
+              ## Step 3 — Walk the collateral damage: fraud detection
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lat"
+                    query: "avg:finserv.fraud_detection_node.model_latency_ms{environment:production,region:us-east-1} by {device_id}"
+                formulas:
+                  - formula: "lat"
+                    alias: "Model latency (ms)"
+                display_type: "line"
+            markers:
+              - value: "y = 150"
+                display_type: "warning dashed"
+              - value: "y = 200"
+                display_type: "error dashed"
+                label: "Backlog threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "scored"
+                    query: "avg:finserv.fraud_detection_node.transactions_scored_per_sec{environment:production,region:us-east-1}"
+                  - data_source: "metrics"
+                    name: "fp"
+                    query: "avg:finserv.fraud_detection_node.false_positive_rate_pct{environment:production,region:us-east-1}"
+                formulas:
+                  - formula: "scored"
+                    alias: "Transactions scored / sec"
+                  - formula: "fp"
+                    alias: "False positive rate %"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Fraud detection model latency rises from ~78ms to 200ms+.
+              Throughput (transactions scored/sec) drops from ~12,500 to
+              ~6,500 — a 48% reduction. False positive rate edges up as
+              the model operates with stale feature data.
+
+              **This is the "silent casualty" of the DB cascade.** The fraud
+              model isn't broken; it's waiting on the same slow DB reads.
+              Without DB-aware observability, this looks like a model regression.
+
+              ---
+              ## Step 4 — Compounding effect: cache eviction storm
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "hit"
+                    query: "avg:finserv.cache_cluster.hit_rate_pct{environment:production,region:us-east-1} by {device_id}"
+                  - data_source: "metrics"
+                    name: "evict"
+                    query: "avg:finserv.cache_cluster.eviction_rate{environment:production,region:us-east-1} by {device_id}"
+                formulas:
+                  - formula: "hit"
+                    alias: "Cache hit rate %"
+                  - formula: "evict"
+                    alias: "Eviction rate"
+                display_type: "line"
+            markers:
+              - value: "y = 80"
+                display_type: "warning dashed"
+                label: "Hit rate floor"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Cache hit rate collapses from ~92% baseline to ~63%.
+              Eviction rate roughly doubles. With the DB running hot,
+              cold reads bypass cache and hammer the primary DB —
+              which is already at connection-pool saturation.
+
+              **The feedback loop:** DB slow → more cache misses → more
+              cold DB reads → DB slower. Self-amplifying until DB failover
+              completes.
+
+              ---
+              ## Step 5 — Recovery timeline
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lag"
+                    query: "avg:finserv.database_cluster.replication_lag_ms{environment:production,region:us-east-1}"
+                  - data_source: "metrics"
+                    name: "proc"
+                    query: "avg:finserv.payment_gateway.avg_processing_ms{environment:production,region:us-east-1}"
+                  - data_source: "metrics"
+                    name: "fraud"
+                    query: "avg:finserv.fraud_detection_node.model_latency_ms{environment:production,region:us-east-1}"
+                  - data_source: "metrics"
+                    name: "hit"
+                    query: "avg:finserv.cache_cluster.hit_rate_pct{environment:production,region:us-east-1}"
+                formulas:
+                  - formula: "lag"
+                    alias: "DB replication lag (ms)"
+                  - formula: "proc"
+                    alias: "Payment processing (ms)"
+                  - formula: "fraud"
+                    alias: "Fraud model latency (ms)"
+                  - formula: "hit"
+                    alias: "Cache hit rate %"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Recovery sequence: DB failover completes first → replication lag
+              drains → payment latency normalizes → fraud model catches up on
+              backlog → cache warms over ~2.5 minutes.
+
+              ---
+              # 💡 What Bits AI SRE Does in 5 Minutes
+
+              The investigation above took an experienced SRE 40–60 minutes:
+              cross-referencing three separate alert pages, ruling out
+              false-positives (fraud model isn't broken; gateway isn't
+              misconfigured), and identifying replication lag as the 2-minute
+              leading indicator.
+
+              Bits AI SRE identifies the causal chain **automatically**:
+
+              1. Watchdog fires on `[Finance] Payment Gateway Decline Rate Spike`
+              2. Bits AI walks upstream: payment gateway → DB layer (finds lag
+                 elevated 2 min earlier than payment alert)
+              3. Surfaces the root cause: *"Database replication lag in
+                 us-east-1 production elevated to 340ms — 2 minutes before
+                 payment gateway decline rate crossed 4%. DB connection pool at
+                 92%. Probable cause: replica failover event. Downstream effect:
+                 fraud detection throughput −48%, cache hit rate −29%."*
+              4. Creates a pre-diagnosed investigation case with linked monitors
+              5. Suggests action: promote read replica, monitor lag drain
+
+              | | Manual SRE triage | Bits AI SRE |
+              |---|---|---|
+              | Time to detect root cause | 40–60 min | < 5 min |
+              | Alert correlation | Manual cross-reference | Automatic causal walk |
+              | False leads ruled out | "Is fraud model broken?" | Eliminated by upstream-first analysis |
+              | Case creation | Manual, post-triage | Automatic with pre-staged context |
+              | MTTR impact | Baseline | −87% on triage phase |
+
+              ---
+              ## Follow-ups
+
+              1. Promote the us-east-1 read replica to primary and verify lag drain.
+              2. Review DB connection pool sizing — 92% saturation means zero headroom.
+              3. Add a `finserv.database_cluster.replication_lag_ms` monitor as a
+                 **leading-indicator alert** (fires before payments are impacted).
+              4. Audit cache TTL policy — shorter TTLs increase cold-read exposure
+                 during failover windows.
+        type: "notebook_cells"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Notebook 2 — Executive Report: Digital Banking Operations (30-Day)
+  # ─────────────────────────────────────────────────────────────────────────
   - id: "executive-report-digital-banking"
     name: "📊 Executive Report: Digital Banking Operations (30-Day Summary)"
-    type: executive_report
+    type: report
     description: "30-day health dashboard for bank leadership. Transaction volumes, payment success rates, fraud detection effectiveness, ATM fleet availability, SLO compliance, customer experience metrics, and key incidents/resolutions."
     time_range: "30d"
     tags:
@@ -21,7 +363,161 @@ notebooks:
       - "dd-demo-toolkit:true"
       - "business_unit:Retail Banking"
       - "audience:executive"
+    cells:
 
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Digital Banking Operations — 30-Day Executive Summary
+
+              Monthly health report across retail banking, fraud, trading, and
+              infrastructure. SLO compliance, payment success rates, notable
+              incidents, and action items for leadership review.
+
+              ---
+              ## Payment System Health
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "tps"
+                    query: "avg:finserv.payment_gateway.transactions_per_sec{*} by {region}"
+                  - data_source: "metrics"
+                    name: "decline"
+                    query: "avg:finserv.payment_gateway.decline_rate_pct{*} by {region}"
+                formulas:
+                  - formula: "tps"
+                    alias: "Payment TPS"
+                  - formula: "decline"
+                    alias: "Decline rate %"
+                display_type: "line"
+            markers:
+              - value: "y = 3"
+                display_type: "warning dashed"
+                label: "Decline rate target"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "uptime"
+                    query: "avg:finserv.atm_controller.uptime_pct{*} by {region}"
+                  - data_source: "metrics"
+                    name: "errors"
+                    query: "avg:finserv.atm_controller.card_reader_errors{*} by {region}"
+                formulas:
+                  - formula: "uptime"
+                    alias: "ATM fleet uptime %"
+                  - formula: "errors"
+                    alias: "Card reader errors"
+                display_type: "line"
+            markers:
+              - value: "y = 99"
+                display_type: "warning dashed"
+                label: "Availability target"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Fraud & Security
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "scored"
+                    query: "avg:finserv.fraud_detection_node.transactions_scored_per_sec{*}"
+                  - data_source: "metrics"
+                    name: "fp"
+                    query: "avg:finserv.fraud_detection_node.false_positive_rate_pct{*}"
+                  - data_source: "metrics"
+                    name: "alerts"
+                    query: "avg:finserv.fraud_detection_node.alerts_generated{*}"
+                formulas:
+                  - formula: "scored"
+                    alias: "Transactions scored / sec"
+                  - formula: "fp"
+                    alias: "False positive rate %"
+                  - formula: "alerts"
+                    alias: "Alerts generated"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Infrastructure Health
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lag"
+                    query: "avg:finserv.database_cluster.replication_lag_ms{*} by {region}"
+                  - data_source: "metrics"
+                    name: "pool"
+                    query: "avg:finserv.database_cluster.connection_pool_pct{*} by {region}"
+                  - data_source: "metrics"
+                    name: "cache"
+                    query: "avg:finserv.cache_cluster.hit_rate_pct{*} by {region}"
+                formulas:
+                  - formula: "lag"
+                    alias: "DB replication lag (ms)"
+                  - formula: "pool"
+                    alias: "DB connection pool %"
+                  - formula: "cache"
+                    alias: "Cache hit rate %"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Summary & Action Items
+
+              **Payment SLO compliance:** Review the 30-day SLO burn rate on
+              the Payment Processing Availability SLO — any cascade events
+              during the period will have consumed error budget.
+
+              **Fraud model retraining:** If the false positive rate trended
+              above 1.5% at any point this month, schedule a model review.
+              Elevated FP rates during the payment cascade are expected (stale
+              features); sustained elevation post-recovery indicates model drift.
+
+              **DB replica topology:** The replication lag cascade event
+              (us-east-1, production) exposed connection-pool headroom as a
+              risk. Recommend increasing pool size and adding a read-replica
+              failover runbook to the on-call playbook.
+        type: "notebook_cells"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Notebook 3 — Fraud Detection Model Performance Review
+  # ─────────────────────────────────────────────────────────────────────────
   - id: "fraud-model-performance-review"
     name: "🤖 Fraud Detection Model Performance Review"
     type: investigation
@@ -32,7 +528,130 @@ notebooks:
       - "dd-demo-toolkit:true"
       - "business_unit:Risk & Compliance"
       - "audience:ml-engineering"
+    cells:
 
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Fraud Detection Model — 7-Day Performance Review
+
+              Weekly model health review for the ML engineering team.
+              Key questions: Is inference latency within SLA? Is the false
+              positive rate stable or drifting? Are we scoring all transactions
+              in the queue (no backlog)?
+
+              ---
+              ## Model Latency
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lat"
+                    query: "avg:finserv.fraud_detection_node.model_latency_ms{*} by {region}"
+                formulas:
+                  - formula: "lat"
+                    alias: "Model latency avg (ms)"
+                display_type: "line"
+            markers:
+              - value: "y = 120"
+                display_type: "warning dashed"
+                label: "Latency warning"
+              - value: "y = 200"
+                display_type: "error dashed"
+                label: "Latency SLA breach"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## False Positive Rate & Alert Volume
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "fp"
+                    query: "avg:finserv.fraud_detection_node.false_positive_rate_pct{*} by {region}"
+                  - data_source: "metrics"
+                    name: "alerts"
+                    query: "avg:finserv.fraud_detection_node.alerts_generated{*} by {region}"
+                formulas:
+                  - formula: "fp"
+                    alias: "False positive rate %"
+                  - formula: "alerts"
+                    alias: "Alerts generated / interval"
+                display_type: "line"
+            markers:
+              - value: "y = 1.5"
+                display_type: "warning dashed"
+                label: "FP rate target"
+              - value: "y = 2.5"
+                display_type: "error dashed"
+                label: "Retraining trigger"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Throughput — Are We Keeping Up?
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "scored"
+                    query: "avg:finserv.fraud_detection_node.transactions_scored_per_sec{*} by {region}"
+                formulas:
+                  - formula: "scored"
+                    alias: "Transactions scored / sec"
+                display_type: "line"
+            markers:
+              - value: "y = 10000"
+                display_type: "warning dashed"
+                label: "Throughput floor"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Recommendations
+
+              **Latency spikes:** Any `model_latency_ms` spike above 150ms that
+              correlates with a `replication_lag_ms` event is infrastructure-caused,
+              not model-caused — do not schedule a retrain in response.
+
+              **FP rate above 2%:** Investigate whether the spike is correlated
+              with a payment cascade event (expected) or is isolated to normal
+              operating conditions (indicates feature drift — schedule retrain).
+
+              **Throughput drops:** A sustained drop in `transactions_scored_per_sec`
+              below 10,000/s indicates backlog accumulation. If the DB is healthy,
+              investigate model compute scaling or feature store latency.
+        type: "notebook_cells"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Notebook 4 — Trading Platform Daily Performance Review
+  # ─────────────────────────────────────────────────────────────────────────
   - id: "trading-platform-performance"
     name: "📈 Trading Platform Daily Performance Review"
     type: investigation
@@ -43,7 +662,143 @@ notebooks:
       - "dd-demo-toolkit:true"
       - "business_unit:Capital Markets"
       - "audience:trading-ops"
+    cells:
 
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Trading Platform — Daily Performance Review
+
+              End-of-day review for trading operations. Focus: order rejection
+              rate, FIX gateway health, risk engine load, and market data feed
+              quality.
+
+              ---
+              ## Order Flow & Rejection Rate
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "throughput"
+                    query: "avg:finserv.matching_engine.order_throughput_per_sec{*} by {region}"
+                  - data_source: "metrics"
+                    name: "rejected"
+                    query: "avg:finserv.matching_engine.rejected_orders_total{*} by {region}"
+                formulas:
+                  - formula: "throughput"
+                    alias: "Order throughput / sec"
+                  - formula: "rejected"
+                    alias: "Rejected orders (count)"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## FIX Gateway Health
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "sessions"
+                    query: "avg:finserv.fix_gateway.sessions_active{*} by {region}"
+                  - data_source: "metrics"
+                    name: "hb"
+                    query: "avg:finserv.fix_gateway.heartbeat_latency_ms{*} by {region}"
+                  - data_source: "metrics"
+                    name: "reject"
+                    query: "avg:finserv.fix_gateway.reject_rate_pct{*} by {region}"
+                formulas:
+                  - formula: "sessions"
+                    alias: "Active sessions"
+                  - formula: "hb"
+                    alias: "Heartbeat latency (ms)"
+                  - formula: "reject"
+                    alias: "Reject rate %"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Risk Engine & Circuit Breakers
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "var"
+                    query: "avg:finserv.risk_engine.var_calculations_per_sec{*} by {region}"
+                  - data_source: "metrics"
+                    name: "cb"
+                    query: "sum:finserv.risk_engine.circuit_breaker_trips{*} by {region}"
+                  - data_source: "metrics"
+                    name: "margin"
+                    query: "avg:finserv.risk_engine.margin_calls_pending{*} by {region}"
+                formulas:
+                  - formula: "var"
+                    alias: "VaR calculations / sec"
+                  - formula: "cb"
+                    alias: "Circuit breaker trips"
+                  - formula: "margin"
+                    alias: "Margin calls pending"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Market Data Feed Quality
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "gaps"
+                    query: "avg:finserv.market_data_feed.gap_count{*} by {region}"
+                  - data_source: "metrics"
+                    name: "stale"
+                    query: "avg:finserv.market_data_feed.stale_feeds{*} by {region}"
+                formulas:
+                  - formula: "gaps"
+                    alias: "Feed gaps (count)"
+                  - formula: "stale"
+                    alias: "Stale feeds (count)"
+                display_type: "line"
+            markers:
+              - value: "y = 3"
+                display_type: "error dashed"
+                label: "Stale feed alert threshold"
+        type: "notebook_cells"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Notebook 5 — Compliance Audit Trail & Regulatory Reporting
+  # ─────────────────────────────────────────────────────────────────────────
   - id: "compliance-audit-trail"
     name: "⚖️ Compliance Audit Trail & Regulatory Reporting"
     type: investigation
@@ -54,3 +809,138 @@ notebooks:
       - "dd-demo-toolkit:true"
       - "business_unit:Risk & Compliance"
       - "audience:compliance"
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Compliance Audit Trail — Regulatory Reporting View
+
+              90-day view for regulatory exam preparation. Wire transfer
+              compliance holds, ACH return rates, and HSM-backed crypto
+              operation health. All data is correlated with the payment cascade
+              event window for completeness.
+
+              ---
+              ## Wire Transfer Compliance
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "pending"
+                    query: "avg:finserv.wire_transfer_node.transfers_pending{*} by {region}"
+                  - data_source: "metrics"
+                    name: "holds"
+                    query: "avg:finserv.wire_transfer_node.compliance_holds{*} by {region}"
+                  - data_source: "metrics"
+                    name: "settle"
+                    query: "avg:finserv.wire_transfer_node.avg_settlement_ms{*} by {region}"
+                formulas:
+                  - formula: "pending"
+                    alias: "Transfers pending"
+                  - formula: "holds"
+                    alias: "Compliance holds"
+                  - formula: "settle"
+                    alias: "Avg settlement (ms)"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## ACH Processing & Return Rate
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "return"
+                    query: "avg:finserv.ach_processor.return_rate_pct{*} by {region}"
+                  - data_source: "metrics"
+                    name: "nacha"
+                    query: "avg:finserv.ach_processor.nacha_errors{*} by {region}"
+                formulas:
+                  - formula: "return"
+                    alias: "ACH return rate %"
+                  - formula: "nacha"
+                    alias: "NACHA format errors"
+                display_type: "line"
+            markers:
+              - value: "y = 2"
+                display_type: "error dashed"
+                label: "Return rate regulatory threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## HSM & Cryptographic Operations
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "ops"
+                    query: "avg:finserv.hsm_module.crypto_ops_per_sec{*} by {region}"
+                  - data_source: "metrics"
+                    name: "slots"
+                    query: "avg:finserv.hsm_module.key_slots_used_pct{*} by {region}"
+                  - data_source: "metrics"
+                    name: "tamper"
+                    query: "sum:finserv.hsm_module.tamper_alerts{*}"
+                formulas:
+                  - formula: "ops"
+                    alias: "Crypto ops / sec"
+                  - formula: "slots"
+                    alias: "Key slot utilization %"
+                  - formula: "tamper"
+                    alias: "Tamper alerts (count)"
+                display_type: "line"
+            markers:
+              - value: "y = 90"
+                display_type: "error dashed"
+                label: "Key slot critical threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Audit Summary
+
+              **Wire compliance holds above baseline:** Correlate with payment
+              cascade windows — DB lag during the cascade extends settlement
+              acknowledgement times and can trigger automated compliance holds
+              on time-sensitive international wires. Document these holds with
+              the cascade incident ID for the exam record.
+
+              **ACH return rate target:** Regulatory threshold is typically
+              0.5% for debit entries (NACHA Operating Rules §2.12). Any period
+              above 1% should be investigated and documented with corrective
+              action for the next exam cycle.
+
+              **HSM tamper alerts:** Any non-zero value is a P1 event requiring
+              immediate notification to the CISO, external auditor, and
+              relevant regulators (PCI-DSS §9.9). The HSM temperature metric
+              is a leading indicator — sustained readings above 75°C indicate
+              cooling failure risk.
+        type: "notebook_cells"

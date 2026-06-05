@@ -292,7 +292,7 @@ def cmd_teardown(args: argparse.Namespace) -> None:
             status = mgr.get_status(vertical_arg, client)
 
             total_found = sum(
-                s.get("count", 0) for s in status.values()
+                s.get("total", 0) for s in status.values()
                 if isinstance(s, dict)
             )
 
@@ -303,7 +303,7 @@ def cmd_teardown(args: argparse.Namespace) -> None:
 
             # Show what we found
             for rtype, details in status.items():
-                count = details.get("count", 0) if isinstance(details, dict) else 0
+                count = details.get("total", 0) if isinstance(details, dict) else 0
                 if count > 0:
                     print(f"  {rtype:12s}  {Colors.CYAN}{count} found{Colors.RESET}")
 

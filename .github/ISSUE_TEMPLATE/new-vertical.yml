@@ -1,0 +1,47 @@
+name: New vertical proposal
+description: Propose a new base vertical (not an overlay).
+labels: [new-vertical, triage]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Proposed vertical name
+      description: lowercase, snake_case (becomes the directory name in verticals/)
+    validations:
+      required: true
+  - type: input
+    id: env_prefix
+    attributes:
+      label: Metric namespace (env_prefix)
+      description: e.g. `finserv`, `insurer`, `hospital`
+    validations:
+      required: true
+  - type: textarea
+    id: story
+    attributes:
+      label: Demo story
+      description: |
+        What's the narrative arc? Which Datadog products does the demo
+        light up (APM, RUM, DSM, LLM Obs, Bits AI SRE, etc.)?
+    validations:
+      required: true
+  - type: textarea
+    id: cascade
+    attributes:
+      label: Incident cascade
+      description: |
+        Brief sketch of the root cause → leading indicator → symptom →
+        cascade chain. 4-axis disjoint from existing verticals (see
+        CLAUDE.md §9.3).
+    validations:
+      required: true
+  - type: textarea
+    id: assets
+    attributes:
+      label: Asset budget
+      description: |
+        How many devices, services, dashboards, monitors, SLOs, notebooks,
+        workflows? Aim for parity with healthcare (8 dashboards) — see
+        review §"Asset parity asymmetry".
+    validations:
+      required: true

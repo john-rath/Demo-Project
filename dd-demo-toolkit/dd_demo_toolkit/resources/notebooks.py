@@ -19,9 +19,52 @@ logger = logging.getLogger(__name__)
 class NotebookManager:
     """Manages deployment and lifecycle of Datadog notebooks."""
 
-    def __init__(self) -> None:
-        """Initialize the notebook manager."""
-        pass
+    def __init__(self, verticals_dir: str = "verticals") -> None:
+        self.verticals_dir = Path(verticals_dir)
+
+    def _get_expected_names(self, vertical_name: Optional[str]) -> set:
+        """
+        Return the set of notebook names defined in notebooks.yaml for one or
+        all verticals.  Used for teardown identification because the Notebooks
+        API only allows a fixed set of tag keys (team, llm-observability, ai,
+        ai_generated, ai_edited, human_edited) — vertical / dd-demo-toolkit
+        tags are rejected platform-wide, so name-matching is the only reliable
+        way to find toolkit-created notebooks.
+        """
+        if vertical_name is not None:
+            vertical_dir = self.verticals_dir / vertical_name
+            names = self._names_from_yaml(vertical_dir)
+            overlays_dir = vertical_dir / "overlays"
+            if overlays_dir.is_dir():
+                for odir in overlays_dir.iterdir():
+                    if odir.is_dir():
+                        names |= self._names_from_yaml(odir)
+            return names
+
+        # All-verticals sweep: collect from every vertical and its overlays.
+        names: set = set()
+        for vdir in self.verticals_dir.iterdir():
+            if vdir.is_dir():
+                names |= self._names_from_yaml(vdir)
+                overlays_dir = vdir / "overlays"
+                if overlays_dir.is_dir():
+                    for odir in overlays_dir.iterdir():
+                        if odir.is_dir():
+                            names |= self._names_from_yaml(odir)
+        return names
+
+    @staticmethod
+    def _names_from_yaml(path: Path) -> set:
+        notebooks_file = path / "notebooks.yaml"
+        if not notebooks_file.exists():
+            return set()
+        try:
+            with open(notebooks_file) as f:
+                config = yaml.safe_load(f)
+        except Exception:
+            return set()
+        entries = config if isinstance(config, list) else (config or {}).get("notebooks", [])
+        return {nb.get("name") for nb in (entries or []) if nb.get("name")}
 
     def deploy(
         self,
@@ -219,15 +262,10 @@ class NotebookManager:
         time_range = config.get("time_range", "1h")
         time_obj = {"live_span": time_range}
 
-        # Build tags
-        tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []
-        if f"vertical:{vertical_name}" not in tags:
-            tags.append(f"vertical:{vertical_name}")
-        if "dd-demo-toolkit:true" not in tags:
-            tags.append("dd-demo-toolkit:true")
-        if additional_tags:
-            for key, value in additional_tags.items():
-                tags.append(f"{key}:{value}")
+        # The Notebooks API enforces a platform-wide tag-key allowlist that
+        # does not include 'vertical' or 'dd-demo-toolkit'.  Tags cannot be
+        # used to identify toolkit notebooks; teardown uses name-matching
+        # against notebooks.yaml instead.
 
         # Wrap in Notebooks API v1 envelope
         payload = {
@@ -289,21 +327,15 @@ class NotebookManager:
             logger.error(error_msg)
             return result
 
-        # Filter by vertical tag, or by toolkit marker when no vertical given.
-        # Tags can be None on some notebooks — coalesce to [] defensively.
-        if vertical_name is None:
-            notebooks_to_delete = [
-                n for n in notebook_list
-                if "dd-demo-toolkit:true" in (n.get("attributes", {}).get("tags") or [])
-            ]
-            scope_label = "all toolkit-managed verticals"
-        else:
-            target_tag = f"vertical:{vertical_name}"
-            notebooks_to_delete = [
-                n for n in notebook_list
-                if target_tag in (n.get("attributes", {}).get("tags") or [])
-            ]
-            scope_label = f"vertical '{vertical_name}'"
+        # The Notebooks API doesn't support our tag keys, so match by name
+        # against notebooks.yaml.  _get_expected_names handles both
+        # single-vertical and all-verticals sweeps.
+        expected_names = self._get_expected_names(vertical_name)
+        scope_label = f"vertical '{vertical_name}'" if vertical_name else "all toolkit-managed verticals"
+        notebooks_to_delete = [
+            n for n in notebook_list
+            if n.get("attributes", {}).get("name") in expected_names
+        ]
 
         logger.info(
             f"Found {len(notebooks_to_delete)} notebook(s) to delete for {scope_label}"
@@ -370,10 +402,10 @@ class NotebookManager:
             logger.error(result["error"])
             return result
 
-        target_tag = f"vertical:{vertical_name}"
+        expected_names = self._get_expected_names(vertical_name)
         deployed = [
             n for n in notebook_list
-            if target_tag in n.get("attributes", {}).get("tags", [])
+            if n.get("attributes", {}).get("name") in expected_names
         ]
 
         result["notebooks"] = deployed

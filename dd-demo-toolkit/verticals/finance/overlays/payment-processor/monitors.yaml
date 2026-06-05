@@ -1,0 +1,103 @@
+# Payment Processor overlay monitors — signal chain for the auth cascade
+# incident story (Chapter 2) and OTel collector health (Chapter 2 Fleet
+# Automation story).
+#
+# Monitor message fields are written for Bits AI legibility: each message
+# states what metric crossed what threshold, which device/service is
+# affected, and what the downstream business impact is. Vague messages
+# produce vague Bits AI responses.
+#
+# Tag scheme strictly follows existing finance keyspace (CLAUDE.md §6.3).
+# Per STYLE_GUIDE.md §1.3: one threshold per monitor (no || / &&).
+
+monitors:
+
+  # ----- signal_chain:1-root-cause -------------------------------------
+  # The cascade starts here: auth switch latency degrades first, causing
+  # retries that overload the fraud switch.
+
+  - name: "[Finance/Payment Processor] Authorization Decision Latency Spike"
+    type: "query alert"
+    query: "avg(last_5m):avg:finserv.authorization.decision_latency_ms{device_type:authorization_switch} by {region} > 180"
+    message: "🚨 Authorization switch decision latency >180ms in {{region.name}} (baseline: ~65ms). Root cause: authorization_switch devices in ap-southeast-1 production are degrading. Downstream effect: fraud switch receives retried requests, false positive rate climbs, clearing queue begins to backlog. Investigate authorization_switch CPU and connection pool before clearing pipeline saturates."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "signal_chain:1-root-cause"
+      - "compliance:pci-dss"
+    priority: 1
+
+  # ----- signal_chain:2-leading-indicator ------------------------------
+  # Fraud switch gets overloaded by auth retries → false positive rate rises.
+  # Tokenization vault latency also climbs as auth re-routes token lookups.
+
+  - name: "[Finance/Payment Processor] Authorization Decline Rate Spike"
+    type: "query alert"
+    query: "avg(last_5m):avg:finserv.authorization.decline_rate_pct{device_type:authorization_switch} by {region} > 5"
+    message: "📉 Authorization decline rate >5% on authorization_switch devices in {{region.name}} (baseline: ~1.5%). Customer-facing payment failures are occurring. Root: authorization latency spike is causing downstream decline responses on timeout. Correlate with decision_latency_ms monitor — these should fire together."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "signal_chain:2-leading-indicator"
+      - "compliance:pci-dss"
+    priority: 1
+
+  - name: "[Finance/Payment Processor] Fraud Switch False Positive Rate Elevated"
+    type: "query alert"
+    query: "avg(last_5m):avg:finserv.authorization.false_positive_rate_pct{device_type:fraud_switch} by {region} > 6"
+    message: "🔍 Fraud switch false positive rate >6% in {{region.name}} (baseline: ~1.5%). Legit transactions are being blocked. Root: auth retry storm from degraded authorization_switch is overwhelming the fraud scoring model — feature vectors arriving out-of-sequence. Clearing queue will begin growing as declined transactions require manual review."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # ----- signal_chain:3-symptom ----------------------------------------
+  # Downstream effects: clearing queue backs up, settlement gateway errors.
+
+  - name: "[Finance/Payment Processor] Clearing Queue Backlog Critical"
+    type: "query alert"
+    query: "avg(last_5m):avg:finserv.clearing.queue_depth{device_type:clearing_node} by {region} > 15000"
+    message: "📦 Clearing queue depth >15,000 on clearing_node in {{region.name}} (baseline: ~2,000). Settlement SLA is at risk — transactions awaiting clearing are growing faster than they are processed. Root cause is upstream auth decline spike reducing the rate of complete transaction records entering the clearing pipeline. Settlement gateway timeout errors will follow within 5–10 min."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "signal_chain:3-symptom"
+      - "compliance:pci-dss"
+    priority: 1
+
+  - name: "[Finance/Payment Processor] Settlement Gateway Error Rate"
+    type: "query alert"
+    query: "avg(last_5m):avg:finserv.clearing.settlement_failures_total{device_type:settlement_gateway} by {region} > 3"
+    message: "⛔ Settlement gateway failures >3/tick on settlement_gateway in {{region.name}}. Fund transfers to SWIFT/ACH counterparties are failing — regulatory reporting obligations may be impacted if settlement does not complete within the cut-off window. Upstream: clearing queue is saturated; auth cascade must be resolved first."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "signal_chain:3-symptom"
+      - "compliance:pci-dss"
+    priority: 1
+
+  # ----- OTel collector health -----------------------------------------
+  # Surfaces in Chapter 2 Fleet Automation story: "OTel data loss before
+  # the pipeline even reaches Datadog" — no OpAMP equivalent for this.
+
+  - name: "[Finance/Payment Processor] OTel Collector Span Drop Rate"
+    type: "query alert"
+    query: "avg(last_5m):sum:otelcol.receiver.refused_spans{service:payment-processor-otel-collector} > 500"
+    message: "📡 OTel collector is refusing >500 spans/interval for service:payment-processor-otel-collector. Traces from tokenization-service and authorization-engine may be incomplete, which will break single-pane-of-glass drilldown. Check collector queue depth and memory limits. Fleet Automation shows collector config version and last-seen timestamp — compare against last push."
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+    priority: 2

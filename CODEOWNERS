@@ -1,0 +1,34 @@
+# GitHub CODEOWNERS — auto-request reviews from the right owner.
+#
+# TODO(owner): replace @TODO-owner placeholders with real GitHub handles
+# before broad rollout. CODEOWNERS uses LAST-MATCH-WINS, so more specific
+# paths must come AFTER less specific ones.
+
+# Default owner for anything not otherwise matched.
+*                                       @TODO-default-owner
+
+# Core simulator + resource managers.
+/dd-demo-toolkit/dd_demo_toolkit/       @TODO-core-owner
+/dd-demo-toolkit/tests/                 @TODO-core-owner
+
+# Web UI.
+/dd-demo-toolkit/dd_demo_toolkit_ui/    @TODO-ui-owner
+
+# data_obs sub-stack (Kafka pipeline, dbt, LLM experiments).
+/dd-demo-toolkit/data_obs/              @TODO-data-obs-owner
+
+# Verticals — per-vertical owners are encouraged.
+/dd-demo-toolkit/verticals/healthcare/  @TODO-healthcare-owner
+/dd-demo-toolkit/verticals/finance/     @TODO-finance-owner
+/dd-demo-toolkit/verticals/hospitality/ @TODO-hospitality-owner
+/dd-demo-toolkit/verticals/insurance/   @TODO-insurance-owner
+/dd-demo-toolkit/verticals/manufacturing/ @TODO-manufacturing-owner
+
+# Secret-handling policy + governance docs — extra review weight.
+/dd-demo-toolkit/CLAUDE.md              @TODO-default-owner
+/dd-demo-toolkit/STYLE_GUIDE.md         @TODO-default-owner
+/dd-demo-toolkit/WORKFLOW_ACTIONS.md    @TODO-default-owner
+/.github/                               @TODO-default-owner
+/CONTRIBUTING.md                        @TODO-default-owner
+/SUPPORT.md                             @TODO-default-owner
+/CODEOWNERS                             @TODO-default-owner

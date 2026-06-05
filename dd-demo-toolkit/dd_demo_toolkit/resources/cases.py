@@ -19,76 +19,105 @@ logger = logging.getLogger(__name__)
 class CaseManager:
     """Manages creation and lifecycle of Datadog cases."""
 
-    def __init__(self) -> None:
-        """Initialize the case manager."""
-        self._project_id: Optional[str] = None
+    def __init__(self, verticals_dir: str = "verticals") -> None:
+        self._project_cache: Dict[str, Optional[str]] = {}
+        self.verticals_dir = Path(verticals_dir)
 
-    def _ensure_project(self, api_client: DatadogAPIClient, vertical_name: str) -> Optional[str]:
+    def _get_expected_titles(self, vertical_name: Optional[str]) -> set:
         """
-        Ensure a Case Management project exists for the demo toolkit.
+        Return the set of case titles defined in cases.yaml for one or all
+        verticals.  The Cases API doesn't expose tags on list responses, so
+        teardown uses title-matching against the YAML configs.
+        """
+        if vertical_name is not None:
+            vertical_dir = self.verticals_dir / vertical_name
+            titles = self._titles_from_yaml(vertical_dir)
+            overlays_dir = vertical_dir / "overlays"
+            if overlays_dir.is_dir():
+                for odir in overlays_dir.iterdir():
+                    if odir.is_dir():
+                        titles |= self._titles_from_yaml(odir)
+            return titles
 
-        Looks for an existing project named 'dd-demo-toolkit' or creates one.
-        Caches the project ID for subsequent calls within the same session.
+        titles: set = set()
+        for vdir in self.verticals_dir.iterdir():
+            if vdir.is_dir():
+                titles |= self._titles_from_yaml(vdir)
+                overlays_dir = vdir / "overlays"
+                if overlays_dir.is_dir():
+                    for odir in overlays_dir.iterdir():
+                        if odir.is_dir():
+                            titles |= self._titles_from_yaml(odir)
+        return titles
+
+    @staticmethod
+    def _titles_from_yaml(path: Path) -> set:
+        cases_file = path / "cases.yaml"
+        if not cases_file.exists():
+            return set()
+        try:
+            with open(cases_file) as f:
+                config = yaml.safe_load(f)
+        except Exception:
+            return set()
+        entries = config if isinstance(config, list) else (config or {}).get("cases", [])
+        return {c.get("title") for c in (entries or []) if c.get("title")}
+
+    def _ensure_project(self, api_client: DatadogAPIClient, project_name: str) -> Optional[str]:
+        """
+        Ensure a Case Management project with the given name exists.
+
+        Looks for an existing project with that exact name; creates one if
+        none is found.  Results are cached per project name so multiple
+        deploy() calls within the same session don't re-list projects.
 
         Args:
             api_client: Datadog API client instance.
-            vertical_name: Vertical name (used in project key).
+            project_name: Desired project name (vertical or sub-vertical name).
 
         Returns:
             Project ID string, or None if project could not be found/created.
         """
-        if self._project_id:
-            return self._project_id
+        if project_name in self._project_cache:
+            return self._project_cache[project_name]
 
-        # Try to find an existing project
         try:
             response = api_client.list_case_projects()
             projects = response.get("data", [])
             for project in projects:
-                attrs = project.get("attributes", {})
-                name = attrs.get("name", "")
-                if name == "dd-demo-toolkit" or name == f"dd-demo-{vertical_name}":
-                    self._project_id = project.get("id")
-                    logger.info(f"Found existing Case Management project '{name}' (ID: {self._project_id})")
-                    return self._project_id
-
-            # If we have any projects at all, use the first one as fallback
-            if projects:
-                fallback = projects[0]
-                self._project_id = fallback.get("id")
-                fallback_name = fallback.get("attributes", {}).get("name", "unknown")
-                logger.info(
-                    f"No dd-demo-toolkit project found. Using existing project "
-                    f"'{fallback_name}' (ID: {self._project_id})"
-                )
-                return self._project_id
-
+                if project.get("attributes", {}).get("name") == project_name:
+                    pid = project.get("id")
+                    self._project_cache[project_name] = pid
+                    logger.info(f"Found existing Case Management project '{project_name}' (ID: {pid})")
+                    return pid
         except RuntimeError as e:
             logger.warning(f"Failed to list Case Management projects: {e}")
+            self._project_cache[project_name] = None
+            return None
 
-        # No projects exist — try to create one
+        # Project not found — create it.  The key must be unique in the org;
+        # derive it from the name (alpha chars only, uppercase, max 10 chars).
+        key = ''.join(c for c in project_name.upper() if c.isalpha())[:10]
         try:
             payload = {
                 "data": {
                     "type": "project",
-                    "attributes": {
-                        "name": "dd-demo-toolkit",
-                        "key": "DEMO",
-                    }
+                    "attributes": {"name": project_name, "key": key},
                 }
             }
             response = api_client.create_case_project(payload)
             project_data = response.get("data", {})
-            self._project_id = project_data.get("id")
-            if self._project_id:
-                logger.info(f"Created Case Management project 'dd-demo-toolkit' (ID: {self._project_id})")
-                return self._project_id
-            else:
-                logger.error("Created project but no ID in response")
-                return None
+            pid = project_data.get("id")
+            if pid:
+                self._project_cache[project_name] = pid
+                logger.info(f"Created Case Management project '{project_name}' (ID: {pid})")
+                return pid
+            logger.error(f"Created project '{project_name}' but no ID in response")
         except RuntimeError as e:
-            logger.error(f"Failed to create Case Management project: {e}")
-            return None
+            logger.error(f"Failed to create Case Management project '{project_name}': {e}")
+
+        self._project_cache[project_name] = None
+        return None
 
     def create_case(
         self,
@@ -249,23 +278,15 @@ class CaseManager:
             # (Cases API filter syntax doesn't support tag-based queries).
             response = api_client.list_cases()
             all_cases = response.get("data", [])
-            if vertical_name is None:
-                # Match any case carrying the toolkit tag on its attributes.
-                cases = [
-                    c for c in all_cases
-                    if "dd-demo-toolkit:true" in (
-                        c.get("attributes", {}).get("tags") or []
-                    )
-                ]
-                scope_label = "all toolkit-managed verticals"
-            else:
-                # Existing title-based matching keyed to the vertical.
-                cases = [
-                    c for c in all_cases
-                    if f"[{vertical_name.title()}]" in c.get("attributes", {}).get("title", "")
-                    or f"dd-demo-{vertical_name}" in str(c.get("attributes", {}).get("title", ""))
-                ]
-                scope_label = f"vertical '{vertical_name}'"
+            # The Cases API doesn't expose tags on list responses, so match
+            # by title against cases.yaml.  _get_expected_titles handles both
+            # single-vertical and all-verticals sweeps.
+            expected_titles = self._get_expected_titles(vertical_name)
+            scope_label = f"vertical '{vertical_name}'" if vertical_name else "all toolkit-managed verticals"
+            cases = [
+                c for c in all_cases
+                if c.get("attributes", {}).get("title") in expected_titles
+            ]
             result["total"] = len(cases)
             result["cases"] = cases
             logger.info(f"Found {len(cases)} case(s) for {scope_label}")
@@ -287,7 +308,10 @@ class CaseManager:
         dry_run: bool = False,
     ) -> Dict[str, Any]:
         """
-        Close/archive demo cases for a vertical.
+        Close and archive demo cases for a vertical.
+
+        Cases already in CLOSED or ARCHIVED state are skipped (the API
+        returns 404 on PATCH for terminal-state cases).
 
         Args:
             api_client: Datadog API client instance.
@@ -318,29 +342,43 @@ class CaseManager:
         scope_label = "all toolkit-managed verticals" if vertical_name is None else f"vertical '{vertical_name}'"
         logger.info(f"Found {len(cases)} case(s) to close for {scope_label}")
 
+        # The Cases API returns status as lowercase ("open", "closed") in list
+        # responses but accepts uppercase ("CLOSED") on PATCH.  Normalise to
+        # uppercase for comparison so both forms are handled.
+        _TERMINAL = {"CLOSED", "ARCHIVED"}
+
         for case in cases:
             try:
                 case_id = case.get("id")
                 case_title = case.get("attributes", {}).get("title", "")
+                current_status = case.get("attributes", {}).get("status", "").upper()
 
                 if not case_id:
-                    error_msg = f"Case missing ID"
-                    result["errors"].append(error_msg)
+                    result["errors"].append("Case missing ID")
                     result["total_errors"] += 1
-                    logger.error(error_msg)
+                    logger.error("Case missing ID")
+                    continue
+
+                # Skip cases already in a terminal state — the API rejects
+                # PATCH on closed/archived cases with 404.
+                if current_status in _TERMINAL:
+                    logger.debug(f"Skipping case '{case_title}' (already {current_status})")
                     continue
 
                 if dry_run:
-                    logger.info(f"[DRY RUN] Would close case '{case_title}' (ID: {case_id})")
+                    logger.info(f"[DRY RUN] Would close+archive case '{case_title}' (ID: {case_id})")
                     result["closed_ids"].append(case_id)
                     result["closed_titles"].append(case_title)
                     result["total_closed"] += 1
                 else:
-                    self.update_case(api_client, case_id, status="CLOSED")
+                    # Use the /status action endpoint (not PATCH) — PATCH does
+                    # not accept status changes in the v2 API.
+                    api_client.close_case(case_id)
+                    api_client.archive_case(case_id)
                     result["closed_ids"].append(case_id)
                     result["closed_titles"].append(case_title)
                     result["total_closed"] += 1
-                    logger.info(f"Closed case '{case_title}' (ID: {case_id})")
+                    logger.info(f"Closed and archived case '{case_title}' (ID: {case_id})")
 
             except Exception as e:
                 error_msg = f"Error closing case {case.get('id')}: {str(e)}"
@@ -425,8 +463,17 @@ class CaseManager:
 
         logger.info(f"Deploying {len(cases)} case(s) for vertical '{vertical_name}'")
 
+        # Determine project name: sub-vertical name when deploying an overlay,
+        # otherwise the base vertical name.
+        path_parts = vertical_path_obj.parts
+        if "overlays" in path_parts:
+            overlay_idx = list(path_parts).index("overlays")
+            project_name = path_parts[overlay_idx + 1]
+        else:
+            project_name = vertical_name or vertical_path_obj.name
+
         # Cases require a project — ensure one exists before creating any cases
-        project_id = self._ensure_project(api_client, vertical_name)
+        project_id = self._ensure_project(api_client, project_name)
         if not project_id and not dry_run:
             error_msg = (
                 "Cannot create cases: no Case Management project available. "
@@ -511,6 +558,8 @@ class CaseManager:
         # - data.type = "case"
         # - data.attributes: title, priority (P1-P5), type (STANDARD)
         # - data.relationships.project: must reference an existing project
+        # Tags are not exposed on list responses, so teardown uses title-
+        # matching against cases.yaml instead of tag-based filtering.
         attributes = {
             "title": title,
             "priority": priority,

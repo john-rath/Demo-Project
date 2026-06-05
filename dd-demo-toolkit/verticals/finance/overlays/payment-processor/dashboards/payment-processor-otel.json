@@ -1,0 +1,608 @@
+{
+  "title": "Payment Processor — OTel Baseline",
+  "description": "Chapter 2 dashboard proving Datadog as a first-class OTel destination for payment processor infrastructure. Six sections map to the 221-requirement Visualisation layer MUSTs.",
+  "layout_type": "ordered",
+  "template_variables": [
+    {
+      "name": "region",
+      "prefix": "region",
+      "available_values": ["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"],
+      "default": "*"
+    },
+    {
+      "name": "environment",
+      "prefix": "environment",
+      "available_values": ["production", "staging", "dr-site"],
+      "default": "production"
+    }
+  ],
+  "widgets": [
+    {
+      "definition": {
+        "type": "group",
+        "title": "OTel Ingestion Health",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "note",
+              "content": "**OTel Ingestion Health** — Datadog as a first-class OTel destination. Span volume, refused spans, and SDK instrumentation coverage across payment processor services. VIS-PR-001 (MUST): pre-built dashboards deployable via code.",
+              "background_color": "blue",
+              "font_size": "14",
+              "text_align": "left"
+            },
+            "layout": { "x": 0, "y": 0, "width": 12, "height": 1 }
+          },
+          {
+            "definition": {
+              "title": "Auth & Tokenization Throughput (TPS)",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [
+                    { "formula": "auth", "alias": "Authorization Engine" },
+                    { "formula": "token", "alias": "Tokenization Service" }
+                  ],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "auth",
+                      "query": "avg:finserv.authorization.throughput_tps{$region,$environment,device_type:authorization_switch}"
+                    },
+                    {
+                      "data_source": "metrics",
+                      "name": "token",
+                      "query": "avg:finserv.tokenization.throughput_tps{$region,$environment,device_type:tokenization_vault}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "bars"
+                }
+              ]
+            },
+            "layout": { "x": 0, "y": 1, "width": 6, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Tokenization Gateway Latency (ms)",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "lat" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "lat",
+                      "query": "avg:finserv.tokenization.gateway_latency_ms{$region,$environment,device_type:token_gateway} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": { "label": "Latency (ms)", "scale": "linear" }
+            },
+            "layout": { "x": 6, "y": 1, "width": 6, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Authorization Engine TPS",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "tps" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "tps",
+                      "query": "avg:finserv.authorization.throughput_tps{device_type:authorization_switch}",
+                      "aggregator": "avg"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            },
+            "layout": { "x": 0, "y": 4, "width": 3, "height": 2 }
+          },
+          {
+            "definition": {
+              "title": "Tokenization Service TPS",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "tps" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "tps",
+                      "query": "avg:finserv.tokenization.throughput_tps{device_type:tokenization_vault}",
+                      "aggregator": "avg"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            },
+            "layout": { "x": 3, "y": 4, "width": 3, "height": 2 }
+          },
+          {
+            "definition": {
+              "title": "Clearing Queue Depth",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "depth" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "depth",
+                      "query": "avg:finserv.clearing.queue_depth{device_type:clearing_node}",
+                      "aggregator": "avg"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            },
+            "layout": { "x": 6, "y": 4, "width": 3, "height": 2 }
+          },
+          {
+            "definition": {
+              "title": "Settlement Latency (avg ms)",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "lat" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "lat",
+                      "query": "avg:finserv.clearing.settlement_latency_ms{device_type:settlement_gateway}",
+                      "aggregator": "avg"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            },
+            "layout": { "x": 9, "y": 4, "width": 3, "height": 2 }
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 0, "width": 12, "height": 7 }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "Fleet Automation — Collector Governance (VIS-MCP-001, VIS-MCP-002)",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "note",
+              "content": "**Fleet Automation** — the OpAMP alternative. OpAMP provides no inventory UI, no collector health metrics, no flare/debug capability. Fleet Automation provides all three. VIS-MCP-001 (MUST): agent inventory with last-seen timestamps. VIS-MCP-002 (MUST): collector configuration health.",
+              "background_color": "green",
+              "font_size": "14",
+              "text_align": "left"
+            },
+            "layout": { "x": 0, "y": 0, "width": 12, "height": 1 }
+          },
+          {
+            "definition": {
+              "title": "Auth Switch Decision Latency by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "lat" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "lat",
+                      "query": "avg:finserv.authorization.decision_latency_ms{$region,$environment,device_type:authorization_switch} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": { "label": "Latency (ms)", "scale": "linear" }
+            },
+            "layout": { "x": 0, "y": 1, "width": 4, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Tokenization Vault Utilization by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "util" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "util",
+                      "query": "avg:finserv.tokenization.vault_utilization_pct{$region,$environment,device_type:tokenization_vault} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": { "label": "Utilization %", "scale": "linear" }
+            },
+            "layout": { "x": 4, "y": 1, "width": 4, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Clearing Batch Error Rate by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "err" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "err",
+                      "query": "avg:finserv.clearing.batch_error_rate{$region,$environment,device_type:clearing_node} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": { "label": "Error rate", "scale": "linear" }
+            },
+            "layout": { "x": 8, "y": 1, "width": 4, "height": 3 }
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 7, "width": 12, "height": 5 }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "Single-Pane-of-Glass Story (VIS-AC-001)",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "note",
+              "content": "**VIS-AC-001 (MUST):** Metric anomaly → correlated log → root trace in ≤3 clicks.\n\n**Live demo path:** (1) Auth decline rate spike on this chart → (2) click spike to open correlated log stream with SDS-redacted PAN fields → (3) click trace ID in log to open waterfall. Two MUSTs in one story: VIS-AC-001 single-pane + INS-L-001 PCI-DSS data masking via Sensitive Data Scanner.",
+              "background_color": "yellow",
+              "font_size": "14",
+              "text_align": "left"
+            },
+            "layout": { "x": 0, "y": 0, "width": 12, "height": 2 }
+          },
+          {
+            "definition": {
+              "title": "Authorization Decline Rate by Region — Click spike to correlate logs",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "declines" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "declines",
+                      "query": "avg:finserv.authorization.decline_rate_pct{$region,$environment,device_type:authorization_switch} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "markers": [
+                {
+                  "value": "y = 5",
+                  "display_type": "error dashed",
+                  "label": "Alert threshold"
+                }
+              ],
+              "yaxis": { "label": "Decline rate %", "scale": "linear" }
+            },
+            "layout": { "x": 0, "y": 2, "width": 8, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Fraud Score Latency by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "lat" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "lat",
+                      "query": "avg:finserv.authorization.fraud_score_latency_ms{$region,$environment,device_type:fraud_switch} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ]
+            },
+            "layout": { "x": 8, "y": 2, "width": 4, "height": 3 }
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 12, "width": 12, "height": 6 }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "Authorization & Fraud Pipeline (Chapter 2 cascade)",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "title": "Auth Decision Latency by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "latency" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "latency",
+                      "query": "avg:finserv.authorization.decision_latency_ms{$region,$environment,device_type:authorization_switch} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "markers": [
+                { "value": "y = 180", "display_type": "error dashed", "label": "Alert threshold" }
+              ],
+              "yaxis": { "label": "Latency (ms)", "scale": "linear" }
+            },
+            "layout": { "x": 0, "y": 0, "width": 6, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Fraud Switch False Positive Rate by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "fp" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "fp",
+                      "query": "avg:finserv.authorization.false_positive_rate_pct{$region,$environment,device_type:fraud_switch} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "markers": [
+                { "value": "y = 6", "display_type": "error dashed", "label": "Alert threshold" }
+              ],
+              "yaxis": { "label": "False positive rate %", "scale": "linear" }
+            },
+            "layout": { "x": 6, "y": 0, "width": 6, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Authorization Approval Rate by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "approval" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "approval",
+                      "query": "avg:finserv.authorization.approval_rate_pct{$region,$environment,device_type:authorization_switch} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": { "label": "Approval rate %", "scale": "linear", "min": "95" }
+            },
+            "layout": { "x": 0, "y": 3, "width": 4, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Tokenization Vault Utilization by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "util" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "util",
+                      "query": "avg:finserv.tokenization.vault_utilization_pct{$region,$environment,device_type:tokenization_vault} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": { "label": "Utilization %", "scale": "linear" }
+            },
+            "layout": { "x": 4, "y": 3, "width": 4, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Tokenization Request Latency by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "lat" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "lat",
+                      "query": "avg:finserv.tokenization.request_latency_ms{$region,$environment,device_type:tokenization_vault} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": { "label": "Latency (ms)", "scale": "linear" }
+            },
+            "layout": { "x": 8, "y": 3, "width": 4, "height": 3 }
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 18, "width": 12, "height": 7 }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "SLO & Error Budget (VIS-PR-003)",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "note",
+              "content": "**VIS-PR-003 (MUST):** SLO tracking with compliance %, error budget, burn rate 1h/6h/24h, and month-end projection. Three SLOs covering the full payment processing chain.",
+              "background_color": "purple",
+              "font_size": "14",
+              "text_align": "left"
+            },
+            "layout": { "x": 0, "y": 0, "width": 12, "height": 1 }
+          },
+          {
+            "definition": {
+              "title": "Clearing Queue Depth by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "queue" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "queue",
+                      "query": "avg:finserv.clearing.queue_depth{$region,$environment,device_type:clearing_node} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "markers": [
+                { "value": "y = 15000", "display_type": "error dashed", "label": "Critical threshold" }
+              ],
+              "yaxis": { "label": "Queue depth", "scale": "linear" }
+            },
+            "layout": { "x": 0, "y": 1, "width": 6, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "Settlement Gateway Failures by Region",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "failures" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "failures",
+                      "query": "avg:finserv.clearing.settlement_failures_total{$region,$environment,device_type:settlement_gateway} by {region}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line"
+                }
+              ],
+              "yaxis": { "label": "Failures/tick", "scale": "linear" }
+            },
+            "layout": { "x": 6, "y": 1, "width": 6, "height": 3 }
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 25, "width": 12, "height": 5 }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "Executive KPIs — Business Outcomes (VIS-PR-010)",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "note",
+              "content": "**VIS-PR-010 (COULD):** Executive-level business KPIs without infrastructure detail. Network-wide auth success rate, tokenization throughput, and settlement SLA compliance — for the program audience who care about business outcomes, not device metrics.",
+              "background_color": "white",
+              "font_size": "14",
+              "text_align": "left"
+            },
+            "layout": { "x": 0, "y": 0, "width": 12, "height": 1 }
+          },
+          {
+            "definition": {
+              "title": "Network Auth Success Rate",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "approval" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "approval",
+                      "query": "avg:finserv.authorization.approval_rate_pct{device_type:authorization_switch}",
+                      "aggregator": "avg"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            },
+            "layout": { "x": 0, "y": 1, "width": 4, "height": 2 }
+          },
+          {
+            "definition": {
+              "title": "Tokenization Throughput (TPS)",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "tps" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "tps",
+                      "query": "avg:finserv.tokenization.throughput_tps{device_type:tokenization_vault}",
+                      "aggregator": "avg"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            },
+            "layout": { "x": 4, "y": 1, "width": 4, "height": 2 }
+          },
+          {
+            "definition": {
+              "title": "Settlement Latency (ms)",
+              "type": "query_value",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "lat" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "lat",
+                      "query": "avg:finserv.clearing.settlement_latency_ms{device_type:settlement_gateway}",
+                      "aggregator": "avg"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            },
+            "layout": { "x": 8, "y": 1, "width": 4, "height": 2 }
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 30, "width": 12, "height": 4 }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+name: Feature request
+description: Propose a new feature, vertical, or overlay.
+labels: [enhancement, triage]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of feature
+      options:
+        - New base vertical
+        - New sub-vertical overlay
+        - New CLI command / option
+        - New UI capability
+        - New resource type (dashboard, monitor, SLO, workflow, etc.)
+        - data_obs / LLM Obs / dbt enhancement
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: customer
+    attributes:
+      label: Customer / opportunity it serves
+      description: Which prospect or product story drives this? Generic asks land lower.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: |
+        What should the toolkit do? If you have a sketch of the YAML
+        config or the CLI flag, paste it here.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: scope-check
+    attributes:
+      label: Scope check (per CLAUDE.md / STYLE_GUIDE)
+      options:
+        - label: I have read STYLE_GUIDE.md and the 4-axis disjoint rule (§9.3) if this is an overlay.
+        - label: I have not invented a new tag key (§2).
