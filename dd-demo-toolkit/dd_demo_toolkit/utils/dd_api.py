@@ -717,7 +717,7 @@ class DatadogAPIClient:
     def find_team_by_handle(self, handle: str) -> Optional[Dict[str, Any]]:
         """Return the team dict for a given handle, or None if it doesn't exist."""
         try:
-            response = self._request("GET", "/api/v2/teams", params={"filter[keyword]": handle})
+            response = self._request("GET", "/api/v2/team", params={"filter[keyword]": handle})
             for team in response.get("data", []):
                 if team.get("attributes", {}).get("handle") == handle:
                     return team
@@ -741,7 +741,7 @@ class DatadogAPIClient:
                 },
             }
         }
-        response = self._request("POST", "/api/v2/teams", json_data=payload)
+        response = self._request("POST", "/api/v2/team", json_data=payload)
         return response["data"]["id"]
 
     def add_team_member(self, team_id: str, user_id: str) -> Dict[str, Any]:
@@ -753,7 +753,7 @@ class DatadogAPIClient:
             }
         }
         try:
-            return self._request("POST", f"/api/v2/teams/{team_id}/memberships", json_data=payload)
+            return self._request("POST", f"/api/v2/team/{team_id}/memberships", json_data=payload)
         except RuntimeError as e:
             if "already" in str(e).lower() or "409" in str(e):
                 logger.info("User %s already a member of team %s", user_id, team_id)
@@ -762,7 +762,7 @@ class DatadogAPIClient:
 
     def delete_team(self, team_id: str) -> Dict[str, Any]:
         """Delete a team by ID. Memberships cascade automatically."""
-        return self._request("DELETE", f"/api/v2/teams/{team_id}")
+        return self._request("DELETE", f"/api/v2/team/{team_id}")
 
     # ===== Metrics Query API =====
 
