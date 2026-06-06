@@ -708,6 +708,62 @@ class DatadogAPIClient:
             f"/api/v2/sensitive-data-scanner/config/rules/{rule_id}",
         )
 
+    # ===== Teams API (v2) =====
+
+    def get_current_user(self) -> Dict[str, Any]:
+        """Return the user associated with the current APP key."""
+        return self._request("GET", "/api/v2/current_user")
+
+    def find_team_by_handle(self, handle: str) -> Optional[Dict[str, Any]]:
+        """Return the team dict for a given handle, or None if it doesn't exist."""
+        try:
+            response = self._request("GET", "/api/v2/teams", params={"filter[keyword]": handle})
+            for team in response.get("data", []):
+                if team.get("attributes", {}).get("handle") == handle:
+                    return team
+        except RuntimeError:
+            pass
+        return None
+
+    def create_team(self, handle: str, name: str, description: str = "") -> str:
+        """Create a team and return its ID. Idempotent — returns existing ID if found."""
+        existing = self.find_team_by_handle(handle)
+        if existing:
+            logger.info("Team '%s' already exists (id=%s)", handle, existing["id"])
+            return existing["id"]
+        payload = {
+            "data": {
+                "type": "teams",
+                "attributes": {
+                    "handle": handle,
+                    "name": name,
+                    "description": description,
+                },
+            }
+        }
+        response = self._request("POST", "/api/v2/teams", json_data=payload)
+        return response["data"]["id"]
+
+    def add_team_member(self, team_id: str, user_id: str) -> Dict[str, Any]:
+        """Add a user to a team. Silently succeeds if the user is already a member."""
+        payload = {
+            "data": {
+                "type": "user",
+                "id": user_id,
+            }
+        }
+        try:
+            return self._request("POST", f"/api/v2/teams/{team_id}/memberships", json_data=payload)
+        except RuntimeError as e:
+            if "already" in str(e).lower() or "409" in str(e):
+                logger.info("User %s already a member of team %s", user_id, team_id)
+                return {}
+            raise
+
+    def delete_team(self, team_id: str) -> Dict[str, Any]:
+        """Delete a team by ID. Memberships cascade automatically."""
+        return self._request("DELETE", f"/api/v2/teams/{team_id}")
+
     # ===== Metrics Query API =====
 
     def query_metrics(self, query: str, from_ts: int, to_ts: int) -> Dict[str, Any]:

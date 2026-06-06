@@ -23,6 +23,7 @@ monitors:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "signal_chain:1-root-cause"
@@ -40,6 +41,7 @@ monitors:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "signal_chain:2-leading-indicator"
@@ -53,6 +55,7 @@ monitors:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "signal_chain:2-leading-indicator"
@@ -68,6 +71,7 @@ monitors:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "signal_chain:3-symptom"
@@ -81,6 +85,7 @@ monitors:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "signal_chain:3-symptom"
@@ -98,6 +103,7 @@ monitors:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
     priority: 2

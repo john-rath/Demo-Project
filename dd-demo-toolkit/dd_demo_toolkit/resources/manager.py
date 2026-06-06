@@ -18,6 +18,7 @@ from dd_demo_toolkit.resources.workflows import WorkflowManager
 from dd_demo_toolkit.resources.incidents import IncidentManager
 from dd_demo_toolkit.resources.cases import CaseManager
 from dd_demo_toolkit.resources.sds import SDSManager
+from dd_demo_toolkit.resources.teams import TeamManager
 
 
 logger = logging.getLogger(__name__)
@@ -26,8 +27,9 @@ logger = logging.getLogger(__name__)
 class ResourceManager:
     """Orchestrates deployment and lifecycle management of all Datadog resources."""
 
-    # Supported resource types
+    # Supported resource types — teams first (deploy before others, teardown before others is fine)
     RESOURCE_TYPES = {
+        "teams": TeamManager,
         "dashboards": DashboardManager,
         "monitors": MonitorManager,
         "notebooks": NotebookManager,
@@ -47,6 +49,7 @@ class ResourceManager:
             verticals_dir: Path to the verticals directory.
         """
         self.verticals_dir = Path(verticals_dir)
+        self.team_manager = TeamManager()
         self.dashboard_manager = DashboardManager()
         self.monitor_manager = MonitorManager()
         self.notebook_manager = NotebookManager(verticals_dir=verticals_dir)
@@ -167,7 +170,10 @@ class ResourceManager:
             if resource_type not in self.RESOURCE_TYPES:
                 continue
             try:
-                if resource_type == "dashboards":
+                if resource_type == "teams":
+                    # Team is created by the base vertical deploy; skip in overlay.
+                    continue
+                elif resource_type == "dashboards":
                     result = self.dashboard_manager.deploy(
                         str(overlay_path), api_client, tags, dry_run,
                         vertical_name=vertical_name,
@@ -289,7 +295,12 @@ class ResourceManager:
                 continue
 
             try:
-                if resource_type == "dashboards":
+                if resource_type == "teams":
+                    result = self.team_manager.deploy(
+                        str(vertical_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+                elif resource_type == "dashboards":
                     result = self.dashboard_manager.deploy(
                         str(vertical_path), api_client, tags, dry_run
                     )
@@ -436,7 +447,9 @@ class ResourceManager:
                 continue
 
             try:
-                if resource_type == "dashboards":
+                if resource_type == "teams":
+                    result = self.team_manager.teardown(api_client, vertical_name, dry_run)
+                elif resource_type == "dashboards":
                     result = self.dashboard_manager.teardown(api_client, vertical_name, dry_run)
                 elif resource_type == "monitors":
                     result = self.monitor_manager.teardown(api_client, vertical_name, dry_run)

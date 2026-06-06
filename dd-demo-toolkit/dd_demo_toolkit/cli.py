@@ -23,7 +23,7 @@ from dd_demo_toolkit.utils.dd_api import DatadogAPIClient
 from dd_demo_toolkit.resources.manager import ResourceManager
 
 ALL_RESOURCE_TYPES = [
-    "dashboards", "monitors", "notebooks", "slos", "services",
+    "teams", "dashboards", "monitors", "notebooks", "slos", "services",
     "workflows", "incidents", "cases", "sds",
 ]
 

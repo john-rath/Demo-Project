@@ -10,6 +10,7 @@ slos:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "business_unit:Retail Banking"
       - "tier:Tier 1"
       - "sla_critical:true"
@@ -25,6 +26,7 @@ slos:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "business_unit:Retail Banking"
       - "tier:Tier 1"
       - "sla_critical:true"
@@ -40,6 +42,7 @@ slos:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "business_unit:Risk & Compliance"
       - "tier:Tier 1"
       - "sla_critical:true"
@@ -55,6 +58,7 @@ slos:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "business_unit:Capital Markets"
       - "tier:Tier 1"
       - "sla_critical:true"

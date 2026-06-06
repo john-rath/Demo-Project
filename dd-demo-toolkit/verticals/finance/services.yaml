@@ -9,6 +9,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:PCI-DSS"
       - "compliance:GDPR"
       - "business_unit:Retail Banking"
@@ -24,6 +25,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:PCI-DSS"
       - "compliance:GDPR"
       - "business_unit:Retail Banking"
@@ -38,6 +40,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:PCI-DSS"
       - "compliance:SOX"
       - "business_unit:Retail Banking"
@@ -53,6 +56,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:PCI-DSS"
       - "compliance:FINRA"
       - "business_unit:Risk & Compliance"
@@ -68,6 +72,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:FINRA"
       - "compliance:MiFID2"
       - "business_unit:Capital Markets"
@@ -83,6 +88,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:SOX"
       - "compliance:FINRA"
       - "business_unit:Risk & Compliance"
@@ -97,6 +103,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:RESPA"
       - "compliance:TILA"
       - "compliance:ECOA"
@@ -112,6 +119,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:AML"
       - "compliance:KYC"
       - "compliance:SOX"
@@ -128,6 +136,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:GDPR"
       - "compliance:KYC"
       - "business_unit:Retail Banking"
@@ -142,6 +151,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "compliance:MiFID2"
       - "business_unit:Capital Markets"
       - "low_latency:true"

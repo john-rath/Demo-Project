@@ -16,6 +16,7 @@ slos:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "compliance:pci-dss"
@@ -32,6 +33,7 @@ slos:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "compliance:pci-dss"
@@ -48,6 +50,7 @@ slos:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "compliance:pci-dss"
