@@ -297,7 +297,7 @@ notebooks:
   # Chapter 3 — Add-ons over OTel
   # -----------------------------------------------------------------------
   - id: "pp-beyond-otel-addons"
-    name: "Beyond OTel: Datadog Add-Ons for Payment Operations"
+    name: "Beyond OTel"
     type: documentation
     description: "Five Datadog capabilities that extend beyond what OTel alone provides: Bits AI investigation, Observability Pipelines governance, Database Monitoring, LLM Observability taste, and Workflow Automation."
     time_range: "1h"
@@ -313,20 +313,20 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              # Beyond OTel: Datadog Add-Ons for Payment Operations
+              # Beyond OTel
 
               OTel gets your data into Datadog. These five capabilities show what
               Datadog adds on top that OTel alone cannot provide.
 
               ---
 
-              ## 1. Bits AI Investigation
+              ## 1. Datadog AI for Payment Operations
 
-              > **"OTel gives you the data; Bits AI gives you the answer."**
+              > **"OTel gives you the data; Datadog's Bits Agents give you the answer."**
 
               ### Live demo script (run after cascade has fired, ~27 min in)
 
-              1. **Authorization Decision Latency Spike** monitor fires
+              1. **[Finance/Payment Processor] Authorization Decision Latency Spike** monitor fires
               2. Open Bits AI from the monitor alert
               3. Bits AI surfaces a multi-signal causal chain:
                  - **Redis cache cluster capacity degraded** — active connections
