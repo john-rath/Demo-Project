@@ -45,7 +45,7 @@ def _init_tracer() -> trace.Tracer:
     resource = Resource.create({
         "service.name": os.environ.get("OTEL_SERVICE_NAME", "authorization-db"),
         "service.version": "1.0.0",
-        "env": "demo",
+        "deployment.environment": "demo",
         "team": "Payments",
         "vertical": "finance",
         "dd-demo-toolkit": "true",
