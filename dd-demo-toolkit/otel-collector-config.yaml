@@ -53,11 +53,16 @@ extensions:
     endpoint: 0.0.0.0:13133
   zpages:
     endpoint: 0.0.0.0:55679
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: ${env:DD_SITE}
 
 service:
   extensions:
     - health_check
     - zpages
+    - datadog
 
   # Expose the collector's own internal metrics at :8888 so the prometheus
   # receiver above can scrape them. "detailed" level includes span/metric/log
