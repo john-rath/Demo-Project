@@ -52,11 +52,16 @@ are left at their normal engine-driven state so the per-region series breakout
 on the dashboard shows the cascade clearly isolated to one region.
 """
 
+import json
 import logging
+import os
 import random
 from typing import Any, List, Optional
 
 from dd_demo_toolkit.simulator.plugins import IncidentPlugin
+
+_CASCADE_STATE_DIR = "/cascade-state"
+_PHASE_FILE = "/cascade-state/phase.json"
 
 logger = logging.getLogger("payment_processor_auth_cascade")
 
@@ -358,6 +363,23 @@ class PaymentProcessorAuthCascade(IncidentPlugin):
                     "PP AUTH CASCADE STARTING (auth-decision-latency in %s/%s)",
                     self.CASCADE_REGION, self.CASCADE_ENV,
                 )
+        self._write_phase_file()
+
+    def _write_phase_file(self) -> None:
+        """Write current phase to the cascade-state shared volume.
+
+        The authorization-db-worker reads this file to choose degraded query
+        patterns in sync with the cascade. Silently no-ops when the volume
+        is not mounted (local dev without the payment-processor profile).
+        """
+        if not os.path.isdir(_CASCADE_STATE_DIR):
+            return
+        phase, tick = self._current_phase()
+        try:
+            with open(_PHASE_FILE, "w") as f:
+                json.dump({"phase": phase, "tick": tick}, f)
+        except OSError:
+            pass
 
     # ------------------------------------------------------------------
     # State helpers

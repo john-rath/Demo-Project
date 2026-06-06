@@ -456,6 +456,8 @@ teardown.
 
 ## 7. Working-on-this-project tips
 
+- **DBM demo requires `DD_DEMO_SUB_VERTICAL=payment-processor` in `.env`.** With this set, `make up` automatically starts the three payment-processor containers (`authorization-db`, `datadog-agent-pp`, `authorization-db-worker`) alongside the simulator — no separate `make up-payment-processor` step. `make down` stops everything. The cascade plugin writes `/cascade-state/phase.json` (shared volume) each tick; the DB worker reads it to choose normal vs. degraded query patterns. `make build` is required after editing the db-worker (`docker/authorization-db-worker/worker.py`).
+- **authorization-db telemetry paths (2026-06-06):** The `authorization-db-worker` emits OTel traces (`service:authorization-db`) to the shared otel-collector, enabling "View traces" from the DBM dashboard widgets and the DBM entity page. `datadog-agent-pp` collects container logs from the worker via Docker Autodiscovery labels (tagged `service:authorization-db`), enabling "View logs". The `authorization-db` Service Catalog entry (`type: db`) is registered on `make setup --sub-vertical payment-processor`, linking the DBM entity to the catalog entity. After editing the worker, always `make build` before `make up-payment-processor`.
 - **`make build` before `make setup` after any file edit.** The `verticals/`
   directory (dashboards, monitors, YAML, plugins, overlays) is baked into
   the Docker image at build time — there is no live volume mount. Running

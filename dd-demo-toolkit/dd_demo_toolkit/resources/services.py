@@ -189,6 +189,11 @@ class ServiceCatalogManager:
         if description:
             payload["description"] = description
 
+        # type classifies the entity in the Software Catalog (e.g. "db", "cache", "web")
+        entity_type = config.get("type")
+        if entity_type:
+            payload["type"] = entity_type
+
         # Add optional metadata
         languages = config.get("languages", [])
         if languages:

@@ -326,21 +326,31 @@ notebooks:
 
               ### Live demo script (run after cascade has fired, ~27 min in)
 
-              1. Watchdog fires on **Authorization Decision Latency Spike** monitor
+              1. **Authorization Decision Latency Spike** monitor fires
               2. Open Bits AI from the monitor alert
-              3. Bits AI surfaces:
-                 - Authorization switch decision latency elevated 340ms in ap-southeast-1
-                 - Fraud switch false positive rate climbing (retry storm signature)
-                 - Clearing queue depth growing at 3× normal rate
-                 - **Probable root cause: fraud scoring model threshold misconfiguration
-                   after recent deploy** (config drift detected via Fleet Automation)
-              4. Correlated signals listed with confidence scores
-              5. Suggested next step: roll back fraud scoring config via the auto-triage workflow
+              3. Bits AI surfaces a multi-signal causal chain:
+                 - **Redis cache cluster capacity degraded** — active connections
+                   dropped ~83% (43,500 → 7,500), eviction rate maxed at 270/s
+                 - Cache misses force `authorization-engine` to fall through to
+                   PostgreSQL for lookups that are normally cache hits
+                 - **PostgreSQL replication lag spikes** from ~250ms to 450ms,
+                   confirming the upstream cache miss → DB load chain
+                 - Authorization decision latency rises to 285–325ms (baseline ~115ms),
+                   exceeding the switch timeout threshold
+                 - Decline rate exceeds 5% at 75,000+ TPS — thousands of failed
+                   authorizations per second in the affected region
+                 - **Probable root cause: Redis infrastructure degradation** — no
+                   deployments or config changes found; node-level memory/connection
+                   pressure implicated
+              4. Correlated signals listed across three services: cache cluster, `authorization-db`, `authorization-engine`
+              5. Suggested next step: investigate Redis cluster node health (memory pressure, connection limits)
               6. Case auto-created with linked monitors and timeline
 
-              **Why OTel alone can't do this:** Bits AI correlates metrics, logs, traces, and
-              deployment events across the entire observability data model. OTel is an
-              instrumentation and transport standard — it has no correlation or AI layer.
+              **Why OTel alone can't do this:** The auth latency spike is visible in OTel
+              spans, but the root cause — cache degradation two hops upstream — is invisible
+              without correlating infrastructure metrics. Bits AI crossed service boundaries
+              automatically: cache eviction rate → DB replication lag → auth latency →
+              decline rate, in one investigation with no human-guided pivoting.
 
               > ⚠️ **Demo timing:** This investigation only works live if the
               > `payment_processor_auth_cascade` plugin has fired (~27 min after `make up`).
@@ -413,9 +423,201 @@ notebooks:
               | Connection pool exhaustion | ✗ | ✓ |
               | Explain plan (no code change) | ✗ | ✓ |
 
-              **Demo script:** Open the authorization-engine DB dashboard → top-10 slowest
-              queries by avg latency → connection pool vs. auth decision latency correlation
-              (they should correlate during the cascade — DB wait is amplifying auth latency).
+              **Demo path (3 steps):**
+
+              1. **Top Queries** — Open [Database Monitoring → authorization-db](https://app.datadoghq.com/databases) → **Queries** tab → sort by Avg Latency. During the cascade, `SELECT … FROM auth_transactions WHERE merchant_id = ?` (sequential scan, no index) climbs to #1. Click it → **Explain Plan** shows the missing index — no code instrumentation required.
+
+              2. **Connection pool exhaustion** — Switch to the **Connections** view. During cascading phase the pool approaches 18/20 open connections. Pure OTel spans show *that* DB calls are slow; DBM shows *why* — the pool is saturated.
+
+              3. **Correlation** — The charts below overlay `postgresql.activity.blocked_connections` against auth decision latency. The lines move together: DB lock contention is the amplifier in the Chapter 2 cascade.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ### Capability 1 — Query fingerprint
+              DBM captures per-query execution statistics from `pg_stat_statements` — query
+              hash, average latency, and scan type — without any code change. During the
+              cascade, the merchant-id sequential scan surfaces as the top query by rows
+              fetched. Click any row in the DBM **Queries** tab to see the fingerprint,
+              normalised query text, and per-call stats.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "fetched"
+                    query: "avg:postgresql.rows_fetched{service:authorization-engine}"
+                  - data_source: "metrics"
+                    name: "returned"
+                    query: "avg:postgresql.rows_returned{service:authorization-engine}"
+                formulas:
+                  - formula: "fetched"
+                    alias: "Rows fetched (scanned)"
+                  - formula: "returned"
+                    alias: "Rows returned to client"
+                display_type: "line"
+            yaxis:
+              label: "Rows/s"
+              scale: "linear"
+            title: "Query fingerprint signal — Rows fetched vs. returned (sequential scan amplifier)"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ### Capability 2 — Lock wait time
+              `postgresql.activity.blocked_connections` counts connections currently blocked
+              waiting for a lock. Pure OTel spans show increased DB call duration but cannot
+              distinguish a slow query from a lock-blocked one. DBM exposes both the blocked
+              connection count and the blocking query in the **Activity** tab — no
+              instrumentation required.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "blocked"
+                    query: "avg:postgresql.activity.blocked_connections{service:authorization-engine}"
+                  - data_source: "metrics"
+                    name: "conns"
+                    query: "avg:postgresql.connections{service:authorization-engine}"
+                formulas:
+                  - formula: "blocked"
+                    alias: "Blocked connections (waiting on lock)"
+                  - formula: "conns"
+                    alias: "Total active connections"
+                display_type: "line"
+            yaxis:
+              label: "Count"
+              scale: "linear"
+            title: "Lock wait time — Blocked connections vs. total active connections"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ### Capability 3 — Connection pool exhaustion
+              `authorization-db` is configured with `max_connections = 20`. During the
+              cascade, the pool approaches saturation (~18 / 20). The DBM **Connections**
+              view shows pool utilisation over time and which queries are holding connections
+              open — context that OTel spans alone cannot provide.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "conns"
+                    query: "avg:postgresql.connections{service:authorization-engine}"
+                formulas:
+                  - formula: "conns"
+                    alias: "Active DB connections"
+                display_type: "area"
+            markers:
+              - display_type: "warning dashed"
+                value: "y = 18"
+                label: "Near-exhaustion threshold"
+              - display_type: "error dashed"
+                value: "y = 20"
+                label: "max_connections limit"
+            yaxis:
+              label: "Connections"
+              min: "0"
+              max: "25"
+              scale: "linear"
+            title: "Connection pool exhaustion — Active connections vs. max_connections (20)"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ### Capability 4 — Explain plan (no code change)
+              When a query is flagged slow, DBM auto-captures its `EXPLAIN` plan via
+              `auto_explain` — no query-level instrumentation required. The merchant-id
+              scan shows a **Seq Scan** (no index). `postgresql.queries.shared_blks_read`
+              (from `pg_stat_statements`) spikes during the sequential scan; a rising
+              `shared_blks_read : shared_blks_hit` ratio is the metric-level indicator of
+              what `EXPLAIN` confirms visually in the DBM UI.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "blks_read"
+                    query: "avg:postgresql.queries.shared_blks_read{service:authorization-engine}"
+                  - data_source: "metrics"
+                    name: "blks_hit"
+                    query: "avg:postgresql.queries.shared_blks_hit{service:authorization-engine}"
+                formulas:
+                  - formula: "blks_read"
+                    alias: "Shared blocks read from disk (cache miss)"
+                  - formula: "blks_hit"
+                    alias: "Shared blocks from buffer cache (hit)"
+                display_type: "line"
+            yaxis:
+              label: "Blocks/s"
+              scale: "linear"
+            title: "Explain plan signal — Query shared block reads spike during sequential scan"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "conns"
+                    query: "avg:postgresql.connections{service:authorization-engine}"
+                formulas:
+                  - formula: "conns"
+                    alias: "DB connections (authorization-db)"
+                display_type: "area"
+            yaxis:
+              label: "Connections"
+              scale: "linear"
+            title: "authorization-engine DB — Active Connections"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "latency"
+                    query: "avg:finserv.authorization.decision_latency_ms{device_type:authorization_switch,region:ap-southeast-1}"
+                  - data_source: "metrics"
+                    name: "blocked"
+                    query: "avg:postgresql.activity.blocked_connections{service:authorization-engine}"
+                formulas:
+                  - formula: "latency"
+                    alias: "Auth decision latency ms (ap-southeast-1)"
+                  - formula: "blocked"
+                    alias: "DB blocked connections"
+                display_type: "line"
+            title: "Cascade correlation — Auth latency vs. DB blocked connections"
         type: "notebook_cells"
 
       - attributes:

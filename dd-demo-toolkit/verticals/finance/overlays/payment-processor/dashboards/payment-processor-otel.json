@@ -272,7 +272,7 @@
                     {
                       "data_source": "metrics",
                       "name": "declines",
-                      "query": "avg:finserv.authorization.decline_rate_pct{$region,$environment,device_type:authorization_switch} by {region}"
+                      "query": "avg:finserv.authorization.decline_rate_pct{$region,$environment,device_type:authorization_switch} by {region,service}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -314,6 +314,86 @@
         ]
       },
       "layout": { "x": 0, "y": 12, "width": 12, "height": 6 }
+    },
+    {
+      "definition": {
+        "type": "group",
+        "title": "Database Monitoring — authorization-engine (DBM)",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "definition": {
+              "type": "note",
+              "content": "**Database Monitoring (Chapter 3 — Beyond OTel)**\n\n**Demo path:** During the cascade, query p99 climbs from ~3ms to ~300ms and a `sequential scan on auth_transactions` fingerprint appears at the top of the Top Queries list. Connection pool approaches exhaustion (18/20 connections held).\n\n1. Open **Databases → authorization-db** in Datadog → **Top Queries** tab → sort by Avg Latency\n2. Click the slow fingerprint → Explain Plan shows the missing index on `merchant_id`\n3. Return here → the timeseries below shows `postgresql.connections` spiking in lockstep with auth decision latency — DB wait is amplifying the cascade\n\n**Requires `make up-payment-processor` to be running.**",
+              "background_color": "yellow",
+              "font_size": "14",
+              "text_align": "left"
+            },
+            "layout": { "x": 0, "y": 0, "width": 12, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "DB Connections vs Auth Decision Latency (cascade correlation)",
+              "type": "timeseries",
+              "requests": [
+                {
+                  "formulas": [{ "formula": "conns", "alias": "DB connections (left)" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "conns",
+                      "query": "avg:postgresql.connections{service:authorization-engine}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "area",
+                  "on_right_yaxis": false
+                },
+                {
+                  "formulas": [{ "formula": "latency", "alias": "Auth latency ms (right)" }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "latency",
+                      "query": "avg:finserv.authorization.decision_latency_ms{device_type:authorization_switch,region:ap-southeast-1}"
+                    }
+                  ],
+                  "response_format": "timeseries",
+                  "display_type": "line",
+                  "on_right_yaxis": true
+                }
+              ],
+              "yaxis": { "label": "Connections", "scale": "linear" },
+              "right_yaxis": { "label": "Auth latency (ms)", "scale": "linear" }
+            },
+            "layout": { "x": 0, "y": 3, "width": 8, "height": 3 }
+          },
+          {
+            "definition": {
+              "title": "DB Lock Count",
+              "type": "query_value",
+              "autoscale": true,
+              "precision": 0,
+              "requests": [
+                {
+                  "formulas": [{ "formula": "locks", "number_format": { "unit": { "type": "canonical_unit", "unit_name": "lock" } } }],
+                  "queries": [
+                    {
+                      "data_source": "metrics",
+                      "name": "locks",
+                      "query": "sum:postgresql.locks{service:authorization-engine}",
+                      "aggregator": "sum"
+                    }
+                  ],
+                  "response_format": "scalar"
+                }
+              ]
+            },
+            "layout": { "x": 8, "y": 3, "width": 4, "height": 3 }
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 18, "width": 12, "height": 7 }
     },
     {
       "definition": {

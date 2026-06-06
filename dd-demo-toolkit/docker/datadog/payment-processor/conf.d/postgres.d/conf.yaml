@@ -1,0 +1,40 @@
+init_config:
+
+instances:
+  - host: authorization-db
+    port: 5432
+    username: datadog
+    password: datadog
+    dbname: authorization_engine
+    dbm: true
+    collect_schemas:
+      enabled: true
+    query_metrics:
+      enabled: true
+    query_samples:
+      enabled: true
+    query_activity:
+      enabled: true
+    tags:
+      - service:authorization-engine
+      - team:Payments
+      - env:demo
+      - vertical:finance
+      - dd-demo-toolkit:true
+
+# PostgreSQL log collection — tails the file written to the pg-logs shared volume.
+# authorization-db writes to /var/log/postgresql/postgresql.log via logging_collector.
+# The agent mounts the same volume at /var/log/postgresql (read-only).
+# Logs are tagged host:authorization-db by the agent (DD_HOSTNAME) and indexed
+# through the postgresql log processing pipeline, populating the DBM Logs tab.
+logs:
+  - type: file
+    path: /var/log/postgresql/postgresql.log
+    source: postgresql
+    service: authorization-db
+    tags:
+      - env:demo
+      - vertical:finance
+      - team:Payments
+      - dd-demo-toolkit:true
+      - incident_domain:payment-authorization
