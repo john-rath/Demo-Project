@@ -25,7 +25,7 @@ processors:
 
   resource:
     attributes:
-      - key: deployment.environment
+      - key: deployment.environment.name
         value: demo
         action: upsert
 
@@ -71,6 +71,8 @@ service:
   # alone collects metrics internally but does NOT bind an HTTP endpoint —
   # the `readers` block is required to expose the Prometheus /metrics page.
   telemetry:
+    resource:
+      deployment.environment.name: demo
     metrics:
       level: detailed
       readers:
