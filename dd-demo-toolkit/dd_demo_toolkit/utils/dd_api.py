@@ -748,8 +748,11 @@ class DatadogAPIClient:
         """Add a user to a team. Silently succeeds if the user is already a member."""
         payload = {
             "data": {
-                "type": "user",
-                "id": user_id,
+                "type": "team_memberships",
+                "attributes": {"role": None},
+                "relationships": {
+                    "user": {"data": {"id": user_id, "type": "users"}}
+                },
             }
         }
         try:
