@@ -17,7 +17,7 @@ instances:
       enabled: true
     tags:
       - service:authorization-engine
-      - team:Payments
+      - team:dd-demo-finance
       - env:demo
       - vertical:finance
       - dd-demo-toolkit:true
@@ -35,6 +35,6 @@ logs:
     tags:
       - env:demo
       - vertical:finance
-      - team:Payments
+      - team:dd-demo-finance
       - dd-demo-toolkit:true
       - incident_domain:payment-authorization

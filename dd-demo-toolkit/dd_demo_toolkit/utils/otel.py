@@ -62,6 +62,7 @@ def setup_global_meter(
         ResourceAttributes.SERVICE_NAME: f"{vertical_name}-simulator",
         ResourceAttributes.SERVICE_VERSION: "1.0.0",
         "deployment.environment.name": "demo",
+        "team": f"dd-demo-{vertical_name}",
     })
 
     metric_exporter = OTLPMetricExporter(endpoint=endpoint, insecure=insecure)
@@ -80,6 +81,7 @@ def setup_per_service_providers(
     endpoint: Optional[str] = None,
     insecure: bool = True,
     display_name: str = "Demo",
+    vertical_name: str = "dd-demo-toolkit",
 ) -> Tuple[
     Dict[str, "Tracer"],
     Dict[str, logging.Logger],
@@ -141,6 +143,7 @@ def setup_per_service_providers(
             "service.language": svc.get("language", "unknown"),
             "service.framework": svc.get("framework", "unknown"),
             "demo.display_name": display_name,
+            "team": f"dd-demo-{vertical_name}",
         })
         tp = TracerProvider(resource=resource)
         tp.add_span_processor(shared_processor)

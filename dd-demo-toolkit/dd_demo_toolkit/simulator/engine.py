@@ -317,6 +317,7 @@ class SimulatorEngine:
         ) = setup_per_service_providers(
             services=service_dicts,
             display_name=self.display_name,
+            vertical_name=self.vertical_name,
         )
 
         # Build device fleet

@@ -346,7 +346,7 @@ class IncidentManager:
                     "value": detection_method,
                 }
             },
-            "tags": [f"vertical:{vertical_name}", "dd-demo-toolkit:true"],
+            "tags": [f"vertical:{vertical_name}", "dd-demo-toolkit:true", f"team:dd-demo-{vertical_name}"],
         }
 
         relationships = {}

@@ -167,20 +167,24 @@ class ServiceCatalogManager:
         display_name = config.get("display-name") or config.get("display_name", "")
         description = config.get("description", "")
 
-        # Build tags
+        # Build tags — strip any YAML-provided team: entries and inject the
+        # vertical's demo team handle so all services appear on their Team page.
         tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []
+        tags = [t for t in tags if not t.startswith("team:")]
         tags.append(f"vertical:{vertical_name}")
         tags.append("dd-demo-toolkit:true")
+        tags.append(f"team:dd-demo-{vertical_name}")
         if additional_tags:
             for key, value in additional_tags.items():
                 tags.append(f"{key}:{value}")
         tags = list(dict.fromkeys(tags))  # Deduplicate
 
-        # Service Definition v2.2 schema
+        # Service Definition v2.2 schema — team must be the Datadog Team handle,
+        # not a functional team name (e.g. "Digital Banking" is not a valid handle).
         payload = {
             "schema-version": "v2.2",
             "dd-service": service_name,
-            "team": dd_team,
+            "team": f"dd-demo-{vertical_name}",
             "tags": tags,
         }
 

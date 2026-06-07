@@ -227,6 +227,7 @@ class MonitorManager:
         tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []
         tags.append(f"vertical:{vertical_name}")
         tags.append("dd-demo-toolkit:true")
+        tags.append(f"team:dd-demo-{vertical_name}")
 
         if additional_tags:
             for key, value in additional_tags.items():
