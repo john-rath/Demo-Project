@@ -63,23 +63,55 @@ class CaseManager:
         entries = config if isinstance(config, list) else (config or {}).get("cases", [])
         return {c.get("title") for c in (entries or []) if c.get("title")}
 
-    def _ensure_project(self, api_client: DatadogAPIClient, project_name: str) -> Optional[str]:
+    def _ensure_project(
+        self,
+        api_client: DatadogAPIClient,
+        project_name: str,
+        vertical_name: str,
+    ) -> Optional[str]:
         """
-        Ensure a Case Management project with the given name exists.
+        Ensure a Case Management project with the given name exists and is
+        owned by the vertical's Datadog Team.
 
         Looks for an existing project with that exact name; creates one if
-        none is found.  Results are cached per project name so multiple
-        deploy() calls within the same session don't re-list projects.
+        none is found.  Always PATCHes the team relationship so existing
+        projects (created before team association was supported) are updated
+        on the next setup run without needing a full teardown.
+
+        Results are cached per project name so multiple deploy() calls within
+        the same session don't re-list projects.
 
         Args:
             api_client: Datadog API client instance.
             project_name: Desired project name (vertical or sub-vertical name).
+            vertical_name: Base vertical name used to derive the team handle
+                (e.g. "finance" → team handle "dd-demo-finance").
 
         Returns:
             Project ID string, or None if project could not be found/created.
         """
         if project_name in self._project_cache:
             return self._project_cache[project_name]
+
+        # Look up the vertical's Datadog Team — non-fatal if not found yet.
+        team = api_client.find_team_by_handle(f"dd-demo-{vertical_name}")
+        team_id = team["id"] if team else None
+
+        def _apply_team(pid: str) -> None:
+            if not team_id:
+                return
+            try:
+                api_client.update_case_project(pid, {
+                    "data": {
+                        "type": "project",
+                        "relationships": {
+                            "team": {"data": {"type": "teams", "id": team_id}}
+                        },
+                    }
+                })
+                logger.info(f"Set team 'dd-demo-{vertical_name}' on project '{project_name}'")
+            except RuntimeError as e:
+                logger.warning(f"Could not set team on project '{project_name}': {e}")
 
         try:
             response = api_client.list_case_projects()
@@ -89,6 +121,7 @@ class CaseManager:
                     pid = project.get("id")
                     self._project_cache[project_name] = pid
                     logger.info(f"Found existing Case Management project '{project_name}' (ID: {pid})")
+                    _apply_team(pid)
                     return pid
         except RuntimeError as e:
             logger.warning(f"Failed to list Case Management projects: {e}")
@@ -99,18 +132,23 @@ class CaseManager:
         # derive it from the name (alpha chars only, uppercase, max 10 chars).
         key = ''.join(c for c in project_name.upper() if c.isalpha())[:10]
         try:
-            payload = {
+            payload: Dict[str, Any] = {
                 "data": {
                     "type": "project",
                     "attributes": {"name": project_name, "key": key},
                 }
             }
+            if team_id:
+                payload["data"]["relationships"] = {
+                    "team": {"data": {"type": "teams", "id": team_id}}
+                }
             response = api_client.create_case_project(payload)
             project_data = response.get("data", {})
             pid = project_data.get("id")
             if pid:
                 self._project_cache[project_name] = pid
                 logger.info(f"Created Case Management project '{project_name}' (ID: {pid})")
+                _apply_team(pid)
                 return pid
             logger.error(f"Created project '{project_name}' but no ID in response")
         except RuntimeError as e:
@@ -473,7 +511,7 @@ class CaseManager:
             project_name = vertical_name or vertical_path_obj.name
 
         # Cases require a project — ensure one exists before creating any cases
-        project_id = self._ensure_project(api_client, project_name)
+        project_id = self._ensure_project(api_client, project_name, vertical_name)
         if not project_id and not dry_run:
             error_msg = (
                 "Cannot create cases: no Case Management project available. "

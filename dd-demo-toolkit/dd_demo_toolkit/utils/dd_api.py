@@ -635,6 +635,19 @@ class DatadogAPIClient:
         """
         return self._request("POST", "/api/v2/cases/projects", json_data=payload)
 
+    def update_case_project(self, project_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update a Case Management project (e.g., to set team ownership).
+
+        Args:
+            project_id: ID of the project to update.
+            payload: Update payload (e.g., relationships.team).
+
+        Returns:
+            API response with updated project details.
+        """
+        return self._request("PATCH", f"/api/v2/cases/projects/{project_id}", json_data=payload)
+
     # ===== Sensitive Data Scanner API (v2) =====
     #
     # SDS uses fingerprint-based optimistic locking: every mutating request
