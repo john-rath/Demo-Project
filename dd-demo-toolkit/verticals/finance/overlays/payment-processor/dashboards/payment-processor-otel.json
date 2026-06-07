@@ -44,7 +44,7 @@
                     {
                       "data_source": "metrics",
                       "name": "spans",
-                      "query": "sum:otelcol_exporter_sent_spans_total{*} by {exporter}"
+                      "query": "sum:otelcol_exporter_sent_spans{*} by {exporter}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -68,12 +68,12 @@
                     {
                       "data_source": "metrics",
                       "name": "pts",
-                      "query": "sum:otelcol_exporter_sent_metric_points_total{*}"
+                      "query": "sum:otelcol_exporter_sent_metric_points{*}"
                     },
                     {
                       "data_source": "metrics",
                       "name": "refused",
-                      "query": "sum:otelcol_receiver_refused_spans_total{*}"
+                      "query": "sum:otelcol_receiver_refused_spans{*}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -96,7 +96,7 @@
                     {
                       "data_source": "metrics",
                       "name": "acc",
-                      "query": "sum:otelcol_receiver_accepted_spans_total{*}",
+                      "query": "sum:otelcol_receiver_accepted_spans{*}",
                       "aggregator": "sum"
                     }
                   ],
@@ -119,7 +119,7 @@
                     {
                       "data_source": "metrics",
                       "name": "sent",
-                      "query": "sum:otelcol_exporter_sent_spans_total{*}",
+                      "query": "sum:otelcol_exporter_sent_spans{*}",
                       "aggregator": "sum"
                     }
                   ],
@@ -142,7 +142,7 @@
                     {
                       "data_source": "metrics",
                       "name": "ref",
-                      "query": "sum:otelcol_receiver_refused_spans_total{*}",
+                      "query": "sum:otelcol_receiver_refused_spans{*}",
                       "aggregator": "sum"
                     }
                   ],
@@ -187,7 +187,7 @@
                     {
                       "data_source": "metrics",
                       "name": "cpu",
-                      "query": "sum:otelcol_process_cpu_seconds_total{*}"
+                      "query": "sum:otelcol_process_cpu_seconds{*}"
                     }
                   ],
                   "response_format": "timeseries",
@@ -231,7 +231,7 @@
                     {
                       "data_source": "metrics",
                       "name": "flushes",
-                      "query": "sum:otelcol_processor_batch_batch_size_trigger_send_total{*}"
+                      "query": "sum:otelcol_processor_batch_batch_size_trigger_send{*}"
                     }
                   ],
                   "response_format": "timeseries",

@@ -252,6 +252,22 @@ dashboards inherit the parent vertical's prefix.
    other non-env_prefix namespaces without a corresponding service in
    docker-compose.
 
+   **`otelcol.*` metric names do NOT carry a `_total` suffix** (as of
+   collector v0.87+). The correct names are:
+
+   | Metric | NOT |
+   |--------|-----|
+   | `otelcol_exporter_sent_spans` | ~~`otelcol_exporter_sent_spans_total`~~ |
+   | `otelcol_exporter_sent_metric_points` | ~~`otelcol_exporter_sent_metric_points_total`~~ |
+   | `otelcol_receiver_accepted_spans` | ~~`otelcol_receiver_accepted_spans_total`~~ |
+   | `otelcol_receiver_refused_spans` | ~~`otelcol_receiver_refused_spans_total`~~ |
+   | `otelcol_process_cpu_seconds` | ~~`otelcol_process_cpu_seconds_total`~~ |
+   | `otelcol_processor_batch_batch_size_trigger_send` | ~~`otelcol_processor_batch_batch_size_trigger_send_total`~~ |
+
+   Verify the exact name anytime the collector image is upgraded:
+   `docker exec dd-demo-otel-collector curl localhost:8888/metrics` (or
+   use a sidecar: `docker run --rm --network container:dd-demo-otel-collector alpine sh -c "apk add -q curl && curl -s http://localhost:8888/metrics"`)
+
 2. **`system.*` / `docker.*` / `kubernetes.*`** — require a Datadog Agent
    sidecar; not available in the demo simulator.
 
