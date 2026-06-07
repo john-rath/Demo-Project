@@ -333,7 +333,7 @@ for its API or pick the closest equivalent.**
 | SLOs | `vertical:{v}` + `dd-demo-toolkit:true` tags | Full tag support |
 | Workflows | `vertical:{v}` + `dd-demo-toolkit:true` tags (server-side filter) | Full tag support |
 | Incidents | `vertical:{v}` + `dd-demo-toolkit:true` tags (server-side filter) | Full tag support |
-| Cases | Title match against `cases.yaml` | List response does not expose tags |
+| Cases | Title match against `cases.yaml` | List response does not expose tags; Case Management Projects also cannot be linked to a Datadog Team via any public API endpoint — `PATCH /api/v2/cases/projects/{id}` silently ignores `relationships.team` and `POST` returns 400. **Team ownership must be set manually** in Datadog → Case Management → Settings → \<project\> → Team ownership. |
 | Services | N/A — deregistration not supported by the API | Datadog Service Catalog has no delete/deregister endpoint |
 | SDS Groups | `[dd-demo-toolkit:vertical:{v}]` marker appended to description | SDS group GET response does not include tags; the manager appends the marker at deploy time so `sds.yaml` descriptions stay clean |
 | SDS Rules | `vertical:{v}` + `dd-demo-toolkit:true` tags | Full tag support; tags appear in rule GET response |
