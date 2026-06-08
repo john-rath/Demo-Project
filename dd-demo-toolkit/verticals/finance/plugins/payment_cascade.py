@@ -122,7 +122,7 @@ class PaymentProcessingCascade(IncidentPlugin):
     def __init__(self) -> None:
         # First cascade fires ~15-20 min after start so it's temporally
         # separated from the EY overlay cascade (fires at ~75s).
-        self._ticks_until_next = random.randint(60, 80)
+        self._ticks_until_next = random.randint(38, 42)
         self._active_tick: Optional[int] = None
         self._dbs: List[Any] = []
         self._payments: List[Any] = []
@@ -141,7 +141,7 @@ class PaymentProcessingCascade(IncidentPlugin):
         )
 
     def reset(self) -> None:
-        self._ticks_until_next = random.randint(60, 80)
+        self._ticks_until_next = random.randint(38, 42)
         self._active_tick = None
         self._dbs = []
         self._payments = []

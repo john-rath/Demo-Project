@@ -119,7 +119,7 @@ notebooks:
   - id: "pp-auth-cascade-investigation"
     name: "Incident Investigation: Payment Authorization Cascade"
     type: investigation
-    description: "RCA walkthrough for the payment authorization cascade: auth switch latency degrades, fraud switch false positive rate climbs, clearing queue backs up, settlement gateway errors surface. All metrics from the payment_processor_auth_cascade plugin."
+    description: "RCA walkthrough for the payment authorization cascade: Redis cache capacity degrades, driving auth switch latency up, fraud switch false positive rate climbs, clearing queue backs up, settlement gateway errors surface."
     time_range: "4h"
     tags:
       - "vertical:finance"
@@ -138,11 +138,54 @@ notebooks:
               **Symptom:** Authorization decline rate alert fired in ap-southeast-1.
               Settlement gateway error rate climbing. Customer transactions failing.
 
-              **This notebook walks the full cascade** from root cause to recovery
-              using metrics emitted by OTel-instrumented payment processor services.
+              **This notebook walks the full cascade** from Redis cache capacity
+              degradation (root cause) through auth latency spike, decline rate,
+              clearing backlog, and settlement failure — using metrics emitted by
+              OTel-instrumented payment processor services.
 
               ---
-              ## Step 1 — Confirm the authorization latency spike (root cause)
+              ## Step 1 — Root cause: Redis cache cluster capacity degradation
+
+              Cache hit rate drops and eviction rate spikes — authorization-engine
+              misses cache and falls through to PostgreSQL for token lookups that
+              are normally cache hits. This is the upstream signal Bits AI identifies
+              as root cause.
+
+              Cache degradation precedes the auth latency spike by 1–2 minutes.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "hit_rate"
+                    query: "avg:finserv.cache_cluster.hit_rate_pct{device_type:cache_cluster} by {region}"
+                  - data_source: "metrics"
+                    name: "eviction"
+                    query: "avg:finserv.cache_cluster.eviction_rate{device_type:cache_cluster} by {region}"
+                formulas:
+                  - formula: "hit_rate"
+                    alias: "Cache hit rate %"
+                  - formula: "eviction"
+                    alias: "Eviction rate /s"
+                display_type: "line"
+            markers:
+              - value: "y = 85"
+                display_type: "error dashed"
+                label: "Hit rate degradation threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Step 2 — Authorization latency spike (effect of cache miss fallthrough)
+
+              Cache misses force authorization-engine to hit PostgreSQL, adding ~220ms
+              of latency per decision — pushing past the 180ms switch timeout threshold.
         type: "notebook_cells"
 
       - attributes:
@@ -168,10 +211,11 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              ## Step 2 — Leading indicators: decline rate + fraud switch false positives
+              ## Step 3 — Leading indicators: decline rate + fraud switch false positives
 
               Auth latency → retries → fraud switch overload → false positive spike → declines.
               This is the "retry storm" signature: all three metrics fire within the same 5-min window.
+              Root cause is now two hops upstream: Redis cache → auth fallthrough → retry storm.
         type: "notebook_cells"
 
       - attributes:
@@ -202,7 +246,7 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              ## Step 3 — Downstream symptom: clearing queue backlog build-up
+              ## Step 4 — Downstream symptom: clearing queue backlog build-up
 
               Declined transactions stay in the clearing queue awaiting manual review.
               Queue depth grows at 3–4× normal rate once decline rate exceeds 5%.
@@ -231,7 +275,7 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              ## Step 4 — Terminal symptom: settlement gateway timeout
+              ## Step 5 — Terminal symptom: settlement gateway timeout
 
               Settlement gateway starts failing once clearing queue hits critical depth.
               SWIFT/ACH cut-off windows create regulatory risk if not resolved within 20 min.
@@ -256,14 +300,16 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              ## Step 5 — Recovery timeline
+              ## Step 6 — Recovery timeline
 
-              Fraud switch thresholds auto-tuned → auth latency returns to baseline →
+              Redis cache cluster capacity restored → cache hit rate recovers → authorization-engine
+              cache hits resume → auth latency returns to ~65ms baseline → fraud switch normalizes →
               clearing drains → settlement gateway error rate drops to zero.
 
               **Time to resolution:** ~22 min (ramp_up + degraded + cascading + recovery phases).
-              **Bits AI identified root cause** (fraud scoring model threshold misconfiguration)
-              within 3 min of the first alert — before clearing queue reached critical depth.
+              **Bits AI identified root cause** (Redis cache cluster capacity degradation — eviction
+              rate maxed, active connections dropped ~83%) within 3 min of the first alert —
+              before clearing queue reached critical depth.
         type: "notebook_cells"
 
       - attributes:
@@ -308,6 +354,37 @@ notebooks:
       - "incident_domain:payment-authorization"
       - "audience:technical"
     cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Feature Compatibility: OTel Instrumentation Paths
+
+              | Feature | Datadog SDK + DDOT *(Recommended)* | OTel SDK + DDOT | OTel SDK + OSS Collector |
+              |---|:---:|:---:|:---:|
+              | Cloud SIEM | ✅ | ✅ | ✅ |
+              | Correlated Traces, Metrics, Logs | ✅ | ✅ | ✅ |
+              | Distributed Tracing | ✅ | ✅ | ✅ |
+              | Agent Observability | ✅ | ✅ | ✅ |
+              | Runtime Metrics | ✅ | ✅ | ✅ |
+              | Span Links | ✅ | ✅ | ✅ |
+              | Trace Metrics | ✅ | ✅ | ✅ |
+              | Infrastructure Host List | ✅ | ✅ | ✅ |
+              | Live Container Monitoring / Kubernetes Explorer | ✅ | ✅ | ✅ |
+              | Database Monitoring (DBM) | ✅ | ✅ | N/A |
+              | Cloud Network Monitoring (CNM) | ✅ | ✅ | N/A |
+              | Live Processes | ✅ | ✅ | N/A |
+              | Universal Service Monitoring (USM) | ✅ | ✅ | N/A |
+              | App and API Protection (AAP) | ✅ | N/A | N/A |
+              | Continuous Profiler | ✅ | N/A | N/A |
+              | Data Observability: Jobs Monitoring (DJM) | ✅ | N/A | N/A |
+              | Data Streams Monitoring (DSM) | ✅ | N/A | N/A |
+              | Real User Monitoring (RUM) | ✅ | N/A | N/A |
+              | Source code integration | ✅ | N/A | N/A |
+
+              *Source: [Datadog OTel feature compatibility](https://docs.datadoghq.com/opentelemetry/compatibility/#feature-compatibility)*
+        type: "notebook_cells"
 
       - attributes:
           definition:

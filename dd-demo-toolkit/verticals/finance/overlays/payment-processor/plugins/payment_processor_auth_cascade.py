@@ -170,7 +170,7 @@ class PaymentProcessorAuthCascade(IncidentPlugin):
     PEAK_SETTLE_FAILURES = 8.0
 
     def __init__(self) -> None:
-        self._ticks_until_next = random.randint(110, 130)
+        self._ticks_until_next = random.randint(58, 62)
         self._active_tick: Optional[int] = None
         self._auth_switches: List[Any] = []
         self._fraud_switches: List[Any] = []
@@ -190,7 +190,7 @@ class PaymentProcessorAuthCascade(IncidentPlugin):
         )
 
     def reset(self) -> None:
-        self._ticks_until_next = random.randint(150, 180)
+        self._ticks_until_next = random.randint(58, 62)
         self._active_tick = None
         self._auth_switches = []
         self._fraud_switches = []

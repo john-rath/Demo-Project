@@ -19,7 +19,7 @@ monitors:
   - name: "[Finance/Payment Processor] Authorization Decision Latency Spike"
     type: "query alert"
     query: "avg(last_5m):avg:finserv.authorization.decision_latency_ms{device_type:authorization_switch} by {region} > 180"
-    message: "🚨 Authorization switch decision latency >180ms in {{region.name}} (baseline: ~65ms). Root cause: authorization_switch devices in ap-southeast-1 production are degrading. Downstream effect: fraud switch receives retried requests, false positive rate climbs, clearing queue begins to backlog. Investigate authorization_switch CPU and connection pool before clearing pipeline saturates."
+    message: "🚨 Authorization switch decision latency >180ms in {{region.name}} (baseline: ~65ms). Downstream effect: fraud switch receives retried requests, false positive rate climbs, clearing queue begins to backlog. Upstream signal: check `finserv.cache_cluster.hit_rate_pct` and `finserv.cache_cluster.eviction_rate` on `device_type:cache_cluster` — cache capacity degradation causes authorization-engine to fall through to PostgreSQL on every auth decision, adding ~220ms of latency."
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
@@ -37,7 +37,7 @@ monitors:
   - name: "[Finance/Payment Processor] Authorization Decline Rate Spike"
     type: "query alert"
     query: "avg(last_5m):avg:finserv.authorization.decline_rate_pct{device_type:authorization_switch} by {region} > 5"
-    message: "📉 Authorization decline rate >5% on authorization_switch devices in {{region.name}} (baseline: ~1.5%). Customer-facing payment failures are occurring. Root: authorization latency spike is causing downstream decline responses on timeout. Correlate with decision_latency_ms monitor — these should fire together."
+    message: "📉 Authorization decline rate >5% on authorization_switch devices in {{region.name}} (baseline: ~1.5%). Customer-facing payment failures are occurring. Root: Redis cache cluster capacity degradation → authorization-engine cache misses → auth latency exceeds switch timeout → decline responses on timed-out transactions. Correlate with `finserv.cache_cluster.hit_rate_pct`, `finserv.cache_cluster.eviction_rate`, and `decision_latency_ms` monitors — all should be elevated."
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
