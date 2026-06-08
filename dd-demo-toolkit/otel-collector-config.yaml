@@ -41,7 +41,7 @@ exporters:
         cumulative_monotonic_mode: to_delta
     traces:
       span_name_as_resource_name: true
-    hostname: ""
+    hostname: "authorization-db"
 
   debug:
     verbosity: basic
@@ -57,6 +57,7 @@ extensions:
     api:
       key: ${env:DD_API_KEY}
       site: ${env:DD_SITE}
+    hostname: "finance-simulator"
 
 service:
   extensions:
@@ -73,6 +74,7 @@ service:
   telemetry:
     resource:
       deployment.environment.name: demo
+      host.name: "finance-simulator"
     metrics:
       level: detailed
       readers:

@@ -21,6 +21,7 @@ services:
     environment:
       - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up`, or wrap with `op run --env-file=.env -- docker compose ...`}
       - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_HOSTNAME=finance-simulator
       - GOGC=80
 
   simulator:
@@ -489,7 +490,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_SERVICE_NAME=authorization-db
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=demo,team=Payments,dd-demo-toolkit=true,vertical=finance
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=demo,team=Payments,dd-demo-toolkit=true,vertical=finance,host.name=authorization-db
     # Datadog Autodiscovery labels — instruct datadog-agent-pp to collect logs from
     # this container and tag them with service:authorization-db so the DBM entity page
     # and dashboard widget "View logs" links have data to navigate into.

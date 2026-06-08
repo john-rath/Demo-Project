@@ -63,29 +63,42 @@ class CaseManager:
         entries = config if isinstance(config, list) else (config or {}).get("cases", [])
         return {c.get("title") for c in (entries or []) if c.get("title")}
 
-    def _ensure_project(self, api_client: DatadogAPIClient, project_name: str) -> Optional[str]:
+    def _ensure_project(
+        self,
+        api_client: DatadogAPIClient,
+        project_name: str,
+        vertical_name: str,
+    ) -> Optional[str]:
         """
-        Ensure a Case Management project with the given name exists.
+        Ensure a Case Management project with the given name exists and is owned
+        by the correct Datadog Team.
 
-        Looks for an existing project with that exact name; creates one if
-        none is found.  Results are cached per project name so multiple
-        deploy() calls within the same session don't re-list projects.
-
-        Note: The Datadog Cases Projects API does not expose project-to-team
-        ownership via any public endpoint (PATCH silently ignores
-        relationships.team; POST rejects it with 400). Team ownership must be
-        set manually in Datadog → Case Management → Settings → <project> →
-        Team ownership.
+        Team ownership is set via ``data.attributes.team_uuid`` in both the
+        POST (create) and PATCH (update) payloads.  Existing projects found by
+        name are PATCH-ed to associate the team so that re-running ``make setup``
+        corrects previously unowned projects without requiring teardown.
 
         Args:
             api_client: Datadog API client instance.
             project_name: Desired project name (vertical or sub-vertical name).
+            vertical_name: Base vertical name used to look up the team handle
+                (``dd-demo-{vertical_name}``).
 
         Returns:
             Project ID string, or None if project could not be found/created.
         """
-        if project_name in self._project_cache:
-            return self._project_cache[project_name]
+        cache_key = project_name
+        if cache_key in self._project_cache:
+            return self._project_cache[cache_key]
+
+        # Look up the team UUID for this vertical — non-fatal if not yet deployed.
+        team_id: Optional[str] = None
+        try:
+            team = api_client.find_team_by_handle(f"dd-demo-{vertical_name}")
+            if team:
+                team_id = team.get("id")
+        except Exception as e:
+            logger.warning(f"Could not look up team for vertical '{vertical_name}': {e}")
 
         try:
             response = api_client.list_case_projects()
@@ -93,36 +106,50 @@ class CaseManager:
             for project in projects:
                 if project.get("attributes", {}).get("name") == project_name:
                     pid = project.get("id")
-                    self._project_cache[project_name] = pid
+                    self._project_cache[cache_key] = pid
                     logger.info(f"Found existing Case Management project '{project_name}' (ID: {pid})")
+                    if team_id:
+                        try:
+                            api_client.update_case_project(pid, {
+                                "data": {
+                                    "type": "project",
+                                    "attributes": {"team_uuid": team_id},
+                                }
+                            })
+                            logger.info(f"Associated project '{project_name}' with team dd-demo-{vertical_name}")
+                        except RuntimeError as e:
+                            logger.warning(f"Could not set team on project '{project_name}': {e}")
                     return pid
         except RuntimeError as e:
             logger.warning(f"Failed to list Case Management projects: {e}")
-            self._project_cache[project_name] = None
+            self._project_cache[cache_key] = None
             return None
 
         # Project not found — create it.  The key must be unique in the org;
         # derive it from the name (alpha chars only, uppercase, max 10 chars).
         key = ''.join(c for c in project_name.upper() if c.isalpha())[:10]
         try:
-            payload = {
+            attributes: Dict[str, Any] = {"name": project_name, "key": key}
+            if team_id:
+                attributes["team_uuid"] = team_id
+            payload: Dict[str, Any] = {
                 "data": {
                     "type": "project",
-                    "attributes": {"name": project_name, "key": key},
+                    "attributes": attributes,
                 }
             }
             response = api_client.create_case_project(payload)
             project_data = response.get("data", {})
             pid = project_data.get("id")
             if pid:
-                self._project_cache[project_name] = pid
+                self._project_cache[cache_key] = pid
                 logger.info(f"Created Case Management project '{project_name}' (ID: {pid})")
                 return pid
             logger.error(f"Created project '{project_name}' but no ID in response")
         except RuntimeError as e:
             logger.error(f"Failed to create Case Management project '{project_name}': {e}")
 
-        self._project_cache[project_name] = None
+        self._project_cache[cache_key] = None
         return None
 
     def create_case(
@@ -479,7 +506,7 @@ class CaseManager:
             project_name = vertical_name or vertical_path_obj.name
 
         # Cases require a project — ensure one exists before creating any cases
-        project_id = self._ensure_project(api_client, project_name)
+        project_id = self._ensure_project(api_client, project_name, vertical_name)
         if not project_id and not dry_run:
             error_msg = (
                 "Cannot create cases: no Case Management project available. "
