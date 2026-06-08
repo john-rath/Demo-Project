@@ -403,7 +403,7 @@ notebooks:
 
               ### Live demo script (run after cascade has fired, ~27 min in)
 
-              1. **[Finance/Payment Processor] Authorization Decision Latency Spike** monitor fires
+              1. **[Finance/Payment Processor] Authorization Decline Rate Spike** monitor fires
               2. Open Bits AI from the monitor alert
               3. Bits AI surfaces a multi-signal causal chain:
                  - **Redis cache cluster capacity degraded** — active connections

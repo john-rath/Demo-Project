@@ -27,12 +27,12 @@ logger = logging.getLogger(__name__)
 class ResourceManager:
     """Orchestrates deployment and lifecycle management of all Datadog resources."""
 
-    # Supported resource types — teams first (deploy before others, teardown before others is fine)
+    # Supported resource types — teams first; notebooks before monitors so runbook URLs can be wired up
     RESOURCE_TYPES = {
         "teams": TeamManager,
         "dashboards": DashboardManager,
-        "monitors": MonitorManager,
         "notebooks": NotebookManager,
+        "monitors": MonitorManager,
         "slos": SLOManager,
         "services": ServiceCatalogManager,
         "workflows": WorkflowManager,
@@ -165,10 +165,15 @@ class ResourceManager:
         results: Dict[str, Any] = {}
         total_created = 0
         total_errors = 0
+        notebook_url_map: Dict[str, int] = {}
 
-        for resource_type in resource_types:
-            if resource_type not in self.RESOURCE_TYPES:
-                continue
+        # Ensure notebooks deploy before monitors so notebook IDs are available for runbook assets
+        ordered_types = sorted(
+            [rt for rt in resource_types if rt in self.RESOURCE_TYPES],
+            key=lambda rt: list(self.RESOURCE_TYPES.keys()).index(rt),
+        )
+
+        for resource_type in ordered_types:
             try:
                 if resource_type == "teams":
                     # Team is created by the base vertical deploy; skip in overlay.
@@ -182,12 +187,20 @@ class ResourceManager:
                     result = self.monitor_manager.deploy(
                         str(overlay_path), api_client, tags, dry_run,
                         vertical_name=vertical_name,
+                        notebook_url_map=notebook_url_map,
                     )
                 elif resource_type == "notebooks":
                     result = self.notebook_manager.deploy(
                         str(overlay_path), api_client, tags, dry_run,
                         vertical_name=vertical_name,
                     )
+                    notebook_url_map.update({
+                        name: nb_id
+                        for name, nb_id in zip(
+                            result.get("created_names", []),
+                            result.get("created_ids", []),
+                        )
+                    })
                 elif resource_type == "slos":
                     result = self.slo_manager.deploy(
                         str(overlay_path), api_client, tags, dry_run,
@@ -284,16 +297,20 @@ class ResourceManager:
         results = {}
         total_created = 0
         total_errors = 0
+        notebook_url_map: Dict[str, int] = {}
 
-        for resource_type in resource_types:
-            if resource_type not in self.RESOURCE_TYPES:
-                logger.warning(f"Unknown resource type: {resource_type}")
-                results[resource_type] = {
-                    "error": f"Unknown resource type: {resource_type}",
-                }
-                total_errors += 1
-                continue
+        # Ensure notebooks deploy before monitors so notebook IDs are available for runbook assets
+        ordered_types = sorted(
+            [rt for rt in resource_types if rt in self.RESOURCE_TYPES],
+            key=lambda rt: list(self.RESOURCE_TYPES.keys()).index(rt),
+        )
+        unknown_types = [rt for rt in resource_types if rt not in self.RESOURCE_TYPES]
+        for resource_type in unknown_types:
+            logger.warning(f"Unknown resource type: {resource_type}")
+            results[resource_type] = {"error": f"Unknown resource type: {resource_type}"}
+            total_errors += 1
 
+        for resource_type in ordered_types:
             try:
                 if resource_type == "teams":
                     result = self.team_manager.deploy(
@@ -306,12 +323,20 @@ class ResourceManager:
                     )
                 elif resource_type == "monitors":
                     result = self.monitor_manager.deploy(
-                        str(vertical_path), api_client, tags, dry_run
+                        str(vertical_path), api_client, tags, dry_run,
+                        notebook_url_map=notebook_url_map,
                     )
                 elif resource_type == "notebooks":
                     result = self.notebook_manager.deploy(
                         str(vertical_path), api_client, tags, dry_run
                     )
+                    notebook_url_map.update({
+                        name: nb_id
+                        for name, nb_id in zip(
+                            result.get("created_names", []),
+                            result.get("created_ids", []),
+                        )
+                    })
                 elif resource_type == "slos":
                     result = self.slo_manager.deploy(
                         str(vertical_path), api_client, tags, dry_run

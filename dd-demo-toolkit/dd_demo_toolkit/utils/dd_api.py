@@ -347,6 +347,14 @@ class DatadogAPIClient:
         """
         return self._request("POST", "/api/v1/notebooks", json_data=json_payload)
 
+    def get_notebook(self, notebook_id: int) -> Dict[str, Any]:
+        """Fetch a single notebook by ID."""
+        return self._request("GET", f"/api/v1/notebooks/{notebook_id}")
+
+    def update_notebook(self, notebook_id: int, json_payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Replace a notebook (full PUT)."""
+        return self._request("PUT", f"/api/v1/notebooks/{notebook_id}", json_data=json_payload)
+
     def delete_notebook(self, notebook_id: int) -> Dict[str, Any]:
         """
         Delete a notebook by ID.
@@ -628,12 +636,25 @@ class DatadogAPIClient:
         Create a new Case Management project.
 
         Args:
-            payload: Project payload with data.attributes (name, key).
+            payload: Project payload with data.attributes (name, key, team_uuid).
 
         Returns:
             API response with created project details.
         """
         return self._request("POST", "/api/v2/cases/projects", json_data=payload)
+
+    def update_case_project(self, project_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update a Case Management project (e.g., to set team ownership via team_uuid).
+
+        Args:
+            project_id: ID of the project to update.
+            payload: Project payload with data.attributes (e.g., team_uuid).
+
+        Returns:
+            API response with updated project details.
+        """
+        return self._request("PATCH", f"/api/v2/cases/projects/{project_id}", json_data=payload)
 
     # ===== Sensitive Data Scanner API (v2) =====
     #

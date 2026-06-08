@@ -13,13 +13,15 @@
 monitors:
 
   # ----- signal_chain:1-root-cause -------------------------------------
-  # The cascade starts here: auth switch latency degrades first, causing
-  # retries that overload the fraud switch.
+  # Customer-facing payment failures — the alert that opens the Bits AI
+  # investigation. Root cause: Redis cache cluster capacity degradation
+  # → authorization-engine falls through to PostgreSQL → auth latency
+  # exceeds switch timeout → decline responses on timed-out transactions.
 
-  - name: "[Finance/Payment Processor] Authorization Decision Latency Spike"
+  - name: "[Finance/Payment Processor] Authorization Decline Rate Spike"
     type: "query alert"
-    query: "avg(last_5m):avg:finserv.authorization.decision_latency_ms{device_type:authorization_switch} by {region} > 180"
-    message: "🚨 Authorization switch decision latency >180ms in {{region.name}} (baseline: ~65ms). Downstream effect: fraud switch receives retried requests, false positive rate climbs, clearing queue begins to backlog. Upstream signal: check `finserv.cache_cluster.hit_rate_pct` and `finserv.cache_cluster.eviction_rate` on `device_type:cache_cluster` — cache capacity degradation causes authorization-engine to fall through to PostgreSQL on every auth decision, adding ~220ms of latency."
+    query: "avg(last_5m):avg:finserv.authorization.decline_rate_pct{device_type:authorization_switch} by {region} > 5"
+    message: "📉 Authorization decline rate >5% on authorization_switch devices in {{region.name}} (baseline: ~1.5%). Customer-facing payment failures are occurring. Root: Redis cache cluster capacity degradation → authorization-engine cache misses → auth latency exceeds switch timeout → decline responses on timed-out transactions. Correlate with `finserv.cache_cluster.hit_rate_pct` and `finserv.cache_cluster.eviction_rate` on `device_type:cache_cluster` — all three should be elevated. Open the runbook notebook for the full cascade walkthrough."
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
@@ -29,24 +31,7 @@ monitors:
       - "signal_chain:1-root-cause"
       - "compliance:pci-dss"
     priority: 1
-
-  # ----- signal_chain:2-leading-indicator ------------------------------
-  # Fraud switch gets overloaded by auth retries → false positive rate rises.
-  # Tokenization vault latency also climbs as auth re-routes token lookups.
-
-  - name: "[Finance/Payment Processor] Authorization Decline Rate Spike"
-    type: "query alert"
-    query: "avg(last_5m):avg:finserv.authorization.decline_rate_pct{device_type:authorization_switch} by {region} > 5"
-    message: "📉 Authorization decline rate >5% on authorization_switch devices in {{region.name}} (baseline: ~1.5%). Customer-facing payment failures are occurring. Root: Redis cache cluster capacity degradation → authorization-engine cache misses → auth latency exceeds switch timeout → decline responses on timed-out transactions. Correlate with `finserv.cache_cluster.hit_rate_pct`, `finserv.cache_cluster.eviction_rate`, and `decision_latency_ms` monitors — all should be elevated."
-    tags:
-      - "vertical:finance"
-      - "dd-demo-toolkit:true"
-      - "team:dd-demo-finance"
-      - "team:Payments"
-      - "incident_domain:payment-authorization"
-      - "signal_chain:2-leading-indicator"
-      - "compliance:pci-dss"
-    priority: 1
+    runbook_notebook_name: "Incident Investigation: Payment Authorization Cascade"
 
   - name: "[Finance/Payment Processor] Fraud Switch False Positive Rate Elevated"
     type: "query alert"
