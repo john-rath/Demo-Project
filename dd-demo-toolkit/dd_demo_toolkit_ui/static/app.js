@@ -261,9 +261,9 @@
     }
     // Status tab: refresh immediately and start auto-refresh timer.
     if (name === "status") {
-      refreshStatusTab();
+      refreshStatusTab();  // fire-and-forget; button shows loading state
       if (!store.statusTimer) {
-        store.statusTimer = setInterval(refreshStatusTab, 15_000);
+        store.statusTimer = setInterval(() => refreshStatusTab(), 15_000);
       }
     } else if (store.statusTimer) {
       clearInterval(store.statusTimer);
@@ -537,7 +537,7 @@
     const el = document.getElementById("containers-content");
     const tsEl = document.getElementById("containers-ts");
     const { data, error, loading, ts } = store.status.containers;
-    if (tsEl && ts) tsEl.textContent = `updated ${formatAge(ts)}`;
+    if (tsEl) tsEl.textContent = loading ? "refreshing…" : ts ? `updated ${formatAge(ts)}` : "";
     if (!el) return;
 
     if (loading && !data) { el.innerHTML = '<p class="muted">Loading…</p>'; return; }
@@ -571,7 +571,7 @@
     const tsEl = document.getElementById("dd-resources-ts");
     const descEl = document.getElementById("dd-resources-desc");
     const { data, error, loading, ts } = store.status.dd;
-    if (tsEl && ts) tsEl.textContent = `updated ${formatAge(ts)}`;
+    if (tsEl) tsEl.textContent = loading ? "refreshing…" : ts ? `updated ${formatAge(ts)}` : "";
     if (!el) return;
 
     if (loading && !data) { el.innerHTML = '<p class="muted">Loading…</p>'; return; }
@@ -604,6 +604,7 @@
 
   async function refreshContainers() {
     store.status.containers.loading = true;
+    store.status.containers.ts = Date.now();  // stamp immediately so user sees activity
     renderContainers();
     try {
       const r = await getJSON("/api/status/containers");
@@ -620,6 +621,7 @@
 
   async function refreshDDResources() {
     store.status.dd.loading = true;
+    store.status.dd.ts = Date.now();
     renderDDResources();
     try {
       const r = await getJSON("/api/status/datadog");
@@ -634,9 +636,14 @@
     renderDDResources();
   }
 
-  function refreshStatusTab() {
-    refreshContainers();
-    refreshDDResources();
+  async function refreshStatusTab() {
+    const btn = document.getElementById("btn-refresh-status");
+    if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
+    try {
+      await Promise.all([refreshContainers(), refreshDDResources()]);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+    }
   }
 
   // ----- Wire-up & init ----------------------------------------------------
