@@ -569,6 +569,7 @@
   function renderDDResources() {
     const el = document.getElementById("dd-resources-content");
     const tsEl = document.getElementById("dd-resources-ts");
+    const descEl = document.getElementById("dd-resources-desc");
     const { data, error, loading, ts } = store.status.dd;
     if (tsEl && ts) tsEl.textContent = `updated ${formatAge(ts)}`;
     if (!el) return;
@@ -576,6 +577,13 @@
     if (loading && !data) { el.innerHTML = '<p class="muted">Loading…</p>'; return; }
     if (error && !data)   { el.innerHTML = `<p class="result-err">${escapeHTML(error)}</p>`; return; }
     if (!data) { el.innerHTML = '<p class="muted">Waiting for data…</p>'; return; }
+
+    // Update the description subtitle to show which vertical is being counted.
+    if (descEl) {
+      descEl.textContent = data.vertical
+        ? `Resources for vertical: ${data.vertical} — currently deployed in your Datadog org.`
+        : "Toolkit-managed resources currently deployed in your Datadog org.";
+    }
 
     const RESOURCE_TYPES = ["monitors", "dashboards", "notebooks", "slos", "workflows"];
     const badges = RESOURCE_TYPES.map((r) => {

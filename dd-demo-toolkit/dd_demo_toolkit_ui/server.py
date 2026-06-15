@@ -343,15 +343,21 @@ def build_app(cfg: UIConfig) -> FastAPI:
         return HTTPException(status_code=500, detail=str(e))
 
     @app.get("/api/processes")
-    def list_processes() -> List[Dict[str, Any]]:
-        """Status of every named process the supervisor knows about."""
+    async def list_processes() -> List[Dict[str, Any]]:
+        """Status of every named process the supervisor knows about.
+
+        Reconciles long-running services against actual Docker state first,
+        so the UI reflects containers started from the terminal or make targets.
+        """
         sup = _require_supervisor()
+        await sup.reconcile_long_running()
         return sup.status_all()
 
     @app.get("/api/processes/{name}/status")
-    def process_status(name: str) -> Dict[str, Any]:
+    async def process_status(name: str) -> Dict[str, Any]:
         sup = _require_supervisor()
         try:
+            await sup.reconcile(name)
             return sup.status(name)
         except ProcessSupervisorError as e:
             raise _supervisor_error_to_http(e)
@@ -471,7 +477,17 @@ def build_app(cfg: UIConfig) -> FastAPI:
 
     @app.get("/api/status/datadog")
     async def status_datadog() -> Dict[str, Any]:
-        """Counts of toolkit-managed resources currently deployed in Datadog."""
+        """Counts of toolkit-managed resources currently deployed in Datadog.
+
+        Filters by vertical tag where the API supports it (monitors, SLOs,
+        workflows). Dashboards are matched by their description marker since
+        the dashboards API doesn't return tags. Notebooks are matched by the
+        team:dd-demo-* metadata tag injected at create time.
+
+        Falls back to total org counts (unfiltered) for any resource type
+        where tag-based filtering fails, so the UI always shows something
+        useful even when the vertical isn't set.
+        """
         def _fetch() -> Dict[str, Any]:
             try:
                 client = DatadogAPIClient()
@@ -479,54 +495,84 @@ def build_app(cfg: UIConfig) -> FastAPI:
                 return {
                     "monitors": None, "dashboards": None,
                     "notebooks": None, "slos": None, "workflows": None,
-                    "error": str(e),
+                    "vertical": None, "error": str(e),
                 }
 
-            counts: Dict[str, Any] = {}
+            # Use the vertical tag for server-side filtering where the API
+            # supports it. Falls back to dd-demo-toolkit:true if unset.
+            on_disk = env_manager.read_env(cfg.env_path, mask=False)
+            vertical = on_disk.get("DD_DEMO_VERTICAL") or ""
+            tag_filter = f"vertical:{vertical}" if vertical else "dd-demo-toolkit:true"
+
+            counts: Dict[str, Any] = {"vertical": vertical or None}
             errors: List[str] = []
 
+            # Monitors — API supports server-side tag filtering.
             try:
-                resp = client.list_monitors(tag="dd-demo-toolkit:true")
+                resp = client.list_monitors(tag=tag_filter)
                 counts["monitors"] = len(resp.get("monitors", []))
             except Exception as e:
                 counts["monitors"] = None
                 errors.append(f"monitors: {e}")
 
+            # Dashboards — API doesn't return tags; match by description marker.
             try:
                 resp = client.list_dashboards()
+                all_dash = resp.get("dashboards", [])
+                # Primary: description marker scoped to vertical.
+                marker = f"[dd-demo-toolkit:{vertical}]" if vertical else "[dd-demo-toolkit:"
                 counts["dashboards"] = sum(
-                    1 for d in resp.get("dashboards", [])
-                    if "[dd-demo-toolkit:" in (d.get("description") or "")
+                    1 for d in all_dash
+                    if marker in (d.get("description") or "")
                 )
+                # Fallback: any dd-demo-toolkit marker (catches cross-vertical orphans).
+                if counts["dashboards"] == 0 and vertical:
+                    counts["dashboards"] = sum(
+                        1 for d in all_dash
+                        if "[dd-demo-toolkit:" in (d.get("description") or "")
+                    )
             except Exception as e:
                 counts["dashboards"] = None
                 errors.append(f"dashboards: {e}")
 
+            # Notebooks — API doesn't support our tag keys; match by the
+            # team:dd-demo-* metadata tag injected at notebook create time.
             try:
                 resp = client.list_notebooks()
-                counts["notebooks"] = sum(
-                    1 for n in resp.get("data", [])
-                    if any(
-                        t.startswith("team:dd-demo-")
-                        for t in (n.get("attributes", {}).get("metadata", {}).get("tags") or [])
+                all_nb = resp.get("data", [])
+                if vertical:
+                    counts["notebooks"] = sum(
+                        1 for n in all_nb
+                        if f"team:dd-demo-{vertical}" in
+                        (n.get("attributes", {}).get("metadata", {}).get("tags") or [])
                     )
-                )
+                else:
+                    counts["notebooks"] = sum(
+                        1 for n in all_nb
+                        if any(
+                            t.startswith("team:dd-demo-")
+                            for t in (n.get("attributes", {}).get("metadata", {}).get("tags") or [])
+                        )
+                    )
             except Exception as e:
                 counts["notebooks"] = None
                 errors.append(f"notebooks: {e}")
 
+            # SLOs — filter by vertical tag in the tags array.
             try:
                 resp = client._request("GET", "/api/v1/slo")
+                all_slos = resp.get("data", [])
                 counts["slos"] = sum(
-                    1 for s in resp.get("data", [])
-                    if "dd-demo-toolkit:true" in s.get("tags", [])
+                    1 for s in all_slos
+                    if tag_filter in s.get("tags", [])
                 )
             except Exception as e:
                 counts["slos"] = None
                 errors.append(f"slos: {e}")
 
+            # Workflows — API supports server-side tag filtering.
             try:
-                resp = client.list_workflows(tag_filter="dd-demo-toolkit:true")
+                resp = client.list_workflows(tag_filter=tag_filter)
                 counts["workflows"] = len(resp.get("data", []))
             except Exception as e:
                 counts["workflows"] = None
