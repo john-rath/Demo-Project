@@ -21,6 +21,7 @@ from dd_demo_toolkit.resources.services import ServiceCatalogManager
 from dd_demo_toolkit.resources.workflows import WorkflowManager
 from dd_demo_toolkit.resources.incidents import IncidentManager
 from dd_demo_toolkit.resources.cases import CaseManager
+from dd_demo_toolkit.resources.sds import SDSManager
 from dd_demo_toolkit.resources.manager import ResourceManager
 
 __all__ = [
@@ -32,5 +33,6 @@ __all__ = [
     "WorkflowManager",
     "IncidentManager",
     "CaseManager",
+    "SDSManager",
     "ResourceManager",
 ]

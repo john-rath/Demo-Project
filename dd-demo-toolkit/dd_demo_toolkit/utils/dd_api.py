@@ -141,7 +141,7 @@ class DatadogAPIClient:
                 elif method_upper == "PATCH":
                     response = requests.patch(url, headers=self.headers, json=json_data, params=params, timeout=timeout)
                 elif method_upper == "DELETE":
-                    response = requests.delete(url, headers=self.headers, params=params, timeout=timeout)
+                    response = requests.delete(url, headers=self.headers, json=json_data, params=params, timeout=timeout)
                 else:
                     raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -346,6 +346,14 @@ class DatadogAPIClient:
             API response with created notebook details.
         """
         return self._request("POST", "/api/v1/notebooks", json_data=json_payload)
+
+    def get_notebook(self, notebook_id: int) -> Dict[str, Any]:
+        """Fetch a single notebook by ID."""
+        return self._request("GET", f"/api/v1/notebooks/{notebook_id}")
+
+    def update_notebook(self, notebook_id: int, json_payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Replace a notebook (full PUT)."""
+        return self._request("PUT", f"/api/v1/notebooks/{notebook_id}", json_data=json_payload)
 
     def delete_notebook(self, notebook_id: int) -> Dict[str, Any]:
         """
@@ -628,9 +636,176 @@ class DatadogAPIClient:
         Create a new Case Management project.
 
         Args:
-            payload: Project payload with data.attributes (name, key).
+            payload: Project payload with data.attributes (name, key, team_uuid).
 
         Returns:
             API response with created project details.
         """
         return self._request("POST", "/api/v2/cases/projects", json_data=payload)
+
+    def update_case_project(self, project_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Update a Case Management project (e.g., to set team ownership via team_uuid).
+
+        Args:
+            project_id: ID of the project to update.
+            payload: Project payload with data.attributes (e.g., team_uuid).
+
+        Returns:
+            API response with updated project details.
+        """
+        return self._request("PATCH", f"/api/v2/cases/projects/{project_id}", json_data=payload)
+
+    # ===== Sensitive Data Scanner API (v2) =====
+    #
+    # SDS uses fingerprint-based optimistic locking: every mutating request
+    # must include the current fingerprint in meta.fingerprint, and the
+    # response returns a new fingerprint that must be used for the next write.
+    # All calls must therefore be sequential within a single deploy/teardown.
+
+    def get_sds_config(self) -> Dict[str, Any]:
+        """Return the full SDS config including the root config ID, groups, and rules."""
+        return self._request("GET", "/api/v2/sensitive-data-scanner/config")
+
+    def create_sds_group(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create an SDS scanning group.
+
+        Args:
+            payload: Request body with data (type + attributes + relationships.configuration).
+
+        Returns:
+            API response with the new group id.
+        """
+        return self._request(
+            "POST",
+            "/api/v2/sensitive-data-scanner/config/groups",
+            json_data=payload,
+        )
+
+    def delete_sds_group(self, group_id: str) -> Dict[str, Any]:
+        """
+        Delete an SDS scanning group (and its rules, which are auto-deleted).
+
+        Args:
+            group_id: ID of the group to delete.
+
+        Returns:
+            API response.
+        """
+        return self._request(
+            "DELETE",
+            f"/api/v2/sensitive-data-scanner/config/groups/{group_id}",
+        )
+
+    def create_sds_rule(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Create an SDS scanning rule inside an existing group.
+
+        Args:
+            payload: Request body with data (type + attributes + relationships.group).
+
+        Returns:
+            API response with the new rule id.
+        """
+        return self._request(
+            "POST",
+            "/api/v2/sensitive-data-scanner/config/rules",
+            json_data=payload,
+        )
+
+    def delete_sds_rule(self, rule_id: str) -> Dict[str, Any]:
+        """
+        Delete an SDS scanning rule.
+
+        Args:
+            rule_id: ID of the rule to delete.
+
+        Returns:
+            API response.
+        """
+        return self._request(
+            "DELETE",
+            f"/api/v2/sensitive-data-scanner/config/rules/{rule_id}",
+        )
+
+    # ===== Teams API (v2) =====
+
+    def get_current_user(self) -> Dict[str, Any]:
+        """Return the user associated with the current APP key."""
+        return self._request("GET", "/api/v2/current_user")
+
+    def find_team_by_handle(self, handle: str) -> Optional[Dict[str, Any]]:
+        """Return the team dict for a given handle, or None if it doesn't exist."""
+        try:
+            response = self._request("GET", "/api/v2/team", params={"filter[keyword]": handle})
+            for team in response.get("data", []):
+                if team.get("attributes", {}).get("handle") == handle:
+                    return team
+        except RuntimeError:
+            pass
+        return None
+
+    def create_team(self, handle: str, name: str, description: str = "") -> str:
+        """Create a team and return its ID. Idempotent — returns existing ID if found."""
+        existing = self.find_team_by_handle(handle)
+        if existing:
+            logger.info("Team '%s' already exists (id=%s)", handle, existing["id"])
+            return existing["id"]
+        payload = {
+            "data": {
+                "type": "teams",
+                "attributes": {
+                    "handle": handle,
+                    "name": name,
+                    "description": description,
+                },
+            }
+        }
+        response = self._request("POST", "/api/v2/team", json_data=payload)
+        return response["data"]["id"]
+
+    def add_team_member(self, team_id: str, user_id: str) -> Dict[str, Any]:
+        """Add a user to a team. Silently succeeds if the user is already a member."""
+        payload = {
+            "data": {
+                "type": "team_memberships",
+                "attributes": {"role": None},
+                "relationships": {
+                    "user": {"data": {"id": user_id, "type": "users"}}
+                },
+            }
+        }
+        try:
+            return self._request("POST", f"/api/v2/team/{team_id}/memberships", json_data=payload)
+        except RuntimeError as e:
+            if "already" in str(e).lower() or "409" in str(e):
+                logger.info("User %s already a member of team %s", user_id, team_id)
+                return {}
+            raise
+
+    def delete_team(self, team_id: str) -> Dict[str, Any]:
+        """Delete a team by ID. Memberships cascade automatically."""
+        return self._request("DELETE", f"/api/v2/team/{team_id}")
+
+    # ===== Metrics Query API =====
+
+    def query_metrics(self, query: str, from_ts: int, to_ts: int) -> Dict[str, Any]:
+        """
+        Query a metric time series via GET /api/v1/query.
+
+        Args:
+            query: Datadog metrics query string, e.g.
+                   "avg:finserv.authorization.throughput_tps{*}"
+            from_ts: Start of the query window as a Unix timestamp (seconds).
+            to_ts:   End of the query window as a Unix timestamp (seconds).
+
+        Returns:
+            API response with a "series" list; each series has a "pointlist"
+            of [timestamp_ms, value] pairs.  An empty "series" means no data.
+        """
+        return self._request("GET", "/api/v1/query", params={
+            "query": query,
+            "from": from_ts,
+            "to": to_ts,
+        })

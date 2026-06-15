@@ -1,12 +1,12 @@
 {
-  "title": "Global Financial Services Platform \u2014 Command Center",
+  "title": "Global Financial Services Platform — Command Center",
   "description": "Real-time observability across trading, payments, fraud detection, and risk infrastructure. Mission-critical financial services operations dashboard.",
   "layout_type": "ordered",
   "widgets": [
     {
       "definition": {
         "type": "note",
-        "content": "# Global Financial Services Command Center\n### Real-time Operations & SLA Monitoring\n\nTrading Platform \u00b7 Payment Systems \u00b7 Fraud Detection \u00b7 Risk Management \u00b7 Compliance\n\nObserving **65+ infrastructure nodes** across **4 regions** \u00b7 **3 environments** \u00b7 **4 business units**",
+        "content": "# Global Financial Services Command Center\n### Real-time Operations & SLA Monitoring\n\nTrading Platform · Payment Systems · Fraud Detection · Risk Management · Compliance\n\nObserving **65+ infrastructure nodes** across **4 regions** · **3 environments** · **4 business units**",
         "background_color": "vivid_blue",
         "font_size": "14",
         "text_align": "center",
@@ -262,7 +262,13 @@
         "yaxis": {
           "label": "Latency (ms)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=service%3Apayment-processing-engine%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 0,
@@ -296,7 +302,13 @@
         "yaxis": {
           "label": "Latency (ms)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=service%3Afraud-detection-service%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 4,
@@ -330,7 +342,17 @@
         "yaxis": {
           "label": "Lag (ms)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=service%3Aauthorization-db%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          },
+          {
+            "label": "View Traces",
+            "link": "/apm/traces?query=service%3Aauthorization-db%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 8,
@@ -364,7 +386,13 @@
         "yaxis": {
           "label": "Rejections (/s)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=env%3Ademo%20vertical%3Afinance&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 0,
@@ -375,7 +403,7 @@
     },
     {
       "definition": {
-        "title": "Payment Gateway Decline Rate",
+        "title": "Authorization Decline Rate",
         "type": "timeseries",
         "requests": [
           {
@@ -383,7 +411,7 @@
               {
                 "data_source": "metrics",
                 "name": "query1",
-                "query": "avg:finserv.payment_gateway.decline_rate_pct{$region,$environment} by {region}"
+                "query": "avg:finserv.authorization.decline_rate_pct{device_type:authorization_switch,$region} by {region}"
               }
             ],
             "formulas": [
@@ -395,10 +423,27 @@
             "display_type": "line"
           }
         ],
+        "markers": [
+          {
+            "value": "y = 5",
+            "display_type": "error dashed",
+            "label": "Alert Threshold (5%)"
+          }
+        ],
         "yaxis": {
           "label": "Decline Rate (%)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=%28service%3Aauthorization-db%20OR%20service%3Aauthorization-engine%29%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          },
+          {
+            "label": "View Traces",
+            "link": "/apm/traces?query=service%3Aauthorization-db%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 4,
@@ -432,7 +477,17 @@
         "yaxis": {
           "label": "Hit Rate (%)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=service%3Aauthorization-db%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          },
+          {
+            "label": "View Traces",
+            "link": "/apm/traces?query=service%3Aauthorization-db%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 8,
@@ -466,7 +521,13 @@
         "yaxis": {
           "label": "Active Sessions",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=env%3Ademo%20vertical%3Afinance&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 0,
@@ -498,9 +559,15 @@
           }
         ],
         "yaxis": {
-          "label": "Latency (\u00b5s)",
+          "label": "Latency (µs)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=env%3Ademo%20vertical%3Afinance&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 4,
@@ -534,7 +601,17 @@
         "yaxis": {
           "label": "Settlement (ms)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=service%3Asettlement-gateway%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          },
+          {
+            "label": "View Traces",
+            "link": "/apm/traces?query=service%3Asettlement-gateway%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 8,
@@ -568,7 +645,17 @@
         "yaxis": {
           "label": "Usage (%)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=service%3Aauthorization-db%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          },
+          {
+            "label": "View Traces",
+            "link": "/apm/traces?query=service%3Aauthorization-db%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 0,
@@ -602,7 +689,13 @@
         "yaxis": {
           "label": "False Positive Rate (%)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=service%3Afraud-detection-service%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 4,
@@ -642,9 +735,15 @@
           }
         ],
         "yaxis": {
-          "label": "Temperature (\u00b0C) / Key Slots (%)",
+          "label": "Temperature (°C) / Key Slots (%)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=env%3Ademo%20vertical%3Afinance&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 8,
@@ -678,7 +777,13 @@
         "yaxis": {
           "label": "Calculations/sec",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=env%3Ademo%20vertical%3Afinance&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 0,
@@ -712,7 +817,13 @@
         "yaxis": {
           "label": "Lag (messages)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=env%3Ademo%20vertical%3Afinance&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 3,
@@ -746,7 +857,13 @@
         "yaxis": {
           "label": "Blocked Rate (%)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=env%3Ademo%20vertical%3Afinance&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 6,
@@ -785,12 +902,40 @@
         "yaxis": {
           "label": "Error Rate (%)",
           "scale": "linear"
-        }
+        },
+        "custom_links": [
+          {
+            "label": "View Logs",
+            "link": "/logs?query=service%3Amobile-banking-api%20env%3Ademo&from_ts={{timestamp_start}}&to_ts={{timestamp_end}}&live=false"
+          }
+        ]
       },
       "layout": {
         "x": 9,
         "y": 16,
         "width": 3,
+        "height": 2
+      }
+    },
+    {
+      "definition": {
+        "type": "manage_status",
+        "title": "Monitor Status",
+        "summary_type": "monitors",
+        "display_format": "countsAndList",
+        "color_preference": "text",
+        "hide_zero_counts": true,
+        "query": "tag:signal_chain:1-root-cause tag:vertical:finance",
+        "sort": "status,asc",
+        "count": 50,
+        "start": 0,
+        "show_priority": true,
+        "show_last_triggered": true
+      },
+      "layout": {
+        "x": 0,
+        "y": 18,
+        "width": 12,
         "height": 2
       }
     },
@@ -803,7 +948,7 @@
           {
             "definition": {
               "type": "note",
-              "content": "\ud83c\udfe6 **Online Banking Portal** \u00b7 **Mobile Banking API** \u00b7 **Payment Processing Engine** \u00b7 **Loan Origination**\n\nStatus: Monitoring for payment latency, mobile auth, and loan processing performance.",
+              "content": "🏦 **Online Banking Portal** · **Mobile Banking API** · **Payment Processing Engine** · **Loan Origination**\n\nStatus: Monitoring for payment latency, mobile auth, and loan processing performance.",
               "background_color": "white",
               "font_size": "13",
               "text_align": "left"
@@ -818,7 +963,7 @@
           {
             "definition": {
               "type": "note",
-              "content": "\ud83d\udcc8 **Trading Platform** \u00b7 **Market Data Aggregator** \u00b7 **Risk Calculation Engine**\n\nStatus: Monitoring order flow, feed latency, and risk calculations.",
+              "content": "📈 **Trading Platform** · **Market Data Aggregator** · **Risk Calculation Engine**\n\nStatus: Monitoring order flow, feed latency, and risk calculations.",
               "background_color": "white",
               "font_size": "13",
               "text_align": "left"
@@ -896,7 +1041,7 @@
       },
       "layout": {
         "x": 0,
-        "y": 18,
+        "y": 20,
         "width": 12,
         "height": 6
       }

@@ -31,6 +31,7 @@ class MonitorManager:
         tags: Optional[Dict[str, str]] = None,
         dry_run: bool = False,
         vertical_name: Optional[str] = None,
+        notebook_url_map: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """
         Deploy monitors from a vertical.
@@ -106,7 +107,10 @@ class MonitorManager:
         for idx, monitor_config in enumerate(monitors):
             try:
                 # Build the monitor payload
-                payload = self._build_monitor_payload(monitor_config, vertical_name, tags)
+                payload = self._build_monitor_payload(
+                    monitor_config, vertical_name, tags,
+                    notebook_url_map=notebook_url_map,
+                )
 
                 if dry_run:
                     monitor_name = payload.get("name", f"monitor-{idx}")
@@ -174,6 +178,7 @@ class MonitorManager:
         config: Dict[str, Any],
         vertical_name: str,
         additional_tags: Optional[Dict[str, str]] = None,
+        notebook_url_map: Optional[Dict[str, int]] = None,
     ) -> Dict[str, Any]:
         """
         Build a monitor payload from config.
@@ -182,6 +187,8 @@ class MonitorManager:
             config: Monitor configuration dict.
             vertical_name: Vertical name for tagging.
             additional_tags: Additional tags to add.
+            notebook_url_map: Mapping of notebook name → notebook ID (int).
+                Used to wire up ``runbook_notebook_name`` as a monitor asset.
 
         Returns:
             Monitor payload ready for API submission.
@@ -227,6 +234,7 @@ class MonitorManager:
         tags = config.get("tags", []) if isinstance(config.get("tags"), list) else []
         tags.append(f"vertical:{vertical_name}")
         tags.append("dd-demo-toolkit:true")
+        tags.append(f"team:dd-demo-{vertical_name}")
 
         if additional_tags:
             for key, value in additional_tags.items():
@@ -234,6 +242,25 @@ class MonitorManager:
 
         # Deduplicate
         payload["tags"] = list(dict.fromkeys(tags))
+
+        # Link runbook notebook as a monitor asset
+        runbook_name = config.get("runbook_notebook_name")
+        if runbook_name and notebook_url_map:
+            nb_id = notebook_url_map.get(runbook_name)
+            if nb_id:
+                payload["assets"] = [{
+                    "category": "runbook",
+                    "name": runbook_name,
+                    "resource_key": str(nb_id),
+                    "resource_type": "notebook",
+                    "url": f"/notebook/{nb_id}",
+                }]
+                logger.info(f"Linked runbook notebook '{runbook_name}' (ID {nb_id}) to monitor '{config['name']}'")
+            else:
+                logger.warning(
+                    f"Notebook '{runbook_name}' not found in deployed notebooks "
+                    f"— runbook asset not linked for monitor '{config['name']}'"
+                )
 
         return payload
 

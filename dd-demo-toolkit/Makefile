@@ -29,13 +29,25 @@ RUN_FLAGS := --rm --remove-orphans
 # migrated to 1Password.
 OP_RUN := op run --env-file=.env --
 
+# Read active sub-vertical from .env (empty if not set).
+_SUB_VERTICAL := $(shell grep '^DD_DEMO_SUB_VERTICAL=' .env 2>/dev/null \
+                   | cut -d= -f2 | tr -d ' \r')
+
+# Read explicit DBM flag from .env (empty if not set).
+_DBM := $(shell grep '^DD_DEMO_DBM=' .env 2>/dev/null | cut -d= -f2 | tr -d ' \r')
+
+# Activate the `dbm` profile when DD_DEMO_DBM=true OR DD_DEMO_SUB_VERTICAL=payment-processor.
+# ey and bd are resource-only overlays — no extra profile needed.
+_DBM_PROFILE := $(if $(or $(filter true,$(_DBM)),$(filter payment-processor,$(_SUB_VERTICAL))),--profile dbm,)
+
 .PHONY: help check-op migrate-secrets \
         build rebuild up up-d down logs ps \
         setup teardown teardown-all \
         up-data-obs down-data-obs logs-data-obs logs-dbt dbt-run-now \
+        logs-payment-processor \
         logs-experiment \
         clean-orphans clean-all \
-        ui ui-install test
+        ui ui-install test validate
 
 help: ## List available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -101,22 +113,22 @@ migrate-secrets: ## Print step-by-step instructions to migrate a plain .env to 1
 ## -- Build / lifecycle -------------------------------------------------------
 
 build: ## Build images (uses cache; faster)
-	$(COMPOSE) --profile setup --profile teardown --profile teardown-all build
+	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_DBM_PROFILE) build
 
 rebuild: ## Build images from scratch (--no-cache; slower, deterministic)
-	$(COMPOSE) --profile setup --profile teardown --profile teardown-all build --no-cache
+	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_DBM_PROFILE) build --no-cache
 
-up: check-op ## Start otel-collector + simulator (resolves secrets via op run)
-	$(OP_RUN) $(COMPOSE) up $(UP_FLAGS)
+up: check-op ## Start otel-collector + simulator (+ DBM stack if DD_DEMO_DBM=true or DD_DEMO_SUB_VERTICAL=payment-processor)
+	$(OP_RUN) $(COMPOSE) $(_DBM_PROFILE) up $(UP_FLAGS)
 
 up-d: check-op ## Same as `up` but detached
-	$(OP_RUN) $(COMPOSE) up $(UP_FLAGS) -d
+	$(OP_RUN) $(COMPOSE) $(_DBM_PROFILE) up $(UP_FLAGS) -d
 
 down: ## Stop and remove the long-running services + any orphans
-	$(COMPOSE) down --remove-orphans
+	$(COMPOSE) $(_DBM_PROFILE) down --remove-orphans
 
 logs: ## Tail logs from running services
-	$(COMPOSE) logs -f
+	$(COMPOSE) $(_DBM_PROFILE) logs -f
 
 ps: ## Show running containers for this project
 	$(COMPOSE) ps
@@ -149,6 +161,11 @@ logs-dbt: ## Tail logs from the dbt runner (build cycles + datadog-ci upload)
 dbt-run-now: check-op ## Trigger an immediate dbt build (no need to wait for the loop interval)
 	$(OP_RUN) $(COMPOSE) exec data-obs-dbt-runner bash -c 'cd /dbt_project && dbt build 2>&1 | tail -30'
 
+## -- Database Monitoring stack (DBM demo — any vertical) --------------------
+
+logs-payment-processor: ## Tail logs from the authorization DB worker
+	$(COMPOSE) logs -f authorization-db-worker
+
 ## -- LLM Obs Experiments (continuous, runs alongside simulator) --------------
 
 logs-experiment: ## Tail logs from the continuous EY LLM Obs experiment runner
@@ -171,7 +188,7 @@ clean-orphans: ## Remove exited orphan containers from this project
 	fi
 
 clean-all: ## Stop everything for this project, remove containers + orphans
-	$(COMPOSE) down --remove-orphans --volumes
+	$(COMPOSE) $(_DBM_PROFILE) down --remove-orphans --volumes
 
 ## -- Local UI (Phase 1, runs on the SE's laptop, not in Docker) --------------
 
@@ -182,8 +199,11 @@ ui-install: ## Create .venv-ui (Python 3.13) and install editable + UI extras
 	./.venv-ui/bin/pip install --quiet --upgrade pip
 	./.venv-ui/bin/pip install -e '.[dev,ui]'
 
-ui: check-op ## Launch the local web UI on http://127.0.0.1:8765
+ui: check-op build up-d ## Build images, start collector + simulator, then launch the UI on http://127.0.0.1:8765
 	$(OP_RUN) ./.venv-ui/bin/dd-demo-ui
 
-test: ## Run the toolkit + UI test suite (no secrets needed — tests are mocked)
-	./.venv-ui/bin/pytest tests/ --no-cov -q
+test: ## Run the unit + static analysis test suite (no secrets needed)
+	./.venv/bin/pytest tests/ --no-cov -q -m "not integration"
+
+validate: check-op ## Run live dashboard data checks against Datadog (requires make up first)
+	$(OP_RUN) ./.venv/bin/pytest tests/ -m integration -v --no-cov

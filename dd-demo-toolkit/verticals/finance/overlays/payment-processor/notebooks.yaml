@@ -10,9 +10,9 @@ notebooks:
   # Chapter 1 — Self-assessment recap
   # -----------------------------------------------------------------------
   - id: "pp-vendor-self-assessment-scorecard"
-    name: "Vendor Assessment: Datadog vs. 221-Requirement OTel Scorecard"
+    name: "OpenTelemetry PoC"
     type: report
-    description: "Vendor self-assessment scorecard for the 221-requirement OTel observability evaluation. Scoring model, layer results, Visualisation layer spotlight, tier outcome, and validation approach."
+    description: "Scope summary dashboard for the 221-requirement OTel observability PoC. Layer breakdown (Instrumentation/Collection/Connection/Visualisation), relevance weights, scoring model, and OTel architecture diagram."
     time_range: "30d"
     tags:
       - "vertical:finance"
@@ -26,91 +26,108 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              # Vendor Assessment: Datadog vs. 221-Requirement OTel Scorecard
+              # Results Summary
 
-              ## Scoring Model
-
-              Each of the 221 requirements is scored on a simple rubric:
-
-              | Score | Meaning |
-              |-------|---------|
-              | **1.0** | PASS — fully met, documented, demoed |
-              | **0.5** | PARTIAL — met with a workaround or undocumented gap |
-              | **0.0** | FAIL — not met |
-
-              Weights by requirement tier:
-
-              | Tier | Count | Weight per req |
-              |------|-------|---------------|
-              | MUST | 75 | 0.6% |
-              | SHOULD | 112 | 0.4% |
-              | COULD | 34 | 0.3% |
-
-              **Composite score = Σ(score × weight) / Σ(weight)**
+              **Total Requirements: 221 · MUST: 75 · SHOULD: 112 · COULD: 34**
         type: "notebook_cells"
 
       - attributes:
           definition:
             type: "markdown"
             text: |
-              ## Layer Results
+              ## Layer Breakdown
 
-              | Layer | MUST pass rate | SHOULD pass rate | COULD pass rate | Weighted contribution |
-              |-------|---------------|-----------------|----------------|----------------------|
-              | **Instrumentation** | 100% | 97% | 91% | 31% |
-              | **Collection** | 100% | 96% | 88% | 19% |
-              | **Connection** | 100% | 98% | 94% | 19% |
-              | **Visualisation** | 100% | 99% | 97% | 30% |
+              | Layer | MUST | SHOULD | COULD | TOTAL | Layer Weight | Layer Results |
+              |-------|-----:|-------:|------:|------:|-------------:|--------------:|
+              | **Instrumentation** | 21 | 39 | 9 | **69** | 30.9% | **31%** |
+              | **Collection** | 15 | 20 | 8 | **43** | 19.4% | **19%** |
+              | **Connection** | 17 | 19 | 5 | **41** | 19.3% | **19%** |
+              | **Visualisation** | 22 | 34 | 12 | **68** | 30.4% | **30%** |
+              | **TOTAL** | **75** | **112** | **34** | **221** | | |
 
-              > All 75 MUSTs score 1.0. One COULD scores 0.5 (VIS-AC-008 — see below).
+              | | MUST | SHOULD | COULD | | |
+              |---|---:|---:|---:|---|---:|
+              | **Relevance Weight** | 45% | 45% | 10% | | 100% |
+              | **Relevance Results** | 45% | 38% | 10% | | **99%** |
         type: "notebook_cells"
 
       - attributes:
           definition:
             type: "markdown"
             text: |
-              ## Visualisation Layer Spotlight
+              ## Relevance Definitions & PoC Rules
 
-              The Visualisation tab is the layer this audience cares most about. Results:
-
-              - **22 MUSTs** — all score **1.0 (PASS)**
-              - **1 PARTIAL** — VIS-AC-008: WAN-offline cached dashboard view
-
-              ### VIS-AC-008 Gap Detail
-
-              | Field | Value |
-              |-------|-------|
-              | Requirement | Dashboard must render from local cache when WAN link is severed |
-              | Tier | COULD (0.3% weight) |
-              | Score | 0.5 (PARTIAL) |
-              | Gap | Datadog dashboards require agent connectivity to render live data |
-              | **Documented workaround** | **Scheduled PDF delivery via Datadog Scheduled Reports** — snapshots delivered to distribution list before expected WAN maintenance windows |
-
-              This is the only gap in the Visualisation layer and carries the lowest possible tier weight.
+              | Tier | Definition | Indiv. % |
+              |------|-----------|:--------:|
+              | **MUST** | Most relevant ones. Failure on majority MUST items means PoC FAIL. These define the minimum viable base for production recommendation. | 0.6% |
+              | **SHOULD** | Important but not blocking, relevant to defining the standard tier option. Failures must have documented root cause and remediation proposal. | 0.4% |
+              | **COULD** | Desirable enhancements delivered only if capacity permits. Each PASS adds positive weight to production recommendation. | 0.3% |
         type: "notebook_cells"
 
       - attributes:
           definition:
             type: "markdown"
             text: |
-              ## Tier Outcome
+              ## PoC Score Model · Score = Σ(Weight% × Result) with PASS=1 · PARTIAL=0.5 · FAIL=0
 
-              **Composite score: 99.0% → STRONG PASS → Premium tier**
+              | Composite Score | MUST Pass Rate | Result | Action | |
+              |:---:|:---:|:---:|---|:---:|
+              | ≥ 80% | 90% | **STRONG PASS** | Consider for Premium tier | **99%** |
+              | 60–79% | 70% | **PASS** | Consider for Standard tier | |
+              | 50–59% | 50% | **PARTIAL** | Consider for Lite tiering option | |
+              | Any | < 50% | **FAIL** | PoC scope to re-iterate | |
+        type: "notebook_cells"
 
-              The Premium tier threshold is 97%. A STRONG PASS at 99% places this vendor
-              in the top tier of the evaluation framework with no blockers to production
-              adoption.
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## OTel Evaluation Architecture
 
-              ---
-
-              ## Validation Approach
-
-              > "The vendor validates itself; the customer spot-checks via documentation;
-              > incomplete documentation = automatic fail."
-
-              All scored items link to public Datadog documentation, GA release notes, or
-              live demos recorded during this evaluation. Any requirement scored PASS but
-              lacking a documentation link is re-scored as PARTIAL automatically.
+              ```
+              ┌─────────────────────────────────────────────────────────┐
+              │         Instrumentation Layer (OTel Semantic Conventions) │
+              │                                                           │
+              │   ┌─────────────────────┐   ┌────────────────────────┐  │
+              │   │   Infrastructure    │   │   Application Code     │  │
+              │   │  (Host, K8s, Cloud) │   │ (Traces, Metrics, Logs)│  │
+              │   └─────────────────────┘   └────────────────────────┘  │
+              └─────────────────────────────────┬───────────────────────┘
+                                                ↓
+              ┌─────────────────────────────────────────────────────────┐
+              │              Collection Layer (OTel Collector)           │
+              │                                                           │
+              │         ┌──────────────────────────────────┐            │
+              │         │  OTel Collector Agent             │            │
+              │         │  Receivers / Processors           │            │
+              │         └──────────────┬───────────────────┘            │
+              │                        ↓                                 │
+              │         ┌──────────────────────────────────┐            │
+              │         │  OTel Collector Gateway           │            │
+              │         │  Sampling / Enrichment            │            │
+              │         └──────────────────────────────────┘            │
+              └─────────────────────────────────┬───────────────────────┘
+                                                ↓
+              ┌─────────────────────────────────────────────────────────┐
+              │             Connection Layer (OTLP + mTLS)               │
+              │                                                           │
+              │              OTLP gRPC / HTTP  ·  TLS + mTLS            │
+              └─────────────────────────────────┬───────────────────────┘
+                                                ↓
+              ┌─────────────────────────────────────────────────────────┐
+              │           Visualization & Consumption Layer              │
+              │                                                           │
+              │         ┌──────────────────────────────────┐            │
+              │         │  OTel-Compatible Backend          │            │
+              │         │  (Storage + Query)                │            │
+              │         └──────────────┬───────────────────┘            │
+              │                        ↓                                 │
+              │         ┌──────────────────────────────────┐            │
+              │         │  Model Context Protocol (MCP)     │            │
+              │         │  AI / LLM Access                  │            │
+              │         └──────────────────────────────────┘            │
+              └─────────────────────────────────────────────────────────┘
+              ```
         type: "notebook_cells"
 
   # -----------------------------------------------------------------------
@@ -119,7 +136,7 @@ notebooks:
   - id: "pp-auth-cascade-investigation"
     name: "Incident Investigation: Payment Authorization Cascade"
     type: investigation
-    description: "RCA walkthrough for the payment authorization cascade: auth switch latency degrades, fraud switch false positive rate climbs, clearing queue backs up, settlement gateway errors surface. All metrics from the payment_processor_auth_cascade plugin."
+    description: "RCA walkthrough for the payment authorization cascade: Redis cache capacity degrades, driving auth switch latency up, fraud switch false positive rate climbs, clearing queue backs up, settlement gateway errors surface."
     time_range: "4h"
     tags:
       - "vertical:finance"
@@ -135,48 +152,29 @@ notebooks:
             text: |
               # Incident Investigation: Payment Authorization Cascade
 
-              **Symptom:** Authorization decline rate alert fired in ap-southeast-1.
-              Settlement gateway error rate climbing. Customer transactions failing.
+              **Alert:** `[Finance/Payment Processor] Authorization Decline Rate Spike` fired
+              in ap-southeast-1. Settlement gateway error rate climbing. Customer transactions
+              failing at volume.
 
-              **This notebook walks the full cascade** from root cause to recovery
-              using metrics emitted by OTel-instrumented payment processor services.
+              Three things are true at once: decline rate is up, fraud switch false positives
+              are elevated, and clearing queue depth is growing. The instinct is to check the
+              fraud switch first — that's wrong. The fraud system is a victim, not a cause.
+
+              **Walk upstream.** Start from what fired the alert, then follow the dependency
+              chain backwards until you find what changed first.
+
+              > **Demo note:** A skilled SRE walks this path in 30–40 minutes. Bits AI SRE
+              > surfaces the same causal chain in under 3 minutes — before the clearing queue
+              > hits the depth that creates SWIFT/ACH regulatory risk.
 
               ---
-              ## Step 1 — Confirm the authorization latency spike (root cause)
+              ## Step 1 — Start where the alert fired: decline rate + fraud false positives
         type: "notebook_cells"
 
       - attributes:
           definition:
             type: "timeseries"
-            requests:
-              - response_format: "timeseries"
-                queries:
-                  - data_source: "metrics"
-                    name: "latency"
-                    query: "avg:finserv.authorization.decision_latency_ms{device_type:authorization_switch} by {region}"
-                formulas:
-                  - formula: "latency"
-                    alias: "Auth decision latency (ms)"
-                display_type: "line"
-            markers:
-              - value: "y = 180"
-                display_type: "error dashed"
-                label: "Alert threshold"
-        type: "notebook_cells"
-
-      - attributes:
-          definition:
-            type: "markdown"
-            text: |
-              ## Step 2 — Leading indicators: decline rate + fraud switch false positives
-
-              Auth latency → retries → fraud switch overload → false positive spike → declines.
-              This is the "retry storm" signature: all three metrics fire within the same 5-min window.
-        type: "notebook_cells"
-
-      - attributes:
-          definition:
-            type: "timeseries"
+            show_legend: true
             requests:
               - response_format: "timeseries"
                 queries:
@@ -202,15 +200,92 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              ## Step 3 — Downstream symptom: clearing queue backlog build-up
+              Decline rate is above 5%. Fraud false positives are elevated in the same window —
+              this is the retry storm signature. But the fraud switch didn't cause this; it's
+              overloaded *because* something upstream is timing out and triggering retries.
 
-              Declined transactions stay in the clearing queue awaiting manual review.
-              Queue depth grows at 3–4× normal rate once decline rate exceeds 5%.
+              ---
+              ## Step 2 — One hop upstream: authorization decision latency
         type: "notebook_cells"
 
       - attributes:
           definition:
             type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "latency"
+                    query: "avg:finserv.authorization.decision_latency_ms{device_type:authorization_switch} by {region}"
+                formulas:
+                  - formula: "latency"
+                    alias: "Auth decision latency (ms)"
+                display_type: "line"
+            markers:
+              - value: "y = 180"
+                display_type: "error dashed"
+                label: "Switch timeout threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Auth decision latency has spiked past the 180ms switch timeout threshold.
+              Every transaction exceeding 180ms is timed out, counted as a decline, and
+              retried — which is what's overloading the fraud switch. Authorization-engine
+              is slow. Why?
+
+              ---
+              ## Step 3 — Two hops upstream: cache miss fallthrough to PostgreSQL
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "hit_rate"
+                    query: "avg:finserv.cache_cluster.hit_rate_pct{device_type:cache_cluster} by {region}"
+                  - data_source: "metrics"
+                    name: "eviction"
+                    query: "avg:finserv.cache_cluster.eviction_rate{device_type:cache_cluster} by {region}"
+                formulas:
+                  - formula: "hit_rate"
+                    alias: "Cache hit rate %"
+                  - formula: "eviction"
+                    alias: "Eviction rate /s"
+                display_type: "line"
+            markers:
+              - value: "y = 85"
+                display_type: "error dashed"
+                label: "Hit rate degradation threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Cache hit rate has collapsed and eviction rate is maxed. Authorization-engine
+              falls through to PostgreSQL for lookups that are normally cache hits — adding
+              ~220ms of latency per decision. **This is the root cause.**
+
+              Cache degradation precedes the auth latency spike by 1–2 minutes, confirming
+              it's causal, not coincidental. The retry storm (decline rate + fraud FP) is two
+              hops downstream from this single infrastructure failure.
+
+              ---
+              ## Step 4 — Downstream damage: clearing queue backlog
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
             requests:
               - response_format: "timeseries"
                 queries:
@@ -231,15 +306,18 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              ## Step 4 — Terminal symptom: settlement gateway timeout
+              Declined transactions queue for manual review. Queue depth grows at 3–4× normal
+              rate once decline rate exceeds 5%. This is now a race against the SWIFT/ACH
+              cut-off window.
 
-              Settlement gateway starts failing once clearing queue hits critical depth.
-              SWIFT/ACH cut-off windows create regulatory risk if not resolved within 20 min.
+              ---
+              ## Step 5 — Terminal symptom: settlement gateway failures
         type: "notebook_cells"
 
       - attributes:
           definition:
             type: "timeseries"
+            show_legend: true
             requests:
               - response_format: "timeseries"
                 queries:
@@ -256,14 +334,21 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              ## Step 5 — Recovery timeline
+              Settlement gateway starts failing once clearing queue hits critical depth.
+              SWIFT/ACH cut-off windows create regulatory risk if not resolved within 20 min.
 
-              Fraud switch thresholds auto-tuned → auth latency returns to baseline →
-              clearing drains → settlement gateway error rate drops to zero.
+              ---
+              ## Step 6 — Recovery timeline
+
+              Redis cache cluster capacity restored → cache hit rate recovers →
+              authorization-engine cache hits resume → auth latency returns to ~65ms baseline
+              → fraud switch normalizes → clearing drains → settlement gateway error rate
+              drops to zero.
 
               **Time to resolution:** ~22 min (ramp_up + degraded + cascading + recovery phases).
-              **Bits AI identified root cause** (fraud scoring model threshold misconfiguration)
-              within 3 min of the first alert — before clearing queue reached critical depth.
+              **Bits AI identified root cause** (Redis cache cluster capacity degradation —
+              eviction rate maxed, active connections dropped ~83%) within 3 min of the first
+              alert — before clearing queue reached critical depth.
         type: "notebook_cells"
 
       - attributes:
@@ -297,9 +382,9 @@ notebooks:
   # Chapter 3 — Add-ons over OTel
   # -----------------------------------------------------------------------
   - id: "pp-beyond-otel-addons"
-    name: "Beyond OTel: Datadog Add-Ons for Payment Operations"
+    name: "Beyond OTel"
     type: documentation
-    description: "Five Datadog capabilities that extend beyond what OTel alone provides: Bits AI investigation, Observability Pipelines governance, Database Monitoring, LLM Observability taste, and Workflow Automation."
+    description: "Three Datadog capabilities that extend beyond what OTel alone provides: Database Monitoring, Bits AI investigation, and Workflow Automation."
     time_range: "1h"
     tags:
       - "vertical:finance"
@@ -313,38 +398,41 @@ notebooks:
           definition:
             type: "markdown"
             text: |
-              # Beyond OTel: Datadog Add-Ons for Payment Operations
+              ## Feature Compatibility: OTel Instrumentation Paths
 
-              OTel gets your data into Datadog. These five capabilities show what
+              | Feature | Datadog SDK + DDOT *(Recommended)* | OTel SDK + DDOT | OTel SDK + OSS Collector |
+              |---|:---:|:---:|:---:|
+              | Cloud SIEM | ✅ | ✅ | ✅ |
+              | Correlated Traces, Metrics, Logs | ✅ | ✅ | ✅ |
+              | Distributed Tracing | ✅ | ✅ | ✅ |
+              | Agent Observability | ✅ | ✅ | ✅ |
+              | Runtime Metrics | ✅ | ✅ | ✅ |
+              | Span Links | ✅ | ✅ | ✅ |
+              | Trace Metrics | ✅ | ✅ | ✅ |
+              | Infrastructure Host List | ✅ | ✅ | ✅ |
+              | Live Container Monitoring / Kubernetes Explorer | ✅ | ✅ | ✅ |
+              | Database Monitoring (DBM) | ✅ | ✅ | N/A |
+              | Cloud Network Monitoring (CNM) | ✅ | ✅ | N/A |
+              | Live Processes | ✅ | ✅ | N/A |
+              | Universal Service Monitoring (USM) | ✅ | ✅ | N/A |
+              | App and API Protection (AAP) | ✅ | N/A | N/A |
+              | Continuous Profiler | ✅ | N/A | N/A |
+              | Data Observability: Jobs Monitoring (DJM) | ✅ | N/A | N/A |
+              | Data Streams Monitoring (DSM) | ✅ | N/A | N/A |
+              | Real User Monitoring (RUM) | ✅ | N/A | N/A |
+              | Source code integration | ✅ | N/A | N/A |
+
+              *Source: [Datadog OTel feature compatibility](https://docs.datadoghq.com/opentelemetry/compatibility/#feature-compatibility)*
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # OTel and Beyond
+
+              OTel gets your data into Datadog. These three capabilities show what
               Datadog adds on top that OTel alone cannot provide.
-
-              ---
-
-              ## 1. Bits AI Investigation
-
-              > **"OTel gives you the data; Bits AI gives you the answer."**
-
-              ### Live demo script (run after cascade has fired, ~27 min in)
-
-              1. Watchdog fires on **Authorization Decision Latency Spike** monitor
-              2. Open Bits AI from the monitor alert
-              3. Bits AI surfaces:
-                 - Authorization switch decision latency elevated 340ms in ap-southeast-1
-                 - Fraud switch false positive rate climbing (retry storm signature)
-                 - Clearing queue depth growing at 3× normal rate
-                 - **Probable root cause: fraud scoring model threshold misconfiguration
-                   after recent deploy** (config drift detected via Fleet Automation)
-              4. Correlated signals listed with confidence scores
-              5. Suggested next step: roll back fraud scoring config via the auto-triage workflow
-              6. Case auto-created with linked monitors and timeline
-
-              **Why OTel alone can't do this:** Bits AI correlates metrics, logs, traces, and
-              deployment events across the entire observability data model. OTel is an
-              instrumentation and transport standard — it has no correlation or AI layer.
-
-              > ⚠️ **Demo timing:** This investigation only works live if the
-              > `payment_processor_auth_cascade` plugin has fired (~27 min after `make up`).
-              > Start Chapter 3 after confirming the cascade is in progress.
         type: "notebook_cells"
 
       - attributes:
@@ -353,49 +441,7 @@ notebooks:
             text: |
               ---
 
-              ## 2. Observability Pipelines
-
-              > **"OTel gets data in; Observability Pipelines governs where it goes and what survives."**
-
-              ### What to show
-
-              | Pipeline rule | Business rationale |
-              |---------------|-------------------|
-              | Payment auth traces → APM + 7-year archive | PCI-DSS audit trail requirement |
-              | Debug logs → dropped after 7 days | Cost control — debug noise has no long-term value |
-              | Keep 100% of error spans, 10% of success spans | Tail-based sampling: full fidelity on failures |
-              | PAN fields redacted at pipeline level | Belt-and-suspenders PCI-DSS — Sensitive Data Scanner is the first gate |
-
-              ### Cost reduction story
-        type: "notebook_cells"
-
-      - attributes:
-          definition:
-            type: "timeseries"
-            requests:
-              - response_format: "timeseries"
-                queries:
-                  - data_source: "metrics"
-                    name: "bytes_in"
-                    query: "sum:datadog.estimated_usage.logs.ingested_bytes{*}"
-                  - data_source: "metrics"
-                    name: "bytes_indexed"
-                    query: "sum:datadog.estimated_usage.logs.ingested_events{*}"
-                formulas:
-                  - formula: "bytes_in"
-                    alias: "Bytes ingested"
-                  - formula: "bytes_indexed"
-                    alias: "Events indexed"
-                display_type: "line"
-        type: "notebook_cells"
-
-      - attributes:
-          definition:
-            type: "markdown"
-            text: |
-              ---
-
-              ## 3. Database Monitoring (DDOT vs. Pure OTel)
+              ## 1. Database Monitoring (DDOT vs. Pure OTel)
 
               > **"Pure OTel gives you spans; DDOT gives you spans + query-level DB insight without code changes."**
 
@@ -413,44 +459,207 @@ notebooks:
               | Connection pool exhaustion | ✗ | ✓ |
               | Explain plan (no code change) | ✗ | ✓ |
 
-              **Demo script:** Open the authorization-engine DB dashboard → top-10 slowest
-              queries by avg latency → connection pool vs. auth decision latency correlation
-              (they should correlate during the cascade — DB wait is amplifying auth latency).
+              **Demo path (3 steps):**
+
+              1. **Top Queries** — Open [Database Monitoring → authorization-db](https://app.datadoghq.com/databases) → **Queries** tab → sort by Avg Latency. During the cascade, `SELECT … FROM auth_transactions WHERE merchant_id = ?` (sequential scan, no index) climbs to #1. Click it → **Explain Plan** shows the missing index — no code instrumentation required.
+
+              2. **Connection pool exhaustion** — Switch to the **Connections** view. During cascading phase the pool approaches 18/20 open connections. Pure OTel spans show *that* DB calls are slow; DBM shows *why* — the pool is saturated.
+
+              3. **Correlation** — The charts below overlay `postgresql.activity.blocked_connections` against auth decision latency. The lines move together: DB lock contention is the amplifier in the Chapter 2 cascade.
         type: "notebook_cells"
 
       - attributes:
           definition:
             type: "markdown"
             text: |
-              ---
-
-              ## 4. LLM Observability (taste only)
-
-              > **"Not OTel, but here's what Datadog adds when AI enters the stack."**
-
-              Payment processors increasingly use LLMs for dispute resolution, fraud
-              narrative generation, and customer communications. This is a single-screen
-              taste — the full story is a separate workstream.
+              ### Capability 1 — Query fingerprint
+              DBM captures per-query execution statistics from `pg_stat_statements` — query
+              hash, average latency, and scan type — without any code change. During the
+              cascade, the merchant-id sequential scan surfaces as the top query by rows
+              fetched. Click any row in the DBM **Queries** tab to see the fingerprint,
+              normalised query text, and per-call stats.
         type: "notebook_cells"
 
       - attributes:
           definition:
             type: "timeseries"
+            show_legend: true
             requests:
               - response_format: "timeseries"
                 queries:
                   - data_source: "metrics"
-                    name: "cost"
-                    query: "avg:finserv.llm_eval.cost_per_1k_tokens_usd{device_type:llm_eval_node} by {model}"
+                    name: "fetched"
+                    query: "avg:postgresql.rows_fetched{service:authorization-engine}"
                   - data_source: "metrics"
-                    name: "halluc"
-                    query: "avg:finserv.llm_eval.hallucination_rate_pct{device_type:llm_eval_node} by {model}"
+                    name: "returned"
+                    query: "avg:postgresql.rows_returned{service:authorization-engine}"
                 formulas:
-                  - formula: "cost"
-                    alias: "Cost $/1k tokens by model"
-                  - formula: "halluc"
-                    alias: "Hallucination rate % by model"
+                  - formula: "fetched"
+                    alias: "Rows fetched (scanned)"
+                  - formula: "returned"
+                    alias: "Rows returned to client"
                 display_type: "line"
+            yaxis:
+              label: "Rows/s"
+              scale: "linear"
+            title: "Query fingerprint signal — Rows fetched vs. returned (sequential scan amplifier)"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ### Capability 2 — Lock wait time
+              `postgresql.activity.blocked_connections` counts connections currently blocked
+              waiting for a lock. Pure OTel spans show increased DB call duration but cannot
+              distinguish a slow query from a lock-blocked one. DBM exposes both the blocked
+              connection count and the blocking query in the **Activity** tab — no
+              instrumentation required.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "blocked"
+                    query: "avg:postgresql.activity.blocked_connections{service:authorization-engine}"
+                  - data_source: "metrics"
+                    name: "conns"
+                    query: "avg:postgresql.connections{service:authorization-engine}"
+                formulas:
+                  - formula: "blocked"
+                    alias: "Blocked connections (waiting on lock)"
+                  - formula: "conns"
+                    alias: "Total active connections"
+                display_type: "line"
+            yaxis:
+              label: "Count"
+              scale: "linear"
+            title: "Lock wait time — Blocked connections vs. total active connections"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ### Capability 3 — Connection pool exhaustion
+              `authorization-db` is configured with `max_connections = 20`. During the
+              cascade, the pool approaches saturation (~18 / 20). The DBM **Connections**
+              view shows pool utilisation over time and which queries are holding connections
+              open — context that OTel spans alone cannot provide.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "conns"
+                    query: "avg:postgresql.connections{service:authorization-engine}"
+                formulas:
+                  - formula: "conns"
+                    alias: "Active DB connections"
+                display_type: "area"
+            markers:
+              - display_type: "warning dashed"
+                value: "y = 18"
+                label: "Near-exhaustion threshold"
+              - display_type: "error dashed"
+                value: "y = 20"
+                label: "max_connections limit"
+            yaxis:
+              label: "Connections"
+              min: "0"
+              max: "25"
+              scale: "linear"
+            title: "Connection pool exhaustion — Active connections vs. max_connections (20)"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ### Capability 4 — Explain plan (no code change)
+              When a query is flagged slow, DBM auto-captures its `EXPLAIN` plan via
+              `auto_explain` — no query-level instrumentation required. The merchant-id
+              scan shows a **Seq Scan** (no index). `postgresql.queries.shared_blks_read`
+              (from `pg_stat_statements`) spikes during the sequential scan; a rising
+              `shared_blks_read : shared_blks_hit` ratio is the metric-level indicator of
+              what `EXPLAIN` confirms visually in the DBM UI.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "blks_read"
+                    query: "avg:postgresql.queries.shared_blks_read{service:authorization-engine}"
+                  - data_source: "metrics"
+                    name: "blks_hit"
+                    query: "avg:postgresql.queries.shared_blks_hit{service:authorization-engine}"
+                formulas:
+                  - formula: "blks_read"
+                    alias: "Shared blocks read from disk (cache miss)"
+                  - formula: "blks_hit"
+                    alias: "Shared blocks from buffer cache (hit)"
+                display_type: "line"
+            yaxis:
+              label: "Blocks/s"
+              scale: "linear"
+            title: "Explain plan signal — Query shared block reads spike during sequential scan"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "conns"
+                    query: "avg:postgresql.connections{service:authorization-engine}"
+                formulas:
+                  - formula: "conns"
+                    alias: "DB connections (authorization-db)"
+                display_type: "area"
+            yaxis:
+              label: "Connections"
+              scale: "linear"
+            title: "authorization-engine DB — Active Connections"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "latency"
+                    query: "avg:finserv.authorization.decision_latency_ms{device_type:authorization_switch,region:ap-southeast-1}"
+                  - data_source: "metrics"
+                    name: "blocked"
+                    query: "avg:postgresql.activity.blocked_connections{service:authorization-engine}"
+                formulas:
+                  - formula: "latency"
+                    alias: "Auth decision latency ms (ap-southeast-1)"
+                  - formula: "blocked"
+                    alias: "DB blocked connections"
+                display_type: "line"
+            title: "Cascade correlation — Auth latency vs. DB blocked connections"
         type: "notebook_cells"
 
       - attributes:
@@ -459,7 +668,50 @@ notebooks:
             text: |
               ---
 
-              ## 5. Workflow Automation
+              ## 2. Datadog AI for Payment Operations
+
+              > **"OTel gives you the data; Datadog's Bits Agents give you the answer."**
+
+              ### Live demo script (run after cascade has fired, ~27 min in)
+
+              1. **[Finance/Payment Processor] Authorization Decline Rate Spike** monitor fires
+              2. Open Bits AI from the monitor alert
+              3. Bits AI surfaces a multi-signal causal chain:
+                 - **Redis cache cluster capacity degraded** — active connections
+                   dropped ~83% (43,500 → 7,500), eviction rate maxed at 270/s
+                 - Cache misses force `authorization-engine` to fall through to
+                   PostgreSQL for lookups that are normally cache hits
+                 - **PostgreSQL replication lag spikes** from ~250ms to 450ms,
+                   confirming the upstream cache miss → DB load chain
+                 - Authorization decision latency rises to 285–325ms (baseline ~115ms),
+                   exceeding the switch timeout threshold
+                 - Decline rate exceeds 5% at 75,000+ TPS — thousands of failed
+                   authorizations per second in the affected region
+                 - **Probable root cause: Redis infrastructure degradation** — no
+                   deployments or config changes found; node-level memory/connection
+                   pressure implicated
+              4. Correlated signals listed across three services: cache cluster, `authorization-db`, `authorization-engine`
+              5. Suggested next step: investigate Redis cluster node health (memory pressure, connection limits)
+              6. Case auto-created with linked monitors and timeline
+
+              **Why OTel alone can't do this:** The auth latency spike is visible in OTel
+              spans, but the root cause — cache degradation two hops upstream — is invisible
+              without correlating infrastructure metrics. Bits AI crossed service boundaries
+              automatically: cache eviction rate → DB replication lag → auth latency →
+              decline rate, in one investigation with no human-guided pivoting.
+
+              > ⚠️ **Demo timing:** This investigation only works live if the
+              > `payment_processor_auth_cascade` plugin has fired (~27 min after `make up`).
+              > Start Chapter 3 after confirming the cascade is in progress.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+
+              ## 3. Workflow Automation
 
               > **"Agentic remediation without a human in the loop."**
 

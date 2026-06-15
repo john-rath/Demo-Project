@@ -1,0 +1,29 @@
+# Payment Processor overlay — Sensitive Data Scanner configuration.
+#
+# Deploys one scanning group scoped to authorization-engine logs and one
+# custom scanning rule that masks 16-digit card numbers (NNNN-NNNN-NNNN-NNNN)
+# emitted by the simulator during the auth cascade (degraded + cascading phases).
+#
+# Demo story: VIS-AC-001 + INS-L-001
+#   Metric spike → View logs → see "Authorization DECLINED" with card.pan
+#   already masked by this rule → click trace ID → APM waterfall.
+#
+# Replacement: the entire matched PAN is replaced with [PAN-REDACTED] so the
+# demo audience sees an obvious masking action rather than a truncated number.
+
+sds_groups:
+
+  - name: "[Finance/Payment Processor] PCI-DSS PAN Masking"
+    description: "Scans authorization-engine service logs for card PANs emitted during the auth cascade simulation. Enabled as part of the payment-processor overlay to demonstrate Sensitive Data Scanner for PCI-DSS compliance (INS-L-001)."
+    filter_query: "service:authorization-engine"
+    product_list:
+      - logs
+    is_enabled: true
+    rules:
+
+      - name: "[Finance/Payment Processor] Credit Card PAN — mask full number"
+        description: "Matches 16-digit card numbers in NNNN-NNNN-NNNN-NNNN format emitted as card.pan attribute by the payment-processor simulator. Replace with [PAN-REDACTED] so the attribute key is preserved but the value is masked."
+        is_enabled: true
+        pattern: "\\d{4}-\\d{4}-\\d{4}-\\d{4}"
+        replacement_type: replacement_string
+        replacement_string: "[PAN-REDACTED]"

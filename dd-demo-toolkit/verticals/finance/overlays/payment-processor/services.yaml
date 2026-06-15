@@ -2,8 +2,27 @@
 # Uses EY-overlay schema (dd-service, display-name, owner) for consistency
 # with the overlay pattern. Tag `instrumentation:opentelemetry` signals that
 # these services are OTel-instrumented — key for the Chapter 2 OTel story.
+#
+# `authorization-db` is a datastore entry (type: db). It is not OTel-instrumented
+# but generates DBM data (postgresql.*) and OTel traces + Python logs via the
+# authorization-db-worker sidecar. This gives the DBM entity page its "View logs"
+# and "View traces" context-menu paths.
 
 services:
+
+  - dd-service: authorization-db
+    display-name: "Authorization Engine Database"
+    type: db
+    description: "PostgreSQL 16 database backing the authorization-engine service. Monitored via Datadog Database Monitoring (DBM): connection pool utilization, slow-query fingerprinting, and Explain Plan — all correlated with auth decision latency. During the cascade, sequential scans on auth_transactions and connection pool exhaustion (18/20 held) amplify auth latency; DBM Top Queries shows the slow fingerprint climbing in lockstep."
+    owner: "Payments"
+    tier: "Tier 1"
+    tags:
+      - "vertical:finance"
+      - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
+      - "team:Payments"
+      - "incident_domain:payment-authorization"
+      - "compliance:pci-dss"
 
   - dd-service: tokenization-service
     display-name: "Tokenization Service"
@@ -14,6 +33,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "compliance:pci-dss"
@@ -28,6 +48,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "compliance:pci-dss"
@@ -42,6 +63,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "compliance:pci-dss"
@@ -56,6 +78,7 @@ services:
     tags:
       - "vertical:finance"
       - "dd-demo-toolkit:true"
+      - "team:dd-demo-finance"
       - "team:Payments"
       - "incident_domain:payment-authorization"
       - "compliance:pci-dss"

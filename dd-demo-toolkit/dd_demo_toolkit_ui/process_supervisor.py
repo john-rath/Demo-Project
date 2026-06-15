@@ -30,15 +30,24 @@ Design rules:
 
 5. **State machine.** Each named process is in one of:
      IDLE        — never started, or last run finished
-     RUNNING     — proc alive
-     STOPPING    — SIGINT sent, waiting for exit
+     RUNNING     — proc alive (spawned by us) OR adopted from Docker
+     STOPPING    — stop signal sent / compose down running
      EXITED      — last run finished; exit_code captured
    The UI uses this to enable/disable Start vs Stop buttons.
+
+6. **Reconciliation.** Long-running services (simulator) may be started
+   outside the UI (``make up``, ``make ui``). ``reconcile()`` queries
+   ``docker compose ps`` and, if the service is already running, adopts
+   it: transitions to RUNNING, streams its logs via
+   ``docker compose logs --follow``, and wires Stop to run
+   ``docker compose down``. Called on every status endpoint so the UI
+   always reflects real Docker state regardless of how containers started.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import signal
@@ -164,6 +173,9 @@ class ProcessHandle:
     started_at: Optional[float] = None   # epoch seconds
     exit_code: Optional[int] = None
     last_error: Optional[str] = None
+    # True when the process was detected via docker compose ps rather than
+    # spawned by us. Stop uses `compose down` instead of killpg in this case.
+    adopted: bool = False
     # Line buffer + subscribers. We keep the deque on the handle and push
     # new lines to every subscriber's queue simultaneously.
     log_buffer: deque = field(default_factory=lambda: deque(maxlen=5000))
@@ -329,17 +341,27 @@ class ProcessSupervisor:
                 self._kill_group(h, signal.SIGKILL)
                 return self.status(name)
 
-            stop_signal = PROCESS_DEFS[name]["stop_signal"]
-            assert isinstance(stop_signal, signal.Signals)
-            logger.info("supervisor: stopping %s with %s", name, stop_signal.name)
             h.state = ProcessState.STOPPING
-            self._kill_group(h, stop_signal)
-            # The grace timer escalates to SIGKILL if the child doesn't
-            # exit. Fire-and-forget — _wait_for_exit awaits the proc.
-            asyncio.create_task(
-                self._grace_timer(h),
-                name=f"supervisor.grace[{name}]",
-            )
+            if h.adopted or h.proc is None:
+                # Container was started outside the UI — use compose down.
+                followup = PROCESS_DEFS[name].get("stop_followup_argv")
+                down_argv = followup or ["docker", "compose", "down", "--remove-orphans"]
+                logger.info("supervisor: stopping adopted %s via %s", name, " ".join(down_argv))
+                asyncio.create_task(
+                    self._compose_down(h, down_argv),
+                    name=f"supervisor.compose_down[{name}]",
+                )
+            else:
+                stop_signal = PROCESS_DEFS[name]["stop_signal"]
+                assert isinstance(stop_signal, signal.Signals)
+                logger.info("supervisor: stopping %s with %s", name, stop_signal.name)
+                self._kill_group(h, stop_signal)
+                # The grace timer escalates to SIGKILL if the child doesn't
+                # exit. Fire-and-forget — _wait_for_exit awaits the proc.
+                asyncio.create_task(
+                    self._grace_timer(h),
+                    name=f"supervisor.grace[{name}]",
+                )
         return self.status(name)
 
     async def subscribe_logs(
@@ -550,6 +572,132 @@ class ProcessSupervisor:
                 await proc.wait()
             except Exception as e:
                 logger.warning("supervisor: follow-up failed for %s: %s", h.name, e)
+
+    # ---- reconciliation (detect externally-started containers) ---------------
+
+    async def reconcile(self, name: str) -> None:
+        """Adopt a long-running service that was started outside the UI.
+
+        Queries ``docker compose ps`` for the named service. If it is running
+        but the supervisor thinks it is IDLE or EXITED, transitions to RUNNING
+        and starts streaming its logs via ``docker compose logs --follow``.
+        This makes Stop work correctly regardless of how the containers started.
+        """
+        if not PROCESS_DEFS.get(name, {}).get("long_running"):
+            return
+        async with self._lock(name):
+            h = self._get_or_create(name)
+            if h.state in (ProcessState.RUNNING, ProcessState.STOPPING):
+                return  # already tracking — don't interfere
+            if not await self._is_service_running(name):
+                return  # not running in Docker either
+            # Containers are up but supervisor doesn't know — adopt them.
+            logger.info("supervisor: adopting externally-started service '%s'", name)
+            h.state = ProcessState.RUNNING
+            h.proc = None
+            h.pid = None
+            h.adopted = True
+            h.exit_code = None
+            h.last_error = None
+            if h.started_at is None:
+                h.started_at = time.time()
+            # Stream logs from the running container. The task also handles
+            # the exit transition when the container eventually stops.
+            if h.reader_task is None or h.reader_task.done():
+                h.reader_task = asyncio.create_task(
+                    self._drain_docker_logs(h, name),
+                    name=f"supervisor.docker_logs[{name}]",
+                )
+
+    async def reconcile_long_running(self) -> None:
+        """Reconcile all long-running services."""
+        for name, defn in PROCESS_DEFS.items():
+            if defn.get("long_running"):
+                await self.reconcile(name)
+
+    async def _is_service_running(self, service_name: str) -> bool:
+        """Return True if the named compose service has at least one running container."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "docker", "compose", "ps", "--format", "json", service_name,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+                cwd=str(self.project_dir),
+            )
+            stdout, _ = await proc.communicate()
+        except FileNotFoundError:
+            return False
+        for line in stdout.decode("utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                if json.loads(line).get("State") == "running":
+                    return True
+            except json.JSONDecodeError:
+                pass
+        return False
+
+    async def _drain_docker_logs(self, h: ProcessHandle, service_name: str) -> None:
+        """Stream ``docker compose logs --follow`` for an adopted service.
+
+        Runs until the log stream closes (container stopped) or until the
+        handle transitions away from RUNNING (e.g. Stop was clicked). Also
+        handles the EXITED transition so the UI updates correctly.
+        """
+        argv = [
+            "docker", "compose", "logs", "--follow", "--no-log-prefix",
+            service_name,
+        ]
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *argv,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                cwd=str(self.project_dir),
+            )
+            while True:
+                line_bytes = await proc.stdout.readline()
+                if not line_bytes:
+                    break
+                # Bail early if Stop has been requested; compose down will
+                # drain remaining output via its own process.
+                if h.state == ProcessState.STOPPING:
+                    proc.terminate()
+                    break
+                line = line_bytes.decode("utf-8", errors="replace").rstrip("\n")
+                h.log_buffer.append(line)
+                self._broadcast(h, line)
+        except Exception as e:
+            logger.warning("supervisor: docker logs drain error for %s: %s", service_name, e)
+        finally:
+            # Only transition to EXITED if we weren't already set to STOPPING
+            # by a Stop click (compose_down will handle that path).
+            if h.state == ProcessState.RUNNING:
+                h.state = ProcessState.EXITED
+                h.exit_code = 0
+                h.adopted = False
+                h.started_at = None
+            self._broadcast_end(h)
+
+    async def _compose_down(self, h: ProcessHandle, argv: List[str]) -> None:
+        """Run ``docker compose down`` for an adopted service, then mark EXITED."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *argv,
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL,
+                cwd=str(self.project_dir),
+            )
+            await proc.communicate()
+        except Exception as e:
+            logger.warning("supervisor: compose_down failed: %s", e)
+            h.last_error = f"compose down failed: {e}"
+        h.exit_code = 0
+        h.state = ProcessState.EXITED
+        h.adopted = False
+        h.started_at = None
+        self._broadcast_end(h)
 
     async def shutdown(self) -> None:
         """Best-effort: stop every running process and wait for exit.

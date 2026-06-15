@@ -21,6 +21,7 @@ services:
     environment:
       - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up`, or wrap with `op run --env-file=.env -- docker compose ...`}
       - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_HOSTNAME=finance-simulator
       - GOGC=80
 
   simulator:
@@ -41,6 +42,12 @@ services:
       # .env via env_file above. When DD_DEMO_SUB_VERTICAL is set
       # (e.g. "bd"), the Dockerfile CMD appends --sub-vertical so the
       # overlay's plugins load alongside base-vertical plugins.
+    volumes:
+      # Shared with authorization-db-worker (dbm profile) so the cascade plugin
+      # can write the current phase and the DB worker can read it. When the dbm
+      # profile is not active this volume is still mounted but /cascade-state
+      # is simply never read.
+      - cascade-state:/cascade-state
     restart: unless-stopped
 
   setup:
@@ -347,3 +354,164 @@ services:
     restart: unless-stopped
     profiles:
       - data-obs
+
+  # =========================================================================
+  # DBM stack — authorization-engine database demo (any vertical)
+  # =========================================================================
+  # All services here run only when the `dbm` profile is supplied.
+  # Activate via DD_DEMO_DBM=true in .env (any vertical/sub-vertical) or
+  # automatically when DD_DEMO_SUB_VERTICAL=payment-processor (backward compat).
+  # The default `make up` flow is untouched when neither condition is set.
+  #
+  # What this adds:
+  #   authorization-db       — Postgres 16 representing the auth engine's DB
+  #   datadog-agent-pp       — Dedicated Datadog Agent with DBM enabled
+  #   authorization-db-worker — SQL workload generator; degrades in sync with
+  #                             the cascade plugin via the cascade-state volume
+  #
+  # Demo story: during the auth cascade, the DB worker runs sequential scans and
+  # holds connections open, driving connection pool exhaustion. The Datadog DBM
+  # "Top Queries" view shows the slow fingerprint climbing alongside the auth
+  # decision latency spike — demonstrating that DB wait time amplifies the cascade.
+
+  authorization-db:
+    image: postgres:16-alpine
+    container_name: dd-demo-authorization-db
+    # Cap max_connections to 20 so the db-worker can visibly exhaust the pool
+    # during cascading phase (it opens up to 18 connections).
+    #
+    # Logging configuration — writes to /var/log/postgresql/postgresql.log (shared
+    # volume) so datadog-agent-pp can tail the file directly with type:file in its
+    # postgres conf.d. Container-based Autodiscovery log collection is unavailable
+    # on macOS because the agent's workloadmeta Docker collector times out listing
+    # images via the Docker Desktop socket.
+    #
+    #   log_min_duration_statement=100  — log any query ≥ 100 ms; catches the
+    #     sequential scans and full-table scans during cascade phases.
+    #   log_connections / log_disconnections — connection lifecycle events;
+    #     shows pool growth/exhaustion during the cascading phase.
+    #   log_lock_waits — log waits > deadlock_timeout; surfaces SELECT FOR UPDATE
+    #     contention during the degraded phase.
+    #   log_line_prefix — format expected by Datadog's postgresql log pipeline.
+    #   logging_collector=on — redirect logs to a file instead of stderr.
+    #   log_directory / log_filename — write to the shared pg-logs volume.
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=20"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "track_activity_query_size=4096"
+      - "-c"
+      - "log_min_duration_statement=100"
+      - "-c"
+      - "log_connections=on"
+      - "-c"
+      - "log_disconnections=on"
+      - "-c"
+      - "log_lock_waits=on"
+      - "-c"
+      - "log_line_prefix=%m [%p] %q%u@%d "
+      - "-c"
+      - "logging_collector=on"
+      - "-c"
+      - "log_directory=/var/log/postgresql"
+      - "-c"
+      - "log_filename=postgresql.log"
+      - "-c"
+      - "log_rotation_age=0"
+      - "-c"
+      - "log_rotation_size=0"
+    environment:
+      - POSTGRES_USER=auth
+      - POSTGRES_PASSWORD=auth
+      - POSTGRES_DB=authorization_engine
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    volumes:
+      - ./docker/postgres/authorization-engine/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/postgres/authorization-engine/entrypoint.sh:/entrypoint.sh:ro
+      - pg-logs:/var/log/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth -d authorization_engine"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+    profiles:
+      - dbm
+
+  # Datadog Agent dedicated to DBM — focused solely on postgres integration.
+  # Same secret-handling pattern as the rest of the stack (no env_file for
+  # DD_API_KEY; requires op run via `make up-payment-processor`).
+  datadog-agent-pp:
+    image: gcr.io/datadoghq/agent:7
+    container_name: dd-demo-datadog-agent-pp
+    depends_on:
+      authorization-db:
+        condition: service_healthy
+    environment:
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up`}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_HOSTNAME=authorization-db
+      - DD_APM_ENABLED=false
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=false
+      - DD_PROCESS_AGENT_ENABLED=false
+      - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-finance}
+      - DD_TAGS=service:authorization-engine env:demo vertical:${DD_DEMO_VERTICAL:-finance} dd-demo-toolkit:true
+    volumes:
+      - ./docker/datadog/dbm/conf.d:/etc/datadog-agent/conf.d:ro
+      # Shared log volume — agent tails postgresql.log written by authorization-db.
+      # Log source config is in conf.d/postgres.d/conf.yaml (logs: section).
+      - pg-logs:/var/log/postgresql:ro
+    restart: unless-stopped
+    profiles:
+      - dbm
+
+  # SQL workload generator — mimics real authorization-engine query patterns
+  # and degrades them in sync with the cascade plugin (reads phase.json from
+  # the cascade-state volume that the simulator writes).
+  authorization-db-worker:
+    build:
+      context: ./docker/authorization-db-worker
+      dockerfile: Dockerfile
+    container_name: dd-demo-authorization-db-worker
+    depends_on:
+      authorization-db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=authorization-db
+      - DB_USER=auth
+      - DB_PASSWORD=auth
+      - DB_NAME=authorization_engine
+      - PYTHONUNBUFFERED=1
+      - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-finance}
+      # OTel trace export — routes to the shared otel-collector on the same network.
+      # Traces are emitted as service:authorization-db so APM and the DBM entity page
+      # both get "View traces" populated.
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_SERVICE_NAME=authorization-db
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=demo,team=Payments,dd-demo-toolkit=true,vertical=${DD_DEMO_VERTICAL:-finance},host.name=authorization-db
+    # Datadog Autodiscovery labels — instruct datadog-agent-pp to collect logs from
+    # this container and tag them with service:authorization-db so the DBM entity page
+    # and dashboard widget "View logs" links have data to navigate into.
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "python", "service": "authorization-db", "tags": ["env:demo", "vertical:${DD_DEMO_VERTICAL:-finance}", "team:Payments", "dd-demo-toolkit:true", "incident_domain:payment-authorization"]}]'
+    volumes:
+      - cascade-state:/cascade-state
+    restart: unless-stopped
+    profiles:
+      - dbm
+
+volumes:
+  # Ephemeral volume shared between simulator and authorization-db-worker.
+  # The cascade plugin writes the current phase here; the db-worker reads it
+  # to choose normal vs. degraded query patterns.
+  cascade-state: {}
+  # PostgreSQL log files written by authorization-db, tailed by datadog-agent-pp.
+  # Using a named volume instead of a bind-mount keeps paths consistent across
+  # macOS and Linux without needing to pre-create the host directory.
+  pg-logs: {}

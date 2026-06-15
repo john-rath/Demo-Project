@@ -29,6 +29,7 @@ real paths and hands it to uvicorn.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -342,15 +343,21 @@ def build_app(cfg: UIConfig) -> FastAPI:
         return HTTPException(status_code=500, detail=str(e))
 
     @app.get("/api/processes")
-    def list_processes() -> List[Dict[str, Any]]:
-        """Status of every named process the supervisor knows about."""
+    async def list_processes() -> List[Dict[str, Any]]:
+        """Status of every named process the supervisor knows about.
+
+        Reconciles long-running services against actual Docker state first,
+        so the UI reflects containers started from the terminal or make targets.
+        """
         sup = _require_supervisor()
+        await sup.reconcile_long_running()
         return sup.status_all()
 
     @app.get("/api/processes/{name}/status")
-    def process_status(name: str) -> Dict[str, Any]:
+    async def process_status(name: str) -> Dict[str, Any]:
         sup = _require_supervisor()
         try:
+            await sup.reconcile(name)
             return sup.status(name)
         except ProcessSupervisorError as e:
             raise _supervisor_error_to_http(e)
@@ -428,6 +435,153 @@ def build_app(cfg: UIConfig) -> FastAPI:
                 "Connection": "keep-alive",
             },
         )
+
+    # ----- Status (Phase 4: live environment state) --------------------------
+
+    @app.get("/api/status/containers")
+    async def status_containers() -> Dict[str, Any]:
+        """Real Docker container state via `docker compose ps`, regardless of who started them."""
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "docker", "compose", "ps", "--format", "json",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(cfg.project_dir),
+            )
+            stdout, stderr = await proc.communicate()
+        except FileNotFoundError:
+            return {"containers": [], "error": "docker not found on PATH"}
+
+        if proc.returncode != 0:
+            err = stderr.decode("utf-8", errors="replace").strip()
+            return {"containers": [], "error": err or "docker compose ps failed"}
+
+        containers: List[Dict[str, Any]] = []
+        for line in stdout.decode("utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                containers.append({
+                    "service": obj.get("Service", ""),
+                    "name": obj.get("Name", ""),
+                    "state": obj.get("State", ""),
+                    "health": obj.get("Health", ""),
+                    "status": obj.get("Status", ""),
+                })
+            except json.JSONDecodeError:
+                pass
+
+        return {"containers": containers, "error": None}
+
+    @app.get("/api/status/datadog")
+    async def status_datadog() -> Dict[str, Any]:
+        """Counts of toolkit-managed resources currently deployed in Datadog.
+
+        Filters by vertical tag where the API supports it (monitors, SLOs,
+        workflows). Dashboards are matched by their description marker since
+        the dashboards API doesn't return tags. Notebooks are matched by the
+        team:dd-demo-* metadata tag injected at create time.
+
+        Falls back to total org counts (unfiltered) for any resource type
+        where tag-based filtering fails, so the UI always shows something
+        useful even when the vertical isn't set.
+        """
+        def _fetch() -> Dict[str, Any]:
+            try:
+                client = DatadogAPIClient()
+            except ValueError as e:
+                return {
+                    "monitors": None, "dashboards": None,
+                    "notebooks": None, "slos": None, "workflows": None,
+                    "vertical": None, "error": str(e),
+                }
+
+            # Use the vertical tag for server-side filtering where the API
+            # supports it. Falls back to dd-demo-toolkit:true if unset.
+            on_disk = env_manager.read_env(cfg.env_path, mask=False)
+            vertical = on_disk.get("DD_DEMO_VERTICAL") or ""
+            tag_filter = f"vertical:{vertical}" if vertical else "dd-demo-toolkit:true"
+
+            counts: Dict[str, Any] = {"vertical": vertical or None}
+            errors: List[str] = []
+
+            # Monitors — API supports server-side tag filtering.
+            try:
+                resp = client.list_monitors(tag=tag_filter)
+                counts["monitors"] = len(resp.get("monitors", []))
+            except Exception as e:
+                counts["monitors"] = None
+                errors.append(f"monitors: {e}")
+
+            # Dashboards — API doesn't return tags; match by description marker.
+            try:
+                resp = client.list_dashboards()
+                all_dash = resp.get("dashboards", [])
+                # Primary: description marker scoped to vertical.
+                marker = f"[dd-demo-toolkit:{vertical}]" if vertical else "[dd-demo-toolkit:"
+                counts["dashboards"] = sum(
+                    1 for d in all_dash
+                    if marker in (d.get("description") or "")
+                )
+                # Fallback: any dd-demo-toolkit marker (catches cross-vertical orphans).
+                if counts["dashboards"] == 0 and vertical:
+                    counts["dashboards"] = sum(
+                        1 for d in all_dash
+                        if "[dd-demo-toolkit:" in (d.get("description") or "")
+                    )
+            except Exception as e:
+                counts["dashboards"] = None
+                errors.append(f"dashboards: {e}")
+
+            # Notebooks — API doesn't support our tag keys; match by the
+            # team:dd-demo-* metadata tag injected at notebook create time.
+            try:
+                resp = client.list_notebooks()
+                all_nb = resp.get("data", [])
+                if vertical:
+                    counts["notebooks"] = sum(
+                        1 for n in all_nb
+                        if f"team:dd-demo-{vertical}" in
+                        (n.get("attributes", {}).get("metadata", {}).get("tags") or [])
+                    )
+                else:
+                    counts["notebooks"] = sum(
+                        1 for n in all_nb
+                        if any(
+                            t.startswith("team:dd-demo-")
+                            for t in (n.get("attributes", {}).get("metadata", {}).get("tags") or [])
+                        )
+                    )
+            except Exception as e:
+                counts["notebooks"] = None
+                errors.append(f"notebooks: {e}")
+
+            # SLOs — filter by vertical tag in the tags array.
+            try:
+                resp = client._request("GET", "/api/v1/slo")
+                all_slos = resp.get("data", [])
+                counts["slos"] = sum(
+                    1 for s in all_slos
+                    if tag_filter in s.get("tags", [])
+                )
+            except Exception as e:
+                counts["slos"] = None
+                errors.append(f"slos: {e}")
+
+            # Workflows — API supports server-side tag filtering.
+            try:
+                resp = client.list_workflows(tag_filter=tag_filter)
+                counts["workflows"] = len(resp.get("data", []))
+            except Exception as e:
+                counts["workflows"] = None
+                errors.append(f"workflows: {e}")
+
+            counts["error"] = "; ".join(errors) if errors else None
+            return counts
+
+        return await asyncio.get_event_loop().run_in_executor(None, _fetch)
 
     # ----- Static UI ---------------------------------------------------------
 

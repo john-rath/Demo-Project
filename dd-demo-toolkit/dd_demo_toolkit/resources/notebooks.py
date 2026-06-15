@@ -267,7 +267,8 @@ class NotebookManager:
         # used to identify toolkit notebooks; teardown uses name-matching
         # against notebooks.yaml instead.
 
-        # Wrap in Notebooks API v1 envelope
+        # Wrap in Notebooks API v1 envelope.
+        # The Notebooks API enforces a tag-key allowlist; "team" is permitted.
         payload = {
             "data": {
                 "attributes": {
@@ -278,6 +279,7 @@ class NotebookManager:
                     "metadata": {
                         "type": config.get("type", "investigation"),
                     },
+                    "tags": [f"team:dd-demo-{vertical_name}"],
                 },
                 "type": "notebooks",
             }

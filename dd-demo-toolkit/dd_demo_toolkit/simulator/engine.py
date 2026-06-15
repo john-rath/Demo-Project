@@ -61,6 +61,7 @@ class DeviceProfile:
     battery_powered: bool = False
     metrics: List[MetricConfig] = field(default_factory=list)
     state: Dict[str, float] = field(default_factory=dict)  # Current metric values
+    service: Optional[str] = None  # maps device metrics to a Datadog service for log correlation
 
     def __post_init__(self):
         """Initialize metric state with midpoints of ranges."""
@@ -316,6 +317,7 @@ class SimulatorEngine:
         ) = setup_per_service_providers(
             services=service_dicts,
             display_name=self.display_name,
+            vertical_name=self.vertical_name,
         )
 
         # Build device fleet
@@ -482,6 +484,7 @@ class SimulatorEngine:
                         location=location,
                         battery_powered=battery_powered,
                         metrics=metrics,
+                        service=device_config.get("service"),
                     )
                     self.fleet.append(device)
                     device_id_counter += 1
@@ -699,6 +702,8 @@ class SimulatorEngine:
                 "battery_powered": str(device.battery_powered),
             }
             attributes.update(device.location)
+            if device.service:
+                attributes["service"] = device.service
 
             if metric.type == "gauge":
                 instrument.set(value, attributes=attributes)
@@ -797,6 +802,9 @@ class SimulatorEngine:
                         extra={**log_extra, "http.status_code": http_status},
                     )
 
+            # --- Incident-injected transaction logs (inside active span → trace-log correlation) ---
+            self._emit_incident_tx_logs(service_name, svc_log, log_extra)
+
             # --- Emit application-level custom metrics ---
             svc_attrs = {"service_name": service_name}
             prefix = self.env_prefix
@@ -832,6 +840,33 @@ class SimulatorEngine:
                     operation.name, latency_ms, correlation_id[:8],
                     extra={**log_extra, "latency_ms": latency_ms},
                 )
+
+    def _emit_incident_tx_logs(
+        self,
+        service_name: str,
+        svc_log: Optional[logging.Logger],
+        log_extra: Dict[str, Any],
+    ) -> None:
+        """Emit transaction-level logs written by incident plugins into the active span.
+
+        Plugins write to incident_state[name]["tx_logs"] — a list of dicts:
+            service (str)  target service name
+            level   (str)  "warning" | "error" | "info"
+            message (str)  log message string
+            extra   (dict) merged into log_extra
+        Being called inside an active OTel span, LoggingHandler injects
+        trace_id/span_id automatically, enabling Datadog trace-log correlation.
+        """
+        if not svc_log:
+            return
+        for incident_data in self.incident_state.values():
+            for tx in incident_data.get("tx_logs", []):
+                if tx.get("service") != service_name:
+                    continue
+                level = tx.get("level", "warning")
+                msg = tx.get("message", "")
+                extra = {**log_extra, **tx.get("extra", {})}
+                getattr(svc_log, level, svc_log.warning)(msg, extra=extra)
 
     def _generate_downstream_spans(
         self,

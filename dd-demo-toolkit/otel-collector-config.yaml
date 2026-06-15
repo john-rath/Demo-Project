@@ -6,6 +6,17 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
+  # Scrapes the collector's own Prometheus endpoint so otelcol.* self-metrics
+  # (spans exported, refused, CPU, memory) flow to Datadog. The telemetry
+  # address below (:8888) must match this target.
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: otel-collector
+          scrape_interval: 15s
+          static_configs:
+            - targets: ['localhost:8888']
+
 processors:
   batch:
     send_batch_size: 1000
@@ -14,7 +25,7 @@ processors:
 
   resource:
     attributes:
-      - key: env
+      - key: deployment.environment.name
         value: demo
         action: upsert
 
@@ -30,7 +41,7 @@ exporters:
         cumulative_monotonic_mode: to_delta
     traces:
       span_name_as_resource_name: true
-    hostname: ""
+    hostname: "authorization-db"
 
   debug:
     verbosity: basic
@@ -42,11 +53,36 @@ extensions:
     endpoint: 0.0.0.0:13133
   zpages:
     endpoint: 0.0.0.0:55679
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: ${env:DD_SITE}
+    hostname: "finance-simulator"
 
 service:
   extensions:
     - health_check
     - zpages
+    - datadog
+
+  # Expose the collector's own internal metrics at :8888 so the prometheus
+  # receiver above can scrape them. "detailed" level includes span/metric/log
+  # throughput, queue depth, CPU, and memory — the full otelcol.* set.
+  # v0.130+ (MetricsConfigV030) dropped the `address` field. Setting `level`
+  # alone collects metrics internally but does NOT bind an HTTP endpoint —
+  # the `readers` block is required to expose the Prometheus /metrics page.
+  telemetry:
+    resource:
+      deployment.environment.name: demo
+      host.name: "finance-simulator"
+    metrics:
+      level: detailed
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: "0.0.0.0"
+                port: 8888
 
   pipelines:
     metrics:
@@ -59,10 +95,21 @@ service:
         - datadog
         - debug
 
+    # Separate pipeline for collector self-metrics: no `resource` processor
+    # (the env=demo tag doesn't belong on otelcol.* internal metrics).
+    metrics/internal:
+      receivers:
+        - prometheus
+      processors:
+        - batch
+      exporters:
+        - datadog
+
     traces:
       receivers:
         - otlp
       processors:
+        - resource
         - batch
       exporters:
         - datadog

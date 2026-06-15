@@ -17,6 +17,8 @@ from dd_demo_toolkit.resources.services import ServiceCatalogManager
 from dd_demo_toolkit.resources.workflows import WorkflowManager
 from dd_demo_toolkit.resources.incidents import IncidentManager
 from dd_demo_toolkit.resources.cases import CaseManager
+from dd_demo_toolkit.resources.sds import SDSManager
+from dd_demo_toolkit.resources.teams import TeamManager
 
 
 logger = logging.getLogger(__name__)
@@ -25,16 +27,18 @@ logger = logging.getLogger(__name__)
 class ResourceManager:
     """Orchestrates deployment and lifecycle management of all Datadog resources."""
 
-    # Supported resource types
+    # Supported resource types — teams first; notebooks before monitors so runbook URLs can be wired up
     RESOURCE_TYPES = {
+        "teams": TeamManager,
         "dashboards": DashboardManager,
-        "monitors": MonitorManager,
         "notebooks": NotebookManager,
+        "monitors": MonitorManager,
         "slos": SLOManager,
         "services": ServiceCatalogManager,
         "workflows": WorkflowManager,
         "incidents": IncidentManager,
         "cases": CaseManager,
+        "sds": SDSManager,
     }
 
     def __init__(self, verticals_dir: str = "verticals") -> None:
@@ -45,6 +49,7 @@ class ResourceManager:
             verticals_dir: Path to the verticals directory.
         """
         self.verticals_dir = Path(verticals_dir)
+        self.team_manager = TeamManager()
         self.dashboard_manager = DashboardManager()
         self.monitor_manager = MonitorManager()
         self.notebook_manager = NotebookManager(verticals_dir=verticals_dir)
@@ -53,6 +58,7 @@ class ResourceManager:
         self.workflow_manager = WorkflowManager()
         self.incident_manager = IncidentManager()
         self.case_manager = CaseManager(verticals_dir=verticals_dir)
+        self.sds_manager = SDSManager()
 
     def deploy_all(
         self,
@@ -159,12 +165,20 @@ class ResourceManager:
         results: Dict[str, Any] = {}
         total_created = 0
         total_errors = 0
+        notebook_url_map: Dict[str, int] = {}
 
-        for resource_type in resource_types:
-            if resource_type not in self.RESOURCE_TYPES:
-                continue
+        # Ensure notebooks deploy before monitors so notebook IDs are available for runbook assets
+        ordered_types = sorted(
+            [rt for rt in resource_types if rt in self.RESOURCE_TYPES],
+            key=lambda rt: list(self.RESOURCE_TYPES.keys()).index(rt),
+        )
+
+        for resource_type in ordered_types:
             try:
-                if resource_type == "dashboards":
+                if resource_type == "teams":
+                    # Team is created by the base vertical deploy; skip in overlay.
+                    continue
+                elif resource_type == "dashboards":
                     result = self.dashboard_manager.deploy(
                         str(overlay_path), api_client, tags, dry_run,
                         vertical_name=vertical_name,
@@ -173,12 +187,20 @@ class ResourceManager:
                     result = self.monitor_manager.deploy(
                         str(overlay_path), api_client, tags, dry_run,
                         vertical_name=vertical_name,
+                        notebook_url_map=notebook_url_map,
                     )
                 elif resource_type == "notebooks":
                     result = self.notebook_manager.deploy(
                         str(overlay_path), api_client, tags, dry_run,
                         vertical_name=vertical_name,
                     )
+                    notebook_url_map.update({
+                        name: nb_id
+                        for name, nb_id in zip(
+                            result.get("created_names", []),
+                            result.get("created_ids", []),
+                        )
+                    })
                 elif resource_type == "slos":
                     result = self.slo_manager.deploy(
                         str(overlay_path), api_client, tags, dry_run,
@@ -198,6 +220,11 @@ class ResourceManager:
                     result = {"total_created": 0, "total_errors": 0}
                 elif resource_type == "cases":
                     result = self.case_manager.deploy(
+                        str(overlay_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+                elif resource_type == "sds":
+                    result = self.sds_manager.deploy(
                         str(overlay_path), api_client, tags, dry_run,
                         vertical_name=vertical_name,
                     )
@@ -270,29 +297,46 @@ class ResourceManager:
         results = {}
         total_created = 0
         total_errors = 0
+        notebook_url_map: Dict[str, int] = {}
 
-        for resource_type in resource_types:
-            if resource_type not in self.RESOURCE_TYPES:
-                logger.warning(f"Unknown resource type: {resource_type}")
-                results[resource_type] = {
-                    "error": f"Unknown resource type: {resource_type}",
-                }
-                total_errors += 1
-                continue
+        # Ensure notebooks deploy before monitors so notebook IDs are available for runbook assets
+        ordered_types = sorted(
+            [rt for rt in resource_types if rt in self.RESOURCE_TYPES],
+            key=lambda rt: list(self.RESOURCE_TYPES.keys()).index(rt),
+        )
+        unknown_types = [rt for rt in resource_types if rt not in self.RESOURCE_TYPES]
+        for resource_type in unknown_types:
+            logger.warning(f"Unknown resource type: {resource_type}")
+            results[resource_type] = {"error": f"Unknown resource type: {resource_type}"}
+            total_errors += 1
 
+        for resource_type in ordered_types:
             try:
-                if resource_type == "dashboards":
+                if resource_type == "teams":
+                    result = self.team_manager.deploy(
+                        str(vertical_path), api_client, tags, dry_run,
+                        vertical_name=vertical_name,
+                    )
+                elif resource_type == "dashboards":
                     result = self.dashboard_manager.deploy(
                         str(vertical_path), api_client, tags, dry_run
                     )
                 elif resource_type == "monitors":
                     result = self.monitor_manager.deploy(
-                        str(vertical_path), api_client, tags, dry_run
+                        str(vertical_path), api_client, tags, dry_run,
+                        notebook_url_map=notebook_url_map,
                     )
                 elif resource_type == "notebooks":
                     result = self.notebook_manager.deploy(
                         str(vertical_path), api_client, tags, dry_run
                     )
+                    notebook_url_map.update({
+                        name: nb_id
+                        for name, nb_id in zip(
+                            result.get("created_names", []),
+                            result.get("created_ids", []),
+                        )
+                    })
                 elif resource_type == "slos":
                     result = self.slo_manager.deploy(
                         str(vertical_path), api_client, tags, dry_run
@@ -311,6 +355,10 @@ class ResourceManager:
                     logger.info("Incidents are typically declared dynamically rather than deployed from YAML")
                 elif resource_type == "cases":
                     result = self.case_manager.deploy(
+                        str(vertical_path), api_client, tags, dry_run
+                    )
+                elif resource_type == "sds":
+                    result = self.sds_manager.deploy(
                         str(vertical_path), api_client, tags, dry_run
                     )
 
@@ -424,7 +472,9 @@ class ResourceManager:
                 continue
 
             try:
-                if resource_type == "dashboards":
+                if resource_type == "teams":
+                    result = self.team_manager.teardown(api_client, vertical_name, dry_run)
+                elif resource_type == "dashboards":
                     result = self.dashboard_manager.teardown(api_client, vertical_name, dry_run)
                 elif resource_type == "monitors":
                     result = self.monitor_manager.teardown(api_client, vertical_name, dry_run)
@@ -440,6 +490,8 @@ class ResourceManager:
                     result = self.incident_manager.teardown(api_client, vertical_name, dry_run)
                 elif resource_type == "cases":
                     result = self.case_manager.teardown(api_client, vertical_name, dry_run)
+                elif resource_type == "sds":
+                    result = self.sds_manager.teardown(api_client, vertical_name, dry_run)
 
                 results[resource_type] = result
                 total_deleted += result.get("total_deleted", 0)
@@ -554,6 +606,14 @@ class ResourceManager:
         except Exception as e:
             logger.error(f"Error listing cases: {str(e)}")
             results["cases"] = {"error": str(e), "total": 0}
+
+        try:
+            sds_status = self.sds_manager.list_deployed(api_client, vertical_name)
+            results["sds"] = sds_status
+            total_resources += sds_status.get("total", 0)
+        except Exception as e:
+            logger.error(f"Error listing SDS resources: {str(e)}")
+            results["sds"] = {"error": str(e), "total": 0}
 
         results["summary"] = {
             "total_resources": total_resources,

@@ -3,7 +3,7 @@ OpenTelemetry helper for configuring metrics, traces, and logs exporters.
 
 Follows the per-service provider pattern from the original sensing-hospital
 demo: each application service gets its own TracerProvider and LoggerProvider
-with a Resource that carries service.name, host.name, deployment.environment.
+with a Resource that carries service.name, host.name, deployment.environment.name.
 This enables:
   - Datadog APM Service Map (each span has the correct service resource)
   - Trace ↔ Log correlation (LoggingHandler auto-injects trace_id/span_id)
@@ -61,7 +61,8 @@ def setup_global_meter(
     resource = Resource.create({
         ResourceAttributes.SERVICE_NAME: f"{vertical_name}-simulator",
         ResourceAttributes.SERVICE_VERSION: "1.0.0",
-        ResourceAttributes.DEPLOYMENT_ENVIRONMENT: "demo",
+        "deployment.environment.name": "demo",
+        "team": f"dd-demo-{vertical_name}",
     })
 
     metric_exporter = OTLPMetricExporter(endpoint=endpoint, insecure=insecure)
@@ -80,6 +81,7 @@ def setup_per_service_providers(
     endpoint: Optional[str] = None,
     insecure: bool = True,
     display_name: str = "Demo",
+    vertical_name: str = "dd-demo-toolkit",
 ) -> Tuple[
     Dict[str, "Tracer"],
     Dict[str, logging.Logger],
@@ -136,11 +138,12 @@ def setup_per_service_providers(
         resource = Resource.create({
             ResourceAttributes.SERVICE_NAME: svc_name,
             ResourceAttributes.SERVICE_VERSION: "1.0.0",
-            ResourceAttributes.DEPLOYMENT_ENVIRONMENT: "demo",
+            "deployment.environment.name": "demo",
             "host.name": svc_host,
             "service.language": svc.get("language", "unknown"),
             "service.framework": svc.get("framework", "unknown"),
             "demo.display_name": display_name,
+            "team": f"dd-demo-{vertical_name}",
         })
         tp = TracerProvider(resource=resource)
         tp.add_span_processor(shared_processor)

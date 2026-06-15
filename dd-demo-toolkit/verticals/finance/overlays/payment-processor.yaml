@@ -94,6 +94,7 @@ device_categories:
     devices:
 
     - type: authorization_switch
+      service: authorization-engine
       manufacturer: Custom
       model: AuthSwitch-RTOS
       firmware: "6.1.4"
@@ -112,7 +113,7 @@ device_categories:
       - name: finserv.authorization.decline_rate_pct
         type: gauge
         unit: "%"
-        range: [0.5, 2.8]
+        range: [0.3, 1.5]
         drift: 0.12
       - name: finserv.authorization.throughput_tps
         type: gauge

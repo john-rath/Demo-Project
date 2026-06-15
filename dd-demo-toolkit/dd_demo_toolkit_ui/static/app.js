@@ -66,6 +66,13 @@
     // Which process the Deploy tab's log pane is currently showing (most
     // recently started among setup/teardown/teardown-all).
     deployLogSource: null,
+    // Status tab: container + Datadog resource state.
+    status: {
+      containers: { data: null, error: null, loading: false, ts: null },
+      dd: { data: null, error: null, loading: false, ts: null },
+    },
+    // Interval ID for status auto-refresh (cleared when leaving the tab).
+    statusTimer: null,
   };
 
   // ----- HTTP helpers ------------------------------------------------------
@@ -251,6 +258,16 @@
     // Refresh deploy summary when we land on that tab.
     if (name === "deploy") {
       renderDeploySummary();
+    }
+    // Status tab: refresh immediately and start auto-refresh timer.
+    if (name === "status") {
+      refreshStatusTab();  // fire-and-forget; button shows loading state
+      if (!store.statusTimer) {
+        store.statusTimer = setInterval(() => refreshStatusTab(), 15_000);
+      }
+    } else if (store.statusTimer) {
+      clearInterval(store.statusTimer);
+      store.statusTimer = null;
     }
   }
 
@@ -496,6 +513,139 @@
     if (o) o.textContent = store.env.DD_DEMO_SUB_VERTICAL || "(none)";
   }
 
+  // ============================================================================
+  // Status tab: containers + Datadog resources
+  // ============================================================================
+
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function formatAge(ts) {
+    if (!ts) return "";
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 5) return "just now";
+    if (s < 60) return `${s}s ago`;
+    return `${Math.floor(s / 60)}m ago`;
+  }
+
+  function renderContainers() {
+    const el = document.getElementById("containers-content");
+    const tsEl = document.getElementById("containers-ts");
+    const { data, error, loading, ts } = store.status.containers;
+    if (tsEl) tsEl.textContent = loading ? "refreshing…" : ts ? `updated ${formatAge(ts)}` : "";
+    if (!el) return;
+
+    if (loading && !data) { el.innerHTML = '<p class="muted">Loading…</p>'; return; }
+    if (error && !data)   { el.innerHTML = `<p class="result-err">${escapeHTML(error)}</p>`; return; }
+    if (!data || data.length === 0) {
+      el.innerHTML = '<p class="muted">No containers running.</p>';
+      return;
+    }
+
+    const rows = data.map((c) => {
+      // Map docker state strings to the pill data-state values the CSS already knows.
+      const stateAttr = c.state === "running" ? "running"
+                      : c.state === "exited"  ? "exited"
+                      : "idle";
+      return `<tr>
+        <td><code>${escapeHTML(c.service)}</code></td>
+        <td class="muted">${escapeHTML(c.name)}</td>
+        <td><span class="status-pill" data-state="${stateAttr}">${escapeHTML(c.state)}</span></td>
+        <td class="muted">${escapeHTML(c.health || "—")}</td>
+      </tr>`;
+    }).join("");
+
+    el.innerHTML = `<table class="status-table">
+      <thead><tr><th>Service</th><th>Container</th><th>State</th><th>Health</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  function renderDDResources() {
+    const el = document.getElementById("dd-resources-content");
+    const tsEl = document.getElementById("dd-resources-ts");
+    const descEl = document.getElementById("dd-resources-desc");
+    const { data, error, loading, ts } = store.status.dd;
+    if (tsEl) tsEl.textContent = loading ? "refreshing…" : ts ? `updated ${formatAge(ts)}` : "";
+    if (!el) return;
+
+    if (loading && !data) { el.innerHTML = '<p class="muted">Loading…</p>'; return; }
+    if (error && !data)   { el.innerHTML = `<p class="result-err">${escapeHTML(error)}</p>`; return; }
+    if (!data) { el.innerHTML = '<p class="muted">Waiting for data…</p>'; return; }
+
+    // Update the description subtitle to show which vertical is being counted.
+    if (descEl) {
+      descEl.textContent = data.vertical
+        ? `Resources for vertical: ${data.vertical} — currently deployed in your Datadog org.`
+        : "Toolkit-managed resources currently deployed in your Datadog org.";
+    }
+
+    const RESOURCE_TYPES = ["monitors", "dashboards", "notebooks", "slos", "workflows"];
+    const badges = RESOURCE_TYPES.map((r) => {
+      const count = data[r];
+      const cls   = count == null ? "none" : count > 0 ? "active" : "none";
+      const label = count == null ? "—" : String(count);
+      return `<div class="resource-badge">
+        <span class="resource-count ${cls}">${label}</span>
+        <span class="resource-label">${r}</span>
+      </div>`;
+    }).join("");
+
+    const warn = data.error
+      ? `<p class="result-warn" style="margin-top:12px;font-size:12px;">⚠ ${escapeHTML(data.error)}</p>`
+      : "";
+    el.innerHTML = `<div class="resource-grid">${badges}</div>${warn}`;
+  }
+
+  async function refreshContainers() {
+    store.status.containers.loading = true;
+    store.status.containers.ts = Date.now();  // stamp immediately so user sees activity
+    renderContainers();
+    try {
+      const r = await getJSON("/api/status/containers");
+      store.status.containers.data  = r.containers || [];
+      store.status.containers.error = r.error || null;
+      store.status.containers.ts    = Date.now();
+    } catch (e) {
+      store.status.containers.error = e.message;
+    } finally {
+      store.status.containers.loading = false;
+    }
+    renderContainers();
+  }
+
+  async function refreshDDResources() {
+    store.status.dd.loading = true;
+    store.status.dd.ts = Date.now();
+    renderDDResources();
+    try {
+      const r = await getJSON("/api/status/datadog");
+      store.status.dd.data  = r;
+      store.status.dd.error = r.error || null;
+      store.status.dd.ts    = Date.now();
+    } catch (e) {
+      store.status.dd.error = e.message;
+    } finally {
+      store.status.dd.loading = false;
+    }
+    renderDDResources();
+  }
+
+  async function refreshStatusTab() {
+    const btn = document.getElementById("btn-refresh-status");
+    if (btn) { btn.disabled = true; btn.textContent = "Refreshing…"; }
+    try {
+      await Promise.all([refreshContainers(), refreshDDResources()]);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = "Refresh"; }
+    }
+  }
+
   // ----- Wire-up & init ----------------------------------------------------
   function wire() {
     els.selectVertical.addEventListener("change", renderOverlays);
@@ -529,6 +679,12 @@
     document.querySelectorAll('[data-log-action="clear"]').forEach((b) => {
       b.addEventListener("click", () => clearLogPane(b.dataset.logTarget));
     });
+
+    // Status tab refresh button.
+    const btnRefresh = document.getElementById("btn-refresh-status");
+    if (btnRefresh) {
+      btnRefresh.addEventListener("click", () => refreshStatusTab());
+    }
 
     // Periodic status refresh while any process is running. 2s cadence
     // is plenty for uptime display; live state changes still flow via
