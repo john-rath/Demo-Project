@@ -1,0 +1,291 @@
+# AdventHealth "Sensing Hospital" sub-vertical overlay for healthcare.
+#
+# Art-of-the-possible overlay built for AdventHealth. It tells the story
+# from the END-USER's perspective — the patient in the bed and the care
+# provider at the bedside — rather than the traditional infrastructure-
+# monitoring lens. The headline is service QUALITY of the patient
+# experience, not staffing.
+#
+# "Sensing hospital" is AdventHealth's own vernacular and is kept verbatim
+# throughout. The overlay instruments every MedSurg patient room with a
+# care-experience sensing fleet:
+#
+#   - room_sensing_gateway      RTLS + room-sensing hub (the per-room brain)
+#   - bedside_engagement_tablet patient-facing end-user device (EuD)
+#   - ambient_comfort_sensor    room temperature / noise / light comfort
+#
+# Everything emits under the existing `hospital.*` namespace (env_prefix
+# `hospital`) so it rides the base healthcare metric namespace, tag
+# standards, and teardown. Two NEW metric sub-domains are introduced — both
+# still under `hospital.`:
+#
+#   - hospital.sensing.*  RTLS / location-sensing signals (root-cause lane)
+#   - hospital.cxp.*      Care Experience Platform signals (leading + symptom)
+#
+# Tagging — strictly the existing healthcare standards, no new KEYS:
+#   - device_type:<value>           new values (room_sensing_gateway, ...)
+#   - device_manufacturer:AdventHealth  (engine-emitted; identifies the overlay)
+#   - device_category:care_sensing  (existing `category` key, new value)
+#   - department:MedSurg            (existing department dimension value)
+#   - incident_domain:care-experience (existing key, new value — mirrors the
+#                                   pattern of network-to-device / pharmacy-automation)
+#
+# Bifurcation: the cascade plugin (plugins/adventhealth_care_experience.py)
+# is disjoint from the base WiFi cascade (Floor 3 East, hospital.network.*,
+# network-to-device) along spatial (MedSurg department + new device types),
+# metric-namespace (hospital.sensing.* / hospital.cxp.*), incident_domain,
+# and temporal axes — so Bits AI SRE can isolate this story cleanly.
+#
+# Loaded by ConfigLoader.load_vertical(..., sub_vertical="adventhealth"):
+# device lists are concatenated onto the base config, services are appended.
+
+device_categories:
+
+  # New category for the AdventHealth sensing fleet. Queryable as
+  # category:care_sensing from monitors and dashboards. All devices live
+  # in MedSurg, the inpatient unit where patient-experience / HCAHPS
+  # outcomes matter most.
+  care_sensing:
+    ip_base: '10.120'
+    department_pool:
+    - MedSurg
+    devices:
+
+    # ----- Room Sensing Gateway (the "sensing hospital" centerpiece) ----
+    # One per patient room. Aggregates RTLS staff-badge location, routes
+    # care-team requests to the nearest caregiver, and derives the room's
+    # patient-responsiveness signals. This is the device that carries both
+    # the ROOT CAUSE (hospital.sensing.rtls_*) and the patient-visible
+    # SYMPTOM (hospital.cxp.*) for the cascade.
+    - type: room_sensing_gateway
+      manufacturer: AdventHealth
+      model: SenseHub RX
+      firmware: '3.1.0'
+      count: 24
+      battery_powered: false
+      metrics:
+      # --- Common device health (matches base healthcare conventions) ---
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.005
+      - name: hospital.device.cpu_usage_pct
+        type: gauge
+        unit: '%'
+        range: [3, 90]
+        drift: 1.2
+      - name: hospital.device.memory_usage_pct
+        type: gauge
+        unit: '%'
+        range: [15, 85]
+        drift: 0.8
+      - name: hospital.device.signal_strength_dbm
+        type: gauge
+        unit: dBm
+        range: [-80, -28]
+        drift: 1.2
+      - name: hospital.device.temperature_celsius
+        type: gauge
+        unit: Cel
+        range: [22, 40]
+        drift: 0.2
+
+      # --- RTLS / location sensing (ROOT-CAUSE lane) -------------------
+      # When the on-prem rtls-location-service config drifts, sync lag
+      # climbs and staff-badge locations go stale. This is the upstream
+      # signal Bits AI SRE should land on.
+      - name: hospital.sensing.rtls_sync_lag_ms
+        type: gauge
+        unit: ms
+        range: [80, 9000]
+        drift: 25.0
+      - name: hospital.sensing.location_staleness_sec
+        type: gauge
+        unit: s
+        range: [0, 600]
+        drift: 4.0
+      - name: hospital.sensing.tracked_badges_count
+        type: gauge
+        unit: '1'
+        range: [0, 40]
+        drift: 1.0
+      - name: hospital.sensing.location_updates_total
+        type: counter
+        unit: '1'
+        range: [0, 60]
+        drift: 1.5
+      - name: hospital.sensing.sync_failures_total
+        type: counter
+        unit: '1'
+        range: [0, 3]
+        drift: 0.05
+
+      # --- Care Experience Platform signals (LEADING + SYMPTOM) --------
+      # care_team_routing_latency_ms is the leading indicator: once
+      # location data is stale, the routing engine cannot resolve the
+      # nearest caregiver quickly. call_ack_latency_sec and
+      # responsiveness_score are the patient-visible symptoms.
+      - name: hospital.cxp.care_team_routing_latency_ms
+        type: gauge
+        unit: ms
+        range: [120, 9000]
+        drift: 30.0
+      - name: hospital.cxp.routing_requests_total
+        type: counter
+        unit: '1'
+        range: [0, 40]
+        drift: 1.0
+      - name: hospital.cxp.routing_failures_total
+        type: counter
+        unit: '1'
+        range: [0, 5]
+        drift: 0.1
+      - name: hospital.cxp.call_ack_latency_sec
+        type: gauge
+        unit: s
+        range: [8, 240]
+        drift: 3.0
+      - name: hospital.cxp.responsiveness_score
+        type: gauge
+        unit: '1'
+        range: [40, 100]
+        drift: 1.0
+      - name: hospital.cxp.comfort_requests_unmet_total
+        type: counter
+        unit: '1'
+        range: [0, 6]
+        drift: 0.15
+
+    # ----- Bedside Engagement Tablet (patient-facing EuD) ---------------
+    # The end-user device the patient actually touches: meal orders,
+    # messaging the care team, entertainment, education. Sets up the EuD
+    # capability story. Round-trip latency degrades when the care-
+    # experience-platform is choking on stale location data.
+    - type: bedside_engagement_tablet
+      manufacturer: AdventHealth
+      model: BedsideOne
+      firmware: '2.4.1'
+      count: 36
+      battery_powered: true
+      metrics:
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.005
+      - name: hospital.device.battery_pct
+        type: gauge
+        unit: '%'
+        range: [20, 100]
+        drift: 0.4
+      - name: hospital.device.signal_strength_dbm
+        type: gauge
+        unit: dBm
+        range: [-82, -30]
+        drift: 1.5
+      - name: hospital.cxp.bedside_app_latency_ms
+        type: gauge
+        unit: ms
+        range: [150, 6000]
+        drift: 40.0
+      - name: hospital.cxp.bedside_sessions_total
+        type: counter
+        unit: '1'
+        range: [0, 20]
+        drift: 1.0
+      - name: hospital.cxp.bedside_crash_total
+        type: counter
+        unit: '1'
+        range: [0, 2]
+        drift: 0.04
+      - name: hospital.cxp.patient_messages_total
+        type: counter
+        unit: '1'
+        range: [0, 15]
+        drift: 0.8
+
+    # ----- Ambient Comfort Sensor --------------------------------------
+    # Room environment as experienced by the patient: temperature, noise,
+    # light. Part of the "sensing hospital" comfort story; not part of the
+    # cascade, but rounds out the end-user-experience picture.
+    - type: ambient_comfort_sensor
+      manufacturer: AdventHealth
+      model: ComfortSense
+      firmware: '1.2.0'
+      count: 24
+      battery_powered: true
+      metrics:
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.005
+      - name: hospital.device.battery_pct
+        type: gauge
+        unit: '%'
+        range: [25, 100]
+        drift: 0.3
+      - name: hospital.cxp.room_temp_celsius
+        type: gauge
+        unit: Cel
+        range: [19, 26]
+        drift: 0.15
+      - name: hospital.cxp.noise_level_db
+        type: gauge
+        unit: dB
+        range: [30, 75]
+        drift: 1.5
+      - name: hospital.cxp.light_level_lux
+        type: gauge
+        unit: lx
+        range: [0, 600]
+        drift: 8.0
+
+# Service catalog additions. These two services anchor the AdventHealth
+# cascade and set up the on-prem vs. cloud story (formalized in a later
+# phase). On-prem vs. cloud is encoded in the host naming + description
+# today — NOT a new tag key.
+#
+#   rtls-location-service (ON-PREM) — root cause; the sensing gateways
+#       feed it staff-badge location events. A config change makes its
+#       sync lag climb.
+#   care-experience-platform (CLOUD) — the routing/engagement choke point.
+#       Consumes location data from rtls-location-service; bedside tablets
+#       call it. Saturates when location data goes stale.
+services:
+- name: rtls-location-service
+  host: rtls-loc-onprem-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - name: "POST /api/location/events"
+    latency_base_ms: 50
+    latency_p99_ms: 300
+    error_rate: 0.01
+  - name: "GET /api/location/nearest-caregiver"
+    latency_base_ms: 70
+    latency_p99_ms: 380
+    error_rate: 0.015
+  dependencies:
+  - service: care-experience-platform
+    operation: "POST /api/routing/dispatch"
+    probability: 0.8
+
+- name: care-experience-platform
+  host: cxp-cloud-01
+  language: go
+  framework: Gin
+  operations:
+  - name: "POST /api/routing/dispatch"
+    latency_base_ms: 90
+    latency_p99_ms: 500
+    error_rate: 0.02
+  - name: "GET /api/bedside/session"
+    latency_base_ms: 60
+    latency_p99_ms: 320
+    error_rate: 0.012
+  dependencies:
+  - service: clinical-workflow-engine
+    operation: "POST /api/tasks"
+    probability: 0.6
