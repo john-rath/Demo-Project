@@ -33,9 +33,12 @@ OP_RUN := op run --env-file=.env --
 _SUB_VERTICAL := $(shell grep '^DD_DEMO_SUB_VERTICAL=' .env 2>/dev/null \
                    | cut -d= -f2 | tr -d ' \r')
 
-# payment-processor is the only sub-vertical that adds Docker containers.
+# Read explicit DBM flag from .env (empty if not set).
+_DBM := $(shell grep '^DD_DEMO_DBM=' .env 2>/dev/null | cut -d= -f2 | tr -d ' \r')
+
+# Activate the `dbm` profile when DD_DEMO_DBM=true OR DD_DEMO_SUB_VERTICAL=payment-processor.
 # ey and bd are resource-only overlays — no extra profile needed.
-_PP_PROFILE := $(if $(filter payment-processor,$(_SUB_VERTICAL)),--profile payment-processor,)
+_DBM_PROFILE := $(if $(or $(filter true,$(_DBM)),$(filter payment-processor,$(_SUB_VERTICAL))),--profile dbm,)
 
 .PHONY: help check-op migrate-secrets \
         build rebuild up up-d down logs ps \
@@ -110,22 +113,22 @@ migrate-secrets: ## Print step-by-step instructions to migrate a plain .env to 1
 ## -- Build / lifecycle -------------------------------------------------------
 
 build: ## Build images (uses cache; faster)
-	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_PP_PROFILE) build
+	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_DBM_PROFILE) build
 
 rebuild: ## Build images from scratch (--no-cache; slower, deterministic)
-	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_PP_PROFILE) build --no-cache
+	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_DBM_PROFILE) build --no-cache
 
-up: check-op ## Start otel-collector + simulator (+ DBM stack if DD_DEMO_SUB_VERTICAL=payment-processor)
-	$(OP_RUN) $(COMPOSE) $(_PP_PROFILE) up $(UP_FLAGS)
+up: check-op ## Start otel-collector + simulator (+ DBM stack if DD_DEMO_DBM=true or DD_DEMO_SUB_VERTICAL=payment-processor)
+	$(OP_RUN) $(COMPOSE) $(_DBM_PROFILE) up $(UP_FLAGS)
 
 up-d: check-op ## Same as `up` but detached
-	$(OP_RUN) $(COMPOSE) $(_PP_PROFILE) up $(UP_FLAGS) -d
+	$(OP_RUN) $(COMPOSE) $(_DBM_PROFILE) up $(UP_FLAGS) -d
 
 down: ## Stop and remove the long-running services + any orphans
-	$(COMPOSE) $(_PP_PROFILE) down --remove-orphans
+	$(COMPOSE) $(_DBM_PROFILE) down --remove-orphans
 
 logs: ## Tail logs from running services
-	$(COMPOSE) $(_PP_PROFILE) logs -f
+	$(COMPOSE) $(_DBM_PROFILE) logs -f
 
 ps: ## Show running containers for this project
 	$(COMPOSE) ps
@@ -158,7 +161,7 @@ logs-dbt: ## Tail logs from the dbt runner (build cycles + datadog-ci upload)
 dbt-run-now: check-op ## Trigger an immediate dbt build (no need to wait for the loop interval)
 	$(OP_RUN) $(COMPOSE) exec data-obs-dbt-runner bash -c 'cd /dbt_project && dbt build 2>&1 | tail -30'
 
-## -- Database Monitoring stack (payment-processor DBM demo) -----------------
+## -- Database Monitoring stack (DBM demo — any vertical) --------------------
 
 logs-payment-processor: ## Tail logs from the authorization DB worker
 	$(COMPOSE) logs -f authorization-db-worker
@@ -185,7 +188,7 @@ clean-orphans: ## Remove exited orphan containers from this project
 	fi
 
 clean-all: ## Stop everything for this project, remove containers + orphans
-	$(COMPOSE) $(_PP_PROFILE) down --remove-orphans --volumes
+	$(COMPOSE) $(_DBM_PROFILE) down --remove-orphans --volumes
 
 ## -- Local UI (Phase 1, runs on the SE's laptop, not in Docker) --------------
 

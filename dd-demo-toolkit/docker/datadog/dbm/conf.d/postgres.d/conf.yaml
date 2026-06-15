@@ -17,9 +17,8 @@ instances:
       enabled: true
     tags:
       - service:authorization-engine
-      - team:dd-demo-finance
       - env:demo
-      - vertical:finance
+      - vertical:${DD_DEMO_VERTICAL}
       - dd-demo-toolkit:true
 
 # PostgreSQL log collection — tails the file written to the pg-logs shared volume.
@@ -34,7 +33,5 @@ logs:
     service: authorization-db
     tags:
       - env:demo
-      - vertical:finance
-      - team:dd-demo-finance
+      - vertical:${DD_DEMO_VERTICAL}
       - dd-demo-toolkit:true
-      - incident_domain:payment-authorization

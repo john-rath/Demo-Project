@@ -47,7 +47,7 @@ def _init_tracer() -> trace.Tracer:
         "service.version": "1.0.0",
         "deployment.environment.name": "demo",
         "team": "Payments",
-        "vertical": "finance",
+        "vertical": os.environ.get("DD_DEMO_VERTICAL", "finance"),
         "dd-demo-toolkit": "true",
     })
     provider = TracerProvider(resource=resource)
