@@ -22,6 +22,7 @@
     <button class="tab active" data-tab="configure" type="button">Configure</button>
     <button class="tab" data-tab="simulator" type="button">Simulator</button>
     <button class="tab" data-tab="deploy" type="button">Deploy assets</button>
+    <button class="tab" data-tab="status" type="button">Status</button>
   </nav>
 
   <main>
@@ -252,6 +253,38 @@
         </div>
         <pre class="log-pane" data-log-pane="deploy"></pre>
       </section>
+    </section>
+
+    <!-- =========================== STATUS TAB ============================== -->
+    <section class="tab-panel" data-tab-panel="status" hidden>
+
+      <section class="card" id="card-containers">
+        <div class="status-header">
+          <h2>Containers</h2>
+          <span class="muted status-ts" id="containers-ts"></span>
+          <span class="spacer"></span>
+          <button type="button" id="btn-refresh-status">Refresh</button>
+        </div>
+        <p class="muted">
+          Live state from <code>docker compose ps</code> — reflects all
+          running containers regardless of whether they were started from
+          this UI or the terminal.
+        </p>
+        <div id="containers-content"><p class="muted">Loading&hellip;</p></div>
+      </section>
+
+      <section class="card" id="card-dd-resources">
+        <div class="status-header">
+          <h2>Datadog resources</h2>
+          <span class="muted status-ts" id="dd-resources-ts"></span>
+        </div>
+        <p class="muted">
+          Counts of <code>dd-demo-toolkit:true</code>-tagged resources
+          currently deployed in your Datadog org.
+        </p>
+        <div id="dd-resources-content"><p class="muted">Loading&hellip;</p></div>
+      </section>
+
     </section>
 
   </main>
