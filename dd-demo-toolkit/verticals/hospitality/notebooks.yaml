@@ -33,6 +33,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "WiFi Connected Clients (Extended Stay APAC)"
             requests:
               - formulas:
@@ -50,6 +51,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "WiFi Signal Strength dBm (Extended Stay APAC)"
             requests:
               - formulas:
@@ -67,6 +69,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "Channel Utilization — Below 80% Threshold Despite Outage"
             requests:
               - formulas:
@@ -82,6 +85,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "Retransmit Rate — Drops to 0% as Devices Disconnect"
             requests:
               - formulas:
@@ -108,6 +112,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "Connected Devices per Gateway — Dropped from ~8 to ~1.9"
             requests:
               - formulas:
@@ -125,6 +130,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "Gateway Hardware Health — CPU & Memory Stable Throughout"
             requests:
               - formulas:
@@ -153,6 +159,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "Guest-Facing Failures"
             requests:
               - formulas:
@@ -183,6 +190,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "Luxury Collection APAC — Channel Utilization (Saturation Mode)"
             requests:
               - formulas:
@@ -200,6 +208,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "Luxury Collection vs Extended Stay — Connected Clients Comparison"
             requests:
               - formulas:
@@ -256,6 +265,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "IT Ops — Incidents Created vs Self-Heal Successes"
             requests:
               - formulas:
@@ -275,6 +285,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "Mean Time to Resolution (minutes)"
             requests:
               - formulas:
@@ -348,6 +359,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "RUM — Frontend Errors by View During Incident"
             requests:
               - formulas:
@@ -371,6 +383,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             title: "RUM — Page Load Time (LCP) During Incident"
             requests:
               - formulas:
@@ -430,6 +443,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -450,6 +464,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -474,6 +489,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -514,6 +530,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -534,6 +551,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -556,6 +574,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -578,6 +597,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -614,6 +634,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -634,6 +655,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: "(query1 / query2) * 100"
@@ -657,6 +679,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -693,6 +716,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -717,6 +741,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -737,6 +762,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -777,6 +803,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -797,6 +824,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1
@@ -817,6 +845,7 @@ notebooks:
         attributes:
           definition:
             type: timeseries
+            show_legend: true
             requests:
               - formulas:
                   - formula: query1

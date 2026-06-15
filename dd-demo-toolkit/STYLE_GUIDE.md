@@ -411,6 +411,7 @@ Overlays don't get their own metric namespace — they ride the base one.
 {
   "title": "<metric description with unit>",
   "type": "timeseries",
+  "show_legend": true,
   "requests": [{
     "formulas": [{"formula": "query1"}],
     "queries": [{
@@ -637,6 +638,16 @@ Valid `live_span` values: `1m, 5m, 10m, 15m, 30m, 1h, 4h, 1d, 2d, 1w, 1mo, 3mo, 
 
 ### 8.3 Every timeseries cell needs `formulas`
 See §1.5. This is the #1 cause of empty notebooks.
+
+### 8.3b Every timeseries cell must include `show_legend: true`
+Set `show_legend: true` at the widget definition level (peer of `type` and `requests`) for all timeseries cells. Without it the legend is hidden by default, making multi-series charts unreadable in demos.
+
+```yaml
+definition:
+  type: timeseries
+  show_legend: true
+  requests: [...]
+```
 
 ### 8.4b Notebook `type` valid values
 `postmortem, runbook, investigation, documentation, report, workspace, threat_hunting`.

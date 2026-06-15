@@ -44,6 +44,7 @@ notebooks:
       - attributes:
           definition:
             type: "timeseries"
+            show_legend: true
             requests:
               - response_format: "timeseries"
                 queries:
@@ -75,6 +76,7 @@ notebooks:
       - attributes:
           definition:
             type: "timeseries"
+            show_legend: true
             requests:
               - response_format: "timeseries"
                 queries:
@@ -106,6 +108,7 @@ notebooks:
       - attributes:
           definition:
             type: "timeseries"
+            show_legend: true
             requests:
               - response_format: "timeseries"
                 queries:
