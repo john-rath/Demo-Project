@@ -286,11 +286,187 @@ HOSPITALITY_EVALUATION_DEFINITIONS = EVALUATION_DEFINITIONS
 
 
 # ---------------------------------------------------------------------------
+# Healthcare library — AdventHealth AI Care Companion
+# ---------------------------------------------------------------------------
+# Selected when vertical_name="healthcare". Emits LLM Obs traces under
+# ml_app="ai-care-companion" with clinical-safety + cost evals — the
+# executive-grade healthcare AI story. Same field contract as the other
+# libraries (intent / property_type / region / loyalty_profile etc.); here
+# `property_type` carries the question topic (Medication / Discharge / ...)
+# and `loyalty_profile` carries the patient or clinician profile.
+
+HEALTHCARE_SCENARIOS: List[Dict[str, Any]] = [
+    {
+        "name": "Medication Question — Missed Dose",
+        "user_input": "I forgot my evening metformin yesterday. Should I double up this morning?",
+        "intent": "medication_question",
+        "search_query": "med:metformin, event:missed_dose, patient_role:diabetic",
+        "search_results": "Metformin (AdventHealth med guide) — missed-dose policy; renal-function flag.",
+        "loyalty_profile": '{"patient_id": "pat-1001", "acuity": "stable", "diagnoses": ["T2DM"], "preferences": ["med_reminders"], "language": "en"}',
+        "rag_docs": "Metformin missed-dose policy (AdventHealth): if a dose is missed, skip it and resume the normal schedule; do NOT double up — risk of GI distress and hypoglycemia when combined with other agents. Contact the care team if multiple consecutive doses are missed. Renal function check required every 6 months.",
+        "embedding_input": "metformin, missed dose, double dose, type 2 diabetes, AdventHealth med guide",
+        "recommendation": "Don't double up — skip the missed evening dose and take your normal morning dose. Doubling metformin raises the risk of low blood sugar and stomach upset. If you've missed several doses in a row, message your care team. Want me to log this missed dose and notify your nurse?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Medication",
+        "region": "Americas",
+    },
+    {
+        "name": "Discharge Instructions — Post-Op TKA",
+        "user_input": "After my knee replacement, when can I shower and how do I care for the incision?",
+        "intent": "discharge_instructions",
+        "search_query": "procedure:tka, doc_type:discharge_plan, topic:wound_care",
+        "search_results": "Post-op TKA discharge plan (AdventHealth Orthopedics).",
+        "loyalty_profile": '{"patient_id": "pat-1003", "acuity": "stable", "procedure": "TKA", "post_op_day": 2, "language": "en"}',
+        "rag_docs": "Post-op TKA discharge (AdventHealth Orthopedics): keep incision dry for 48 hours, then showering is permitted; pat (do not rub) the incision dry. No baths, soaking, or pools for 3 weeks. Escalation criteria: spreading redness, drainage, separation, or fever >100.4°F. Follow-up wound check at 10–14 days.",
+        "embedding_input": "knee replacement, shower, incision care, discharge instructions, post-op day 2",
+        "recommendation": "You can shower after the first 48 hours — keep the incision dry until then, then pat (don't rub) it dry. No baths or soaking for 3 weeks. Call us for spreading redness, drainage, or a fever over 100.4°F. Your follow-up wound check is set for day 10. Want me to confirm the appointment?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Discharge",
+        "region": "Americas",
+    },
+    {
+        "name": "Symptom Triage — Chest Tightness (Escalate)",
+        "user_input": "I've had chest tightness and shortness of breath since this morning.",
+        "intent": "symptom_triage",
+        "search_query": "symptom:chest_tightness, symptom:dyspnea, risk:cardiac",
+        "search_results": "Triage policy: chest pain/tightness + dyspnea → emergency pathway; do not self-manage.",
+        "loyalty_profile": '{"patient_id": "pat-1004", "acuity": "critical", "diagnoses": ["HTN","HLD"], "fall_risk": false}',
+        "rag_docs": "AdventHealth triage policy (cardiac): any patient reporting chest tightness or chest pain with associated shortness of breath must be escalated to the emergency pathway. The AI assistant must NOT attempt self-management; immediate human-clinician contact and 911 guidance are required.",
+        "embedding_input": "chest tightness, shortness of breath, possible cardiac, escalation, emergency",
+        "recommendation": "Chest tightness with shortness of breath needs urgent evaluation — I'm escalating you to a clinician right now, and if it gets worse or you develop arm/jaw pain, sweating, or fainting, call 911. I am NOT able to manage this in-app. Connecting you to the on-call clinician.",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Triage",
+        "region": "Americas",
+    },
+    {
+        "name": "Care-Plan Summary — Overnight Status",
+        "user_input": "Summarize overnight status and open care-plan items for bed MedSurg-304.",
+        "intent": "care_plan",
+        "search_query": "bed:MedSurg-304, period:overnight, items:open",
+        "search_results": "MedSurg-304 overnight: telemetry stable; pain 4/10; pending orders (CBC, ambulation); fall-risk flag.",
+        "loyalty_profile": '{"clinician_id": "dr-rivera", "role": "hospitalist", "shift": "day", "scope": "MedSurg-3E"}',
+        "rag_docs": "MedSurg-304 chart snapshot — acuity: critical. Overnight telemetry remained stable (HR 72-88, SpO2 95-97). Pain 4/10 controlled with oxycodone. Open items: pending CBC (ordered 22:00), first ambulation pending PT clearance. Fall-risk flag set; bed alarm confirmed active.",
+        "embedding_input": "overnight summary, MedSurg-304, telemetry, pain, pending orders, fall risk, clinician",
+        "recommendation": "MedSurg-304 (critical): telemetry stable overnight (HR 72-88, SpO2 95-97). Pain 4/10 controlled. Two open items — pending CBC and first ambulation (PT clearance pending). Fall-risk flag is set; bed alarm confirmed active. Want me to draft the order acknowledgements and ping PT?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Care Plan",
+        "region": "Americas",
+    },
+    {
+        "name": "Appointment / Follow-up",
+        "user_input": "When is my next follow-up and what should I bring?",
+        "intent": "appointment",
+        "search_query": "patient_id:pat-1003, type:followup, period:next_30d",
+        "search_results": "Next follow-up: ortho 2026-06-26 09:30 (Dr. Patel). Bring med list, incision photos if redness.",
+        "loyalty_profile": '{"patient_id": "pat-1003", "primary_provider": "Dr. Patel", "portal_consent": true}',
+        "rag_docs": "AdventHealth follow-up policy: arrive 15 minutes early, bring current med list (paper or via portal), insurance card, and any post-op photos of the incision if you've noted concerns. Telehealth is supported for routine follow-ups.",
+        "embedding_input": "next follow-up appointment, what to bring, telehealth option, orthopedic post-op",
+        "recommendation": "Your next follow-up is **Friday, June 26 at 9:30 AM** with Dr. Patel (orthopedics). Please arrive 15 minutes early and bring your current med list and insurance card. If you've noticed any redness or drainage, bring or upload a photo. Telehealth is also an option — want me to switch this to a video visit?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Appointment",
+        "region": "Americas",
+    },
+]
+
+HEALTHCARE_ERROR_SCENARIOS = [
+    {
+        "user_input": "Summarize all medication interactions across my full chart history.",
+        "error_msg": "Context window exceeded: 131,072 token limit. Chart history (228k tokens) exceeds context. Use chunked retrieval / chart summary.",
+    },
+    {
+        "user_input": "What's my temperature trend from the last vitals?",
+        "error_msg": "Model inference timeout after 30000ms — Azure OpenAI endpoint throttled (429 Too Many Requests). Retry budget exhausted.",
+    },
+    {
+        "user_input": "Recommend a specific dose of a controlled substance based on my pain level.",
+        "error_msg": "Clinical-safety guardrail triggered: AI is not authorized to prescribe controlled-substance dosing. Falling back to escalation to clinician.",
+    },
+]
+
+HEALTHCARE_INTENT_PROMPT_VERSIONS = [
+    {
+        "id": "intent-classifier",
+        "version": "1.0.0",
+        "template": "You are AdventHealth's AI Care Companion intent classifier. Classify the user request into one of: {{intents}}. Return JSON with intent and extracted entities.",
+        "variables": {"intents": "medication_question, discharge_instructions, symptom_triage, care_plan, appointment, billing, general_question"},
+        "weight": 0.3,
+    },
+    {
+        "id": "intent-classifier",
+        "version": "2.0.0",
+        "template": "You are AdventHealth's AI Care Companion intent classifier v2. Classify the request and extract structured entities including topic, urgency (routine/urgent/emergency), and whether escalation to a human clinician is required by policy. Intents: {{intents}}. Return JSON.",
+        "variables": {"intents": "medication_question, discharge_instructions, symptom_triage, care_plan, appointment, billing, general_question"},
+        "weight": 0.7,
+    },
+]
+
+HEALTHCARE_RECOMMENDATION_PROMPT_VERSIONS = [
+    {
+        "id": "recommendation-generator",
+        "version": "1.0.0",
+        "template": "You are AdventHealth's AI Care Companion. Answer using ONLY the retrieved care guidance. If the question involves urgent clinical risk, you MUST recommend escalation to a human clinician rather than self-manage. Be plain-language and supportive. Use markdown.",
+        "variables": {},
+        "weight": 0.4,
+    },
+    {
+        "id": "recommendation-generator",
+        "version": "2.1.0",
+        "template": "You are AdventHealth's AI Care Companion. Answer using ONLY the retrieved guidance, citing AdventHealth policies where relevant. NEVER recommend specific controlled-substance dosing. ALWAYS escalate symptom-triage flags (chest pain, dyspnea, neuro changes, severe bleeding) to a human clinician. Format with markdown headers; close with a clear next step the patient or clinician can take.",
+        "variables": {},
+        "weight": 0.6,
+    },
+]
+
+HEALTHCARE_EVALUATION_DEFINITIONS = [
+    {
+        "label": "clinical_groundedness",
+        "metric_type": "score",
+        "range": (0.85, 0.99),
+        "error_range": (0.35, 0.65),
+        "description": "Was the answer grounded in AdventHealth's care guidance?",
+    },
+    {
+        "label": "hallucination_risk",
+        "metric_type": "score",
+        "range": (0.0, 0.08),  # lower is better
+        "error_range": (0.30, 0.60),
+        "description": "Risk that the answer contains unsupported clinical content (lower is better).",
+    },
+    {
+        "label": "phi_handling",
+        "metric_type": "score",
+        "range": (0.92, 1.0),
+        "error_range": (0.6, 0.85),
+        "description": "Was PHI handled per policy (no unnecessary disclosure)?",
+    },
+    {
+        "label": "answer_relevance",
+        "metric_type": "score",
+        "range": (0.85, 0.99),
+        "error_range": (0.4, 0.7),
+        "description": "Relevance of the response to the patient/clinician question.",
+    },
+    {
+        "label": "escalation_appropriateness",
+        "metric_type": "categorical",
+        "categories": ["appropriate", "appropriate", "appropriate", "under-escalated"],
+        "error_categories": ["under-escalated", "over-escalated"],
+        "description": "Did the AI escalate to a human at the right time (per AdventHealth triage policy)?",
+    },
+]
+
+
+# ---------------------------------------------------------------------------
 # Generic library — vertical-neutral AI Assistant
 # ---------------------------------------------------------------------------
-# Used by default for any vertical that isn't finance or hospitality (e.g.
-# healthcare). A plain enterprise knowledge/support assistant so the LLM Obs
-# traces aren't tied to a specific industry. Reuses the same field names as the
+# Used by default for any vertical without its own library. A plain enterprise
+# knowledge/support assistant so the LLM Obs traces aren't tied to a specific
+# industry. Reuses the same field names as the
 # other libraries (`intent`, `property_type`, `region`) for compatibility —
 # here `property_type` carries a generic topic and `loyalty_profile` a generic
 # user profile. Span attribute keys are emitted under the `assistant.*` prefix.
@@ -838,6 +1014,22 @@ class LLMObsSubmitter:
             self._scenario_attr_prefix = "ey"
             self._service_host = "risk-eval-agent-01"
             self._service_framework = "langgraph"
+        elif vertical_name == "healthcare":
+            # AdventHealth AI Care Companion — healthcare LLM Obs traces with
+            # clinical-safety + cost evals. Emitted by the simulator (proven
+            # OTel GenAI path) under ml_app=ai-care-companion.
+            SCENARIOS = HEALTHCARE_SCENARIOS
+            ERROR_SCENARIOS = HEALTHCARE_ERROR_SCENARIOS
+            EVALUATION_DEFINITIONS = HEALTHCARE_EVALUATION_DEFINITIONS
+            INTENT_PROMPT_VERSIONS = HEALTHCARE_INTENT_PROMPT_VERSIONS
+            RECOMMENDATION_PROMPT_VERSIONS = HEALTHCARE_RECOMMENDATION_PROMPT_VERSIONS
+            # MODEL_VARIANTS is vertical-neutral; reuse default.
+            self._service_name = "ai-care-companion"
+            self._display_name = "AI Care Companion"
+            self._ml_app = "ai-care-companion"
+            self._scenario_attr_prefix = "care_companion"
+            self._service_host = "ai-care-companion-01"
+            self._service_framework = "langchain"
         elif vertical_name == "hospitality":
             # Restore the curated AI Stay Planner library explicitly.
             SCENARIOS = HOSPITALITY_SCENARIOS

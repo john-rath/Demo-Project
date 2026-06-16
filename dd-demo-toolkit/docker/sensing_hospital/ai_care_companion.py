@@ -1,27 +1,26 @@
 """ai-care-companion — the executive-grade healthcare AI service.
 
 A patient/clinician "AI Care Companion": answers medication, discharge,
-symptom-triage, and care-plan questions. It's the AI story for the CIO/CEO:
+symptom-triage, and care-plan questions. The AI story for the CIO/CEO:
 
-  RUM (care-portal) -> APM (this service) -> LLM Observability (the model call,
-  with clinical-safety + cost evals) -> infra. One linked trace, end to end.
+  RUM (care-portal) -> APM (this service, via dd-trace) -> service-level
+  correlation with LLM Observability traces emitted by the simulator under
+  ml_app=ai-care-companion (the proven OTel GenAI path that powers your
+  existing stay-planner / risk-eval-agent traces).
 
-Telemetry, two layers:
-  1. **DogStatsD custom metrics** (`care.companion.*`) — reliable signal that
-     drives the monitors + RCA notebook (hallucination risk, escalation rate,
-     RAG latency, tokens, cost). These are what we triage live.
-  2. **LLM Observability spans** via the ddtrace LLMObs SDK (workflow -> task ->
-     retrieval -> llm) with per-interaction evaluations. Best-effort: wrapped so
-     an SDK/version difference never fails a request (the APM trace + metrics
-     still flow).
+Telemetry this container emits:
+  1. **APM** — every /ask is a dd-trace span (auto-instrumented via ddtrace-run).
+  2. **DogStatsD `care.companion.*` metrics** — drive the monitors + RCA
+     notebook: hallucination risk, escalation rate, RAG latency, tokens, cost.
+  3. **The 30-min problem pattern** — every 30 minutes the service self-
+     degrades for ~5 minutes: RAG knowledge-base latency spikes, the
+     hallucination-risk metric climbs, escalation rate rises, and patient-
+     facing latency goes up. Monitors fire; the notebook walks the RCA.
 
-Problem pattern (the "you MUST have Datadog" moment): every 30 minutes the
-service self-degrades for ~5 minutes — the RAG knowledge base slows, so the
-model starts guessing: hallucination-risk climbs, escalation-to-human spikes,
-and patient-facing latency rises. Caught live in LLM Obs + the linked trace
-before it reaches a patient. See the AdventHealth overlay notebook + monitors.
-
-DD_SERVICE / DD_LLMOBS_ML_APP / tags come from docker-compose.
+LLM Observability traces themselves are emitted by `dd_demo_toolkit/simulator/
+llm_obs.py` (healthcare scenario library, ml_app=ai-care-companion) — same path
+as the rest of the toolkit's LLM Obs content. Service-level correlation
+(DD_SERVICE=ai-care-companion on both sides) is how they tie together.
 """
 from __future__ import annotations
 
@@ -34,21 +33,8 @@ from fastapi import FastAPI
 
 from metrics import statsd
 
-# LLM Observability SDK — enabled via DD_LLMOBS_ENABLED=1 + DD_LLMOBS_ML_APP +
-# ddtrace-run. Import defensively so the service runs even if unavailable.
-try:
-    from ddtrace.llmobs import LLMObs
-    _LLMOBS = True
-except Exception:  # pragma: no cover
-    LLMObs = None
-    _LLMOBS = False
-
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("ai-care-companion")
-
-ML_APP = os.getenv("DD_LLMOBS_ML_APP", "ai-care-companion")
-MODEL = "gpt-4o"
-PROVIDER = "azure_openai"
 
 # Problem-pattern cadence: a ~5-min degraded window at the end of every 30 min.
 CYCLE_SEC = int(os.getenv("COMPANION_CYCLE_SEC", "1800"))
@@ -129,8 +115,6 @@ def ask(body: dict | None = None):
 
     _emit_metrics(scenario, phase, retrieval_ms, total_ms, hallucination_risk,
                   groundedness, escalate, input_tokens + output_tokens, cost_usd)
-    _emit_llmobs(scenario, phase, retrieval_ms, input_tokens, output_tokens,
-                 hallucination_risk, groundedness, escalate)
 
     return {
         "answer": scenario["answer"],
@@ -154,42 +138,3 @@ def _emit_metrics(scenario, phase, retrieval_ms, total_ms, halluc, grounded, esc
     statsd.gauge("care.companion.cost_usd", cost, tags=tags)
     if escalate:
         statsd.increment("care.companion.escalations_total", tags=tags)
-
-
-def _emit_llmobs(scenario, phase, retrieval_ms, in_tok, out_tok, halluc, grounded, escalate):
-    """Best-effort LLM Obs spans + evals. Never raise into the request path."""
-    if not _LLMOBS:
-        return
-    try:
-        with LLMObs.workflow(name="care_companion_request") as wf:
-            LLMObs.annotate(input_data=scenario["question"],
-                            tags={"scenario": scenario["type"], "role": scenario["role"], "phase": phase})
-            with LLMObs.task(name="intent_classification"):
-                LLMObs.annotate(output_data=scenario["type"])
-            with LLMObs.retrieval(name="care_knowledge_base"):
-                LLMObs.annotate(input_data=scenario["question"],
-                                output_data=[{"text": scenario["kb"], "name": "care-kb"}])
-            with LLMObs.llm(model_name=MODEL, model_provider=PROVIDER, name="generate_response"):
-                LLMObs.annotate(
-                    input_data=[{"role": "system", "content": "You are AdventHealth's AI Care Companion. Answer ONLY from the retrieved care guidance; escalate clinical-risk questions to a human."},
-                                {"role": scenario["role"], "content": scenario["question"]}],
-                    output_data=[{"role": "assistant", "content": scenario["answer"]}],
-                    metrics={"input_tokens": in_tok, "output_tokens": out_tok, "total_tokens": in_tok + out_tok},
-                )
-            _submit_evals(wf, halluc, grounded, escalate)
-    except Exception as e:  # pragma: no cover
-        log.debug("LLMObs emit skipped: %s", e)
-
-
-def _submit_evals(span, halluc, grounded, escalate):
-    try:
-        ctx = LLMObs.export_span(span=span)
-        evals = [
-            ("hallucination_risk", "score", halluc),
-            ("clinical_groundedness", "score", grounded),
-            ("escalated_to_human", "categorical", "yes" if escalate else "no"),
-        ]
-        for label, mtype, value in evals:
-            LLMObs.submit_evaluation(span=ctx, ml_app=ML_APP, label=label, metric_type=mtype, value=value)
-    except Exception as e:  # pragma: no cover — SDK signature differences are non-fatal
-        log.debug("submit_evaluation skipped: %s", e)

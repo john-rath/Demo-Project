@@ -882,10 +882,6 @@ services:
       - DD_VERSION=1.0.0
       - DD_DEPLOYMENT=cloud
       - DD_LOGS_INJECTION=true
-      # LLM Observability via the ddtrace SDK, routed through the Agent.
-      - DD_LLMOBS_ENABLED=1
-      - DD_LLMOBS_ML_APP=ai-care-companion
-      - DD_LLMOBS_AGENTLESS_ENABLED=0
       - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:ai-care-companion deployment:cloud team:digital-health
     restart: unless-stopped
     profiles:
