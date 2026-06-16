@@ -1,7 +1,7 @@
 """
 LLM Observability trace generator using OpenTelemetry GenAI semantic conventions.
 
-Generates realistic AI Stay Planner traces that flow through the OTel collector
+Generates realistic AI agent traces that flow through the OTel collector
 and are mapped by Datadog's OTel exporter to LLM Observability.
 
 OTel GenAI semantic conventions (v1.37+):
@@ -270,6 +270,163 @@ EVALUATION_DEFINITIONS = [
         "categories": ["positive", "positive", "positive", "neutral"],  # weighted toward positive
         "error_categories": ["negative", "neutral"],
         "description": "Sentiment of the recommendation response",
+    },
+]
+
+
+# Capture the hospitality library (the module-level defaults above) under
+# explicit names so the hospitality branch can restore them regardless of any
+# prior global reassignment by finance/generic.
+HOSPITALITY_SCENARIOS = SCENARIOS
+HOSPITALITY_ERROR_SCENARIOS = ERROR_SCENARIOS
+HOSPITALITY_INTENT_PROMPT_VERSIONS = INTENT_PROMPT_VERSIONS
+HOSPITALITY_RECOMMENDATION_PROMPT_VERSIONS = RECOMMENDATION_PROMPT_VERSIONS
+HOSPITALITY_MODEL_VARIANTS = MODEL_VARIANTS
+HOSPITALITY_EVALUATION_DEFINITIONS = EVALUATION_DEFINITIONS
+
+
+# ---------------------------------------------------------------------------
+# Generic library — vertical-neutral AI Assistant
+# ---------------------------------------------------------------------------
+# Used by default for any vertical that isn't finance or hospitality (e.g.
+# healthcare). A plain enterprise knowledge/support assistant so the LLM Obs
+# traces aren't tied to a specific industry. Reuses the same field names as the
+# other libraries (`intent`, `property_type`, `region`) for compatibility —
+# here `property_type` carries a generic topic and `loyalty_profile` a generic
+# user profile. Span attribute keys are emitted under the `assistant.*` prefix.
+
+GENERIC_SCENARIOS: List[Dict[str, Any]] = [
+    {
+        "name": "Account Access Help",
+        "user_input": "I can't log in — my MFA device was replaced and I'm locked out. Enterprise admin account.",
+        "intent": "account_access",
+        "search_query": "topic:mfa_reset, account_type:admin, plan:enterprise, channel:assistant",
+        "search_results": "KB-1042 MFA reset procedure, KB-088 admin recovery, ticket history (no prior lockouts), identity-provider status: operational.",
+        "loyalty_profile": '{"plan": "Enterprise", "role": "admin", "tenure_months": 18, "preferences": ["email_updates"], "seats": 240}',
+        "rag_docs": "MFA reset (KB-1042): admins can self-serve a reset from Settings → Security → Reset MFA after verifying via the recovery email on file. If the recovery email is also unavailable, an org owner can trigger a reset from the Members page. Lockouts auto-clear after 15 minutes of no attempts. SSO-backed orgs reset MFA at the identity provider, not in-app.",
+        "embedding_input": "mfa reset, locked out, replaced device, enterprise admin, recovery email, sso",
+        "recommendation": "Here's how to get back in:\n\n**Fastest path (self-serve):**\n1. Go to **Settings → Security → Reset MFA**.\n2. Verify with the recovery email on file.\n3. Re-enroll your new device.\n\n**If the recovery email is also unavailable:**\n- Have an **org owner** reset it for you from the **Members** page.\n\n**If your org uses SSO:** the MFA reset happens at your identity provider, not here — contact your IdP admin.\n\nLockouts also auto-clear after 15 minutes of no attempts. Want me to open a ticket as a backup?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Account & Access",
+        "region": "Americas",
+    },
+    {
+        "name": "How-To: Export a Report",
+        "user_input": "How do I export last quarter's usage report as a CSV and schedule it to email monthly?",
+        "intent": "how_to",
+        "search_query": "topic:report_export, format:csv, schedule:monthly, plan:enterprise",
+        "search_results": "KB-2210 exporting reports, KB-2231 scheduled exports, feature availability: scheduled exports on Enterprise plan.",
+        "loyalty_profile": '{"plan": "Enterprise", "role": "analyst", "tenure_months": 6, "preferences": ["csv", "scheduled_reports"]}',
+        "rag_docs": "Exporting (KB-2210): open the report, set the time range, then Export → CSV. Scheduled exports (KB-2231, Enterprise only): from a saved report choose Schedule → frequency (daily/weekly/monthly) → recipients. Scheduled CSVs are delivered as email attachments; files over 25MB are linked instead of attached.",
+        "embedding_input": "export report, csv, schedule monthly, email delivery, saved report, enterprise",
+        "recommendation": "Two steps:\n\n**1) Export last quarter as CSV**\n- Open the report, set the time range to **last quarter**.\n- Click **Export → CSV**.\n\n**2) Schedule it monthly**\n- Save the report first (Scheduling works off a saved report).\n- Choose **Schedule → Monthly**, add recipients.\n- It'll arrive as an email attachment; files over 25MB come as a download link.\n\nScheduled exports are an **Enterprise** feature — which your org has. Want me to set the schedule to the first of each month?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Reporting",
+        "region": "EMEA",
+    },
+    {
+        "name": "Troubleshooting: Slow Dashboard",
+        "user_input": "One of my dashboards takes 20+ seconds to load. The others are fine. What should I check?",
+        "intent": "troubleshooting",
+        "search_query": "topic:dashboard_performance, symptom:slow_load, scope:single_dashboard",
+        "search_results": "KB-3301 dashboard performance, KB-3318 widget query cost, telemetry: 38 widgets on the affected dashboard, 9 with wide time ranges.",
+        "loyalty_profile": '{"plan": "Enterprise", "role": "editor", "tenure_months": 31, "preferences": ["dark_mode"]}',
+        "rag_docs": "Dashboard performance (KB-3301): load time scales with widget count and per-widget query cost. Common causes: too many widgets on one board (>30), widgets with very wide time ranges, and high-cardinality group-bys. Fixes: split into multiple boards, narrow default time range, reduce group-by cardinality, and use scalar widgets instead of timeseries where a single number suffices.",
+        "embedding_input": "slow dashboard, 20 seconds load, single dashboard, widget count, time range, cardinality",
+        "recommendation": "Since only one dashboard is slow, it's almost certainly that board's query load, not the platform. Check, in order:\n\n1. **Widget count** — this board has **38 widgets**; anything over ~30 noticeably slows load. Split it into 2 boards.\n2. **Wide time ranges** — 9 widgets pull very wide ranges. Narrow the dashboard's default window.\n3. **High-cardinality group-bys** — reduce `by {…}` cardinality where you can.\n4. **Use scalar widgets** for single-number views instead of timeseries.\n\nStart with the split — it's the biggest win here. Want me to flag the 9 wide-range widgets?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Performance",
+        "region": "APAC",
+    },
+]
+
+GENERIC_ERROR_SCENARIOS = [
+    {
+        "user_input": "Summarize every knowledge-base article we have about billing.",
+        "error_msg": "Context window exceeded: 131,072 token limit. Input context (158,402 tokens) includes 214 KB articles. Use chunked retrieval.",
+    },
+    {
+        "user_input": "What's the status of my open ticket?",
+        "error_msg": "Model inference timeout after 30000ms — provider endpoint throttled (429 Too Many Requests). Retry budget exhausted.",
+    },
+    {
+        "user_input": "Compare our pricing to your competitors and tell me who's cheaper.",
+        "error_msg": "Guardrail triggered: response contained unverified competitor claim. Content filter blocked output. Falling back to curated response.",
+    },
+]
+
+GENERIC_INTENT_PROMPT_VERSIONS = [
+    {
+        "id": "intent-classifier",
+        "version": "1.0.0",
+        "template": "You are an enterprise AI assistant's intent classifier. Classify the user request into one of: {{intents}}. Return JSON with intent and extracted entities.",
+        "variables": {"intents": "account_access, how_to, troubleshooting, billing, feature_request, general_question"},
+        "weight": 0.3,
+    },
+    {
+        "id": "intent-classifier",
+        "version": "2.0.0",
+        "template": "You are an enterprise AI assistant's intent classifier v2. Classify the request and extract structured entities including topic, plan, and urgency. Intents: {{intents}}. Return JSON.",
+        "variables": {"intents": "account_access, how_to, troubleshooting, billing, feature_request, general_question"},
+        "weight": 0.7,
+    },
+]
+
+GENERIC_RECOMMENDATION_PROMPT_VERSIONS = [
+    {
+        "id": "recommendation-generator",
+        "version": "1.0.0",
+        "template": "You are a helpful enterprise AI assistant. Answer the user's question accurately using the retrieved knowledge. Be specific and actionable. Use markdown formatting.",
+        "variables": {},
+        "weight": 0.4,
+    },
+    {
+        "id": "recommendation-generator",
+        "version": "2.1.0",
+        "template": "You are a helpful enterprise AI assistant. Answer the user's question using ONLY the retrieved knowledge; if the answer isn't supported, say so. Prioritise: 1) correctness, 2) the shortest path to resolution, 3) a clear next step. Format with markdown headers.",
+        "variables": {},
+        "weight": 0.6,
+    },
+]
+
+GENERIC_EVALUATION_DEFINITIONS = [
+    {
+        "label": "answer_relevance",
+        "metric_type": "score",
+        "range": (0.82, 0.99),
+        "error_range": (0.3, 0.6),
+        "description": "Relevance of the response to the user's question",
+    },
+    {
+        "label": "faithfulness",
+        "metric_type": "score",
+        "range": (0.7, 1.0),
+        "error_range": (0.2, 0.5),
+        "description": "Groundedness of the answer in the retrieved knowledge",
+    },
+    {
+        "label": "hallucination_score",
+        "metric_type": "score",
+        "range": (0.0, 0.08),
+        "error_range": (0.15, 0.45),
+        "description": "Hallucination detection — lower is better",
+    },
+    {
+        "label": "completeness",
+        "metric_type": "score",
+        "range": (0.75, 0.98),
+        "error_range": (0.2, 0.5),
+        "description": "Whether the answer fully addresses the request",
+    },
+    {
+        "label": "sentiment",
+        "metric_type": "categorical",
+        "categories": ["positive", "positive", "positive", "neutral"],
+        "error_categories": ["negative", "neutral"],
+        "description": "Sentiment of the assistant response",
     },
 ]
 
@@ -660,15 +817,15 @@ class LLMObsSubmitter:
         self._error_rate = 0.05
 
         # ---- Vertical-aware library selection --------------------------
-        # The hospitality scenario set is the historical default. When the
-        # active vertical is finance, swap the module-level constants so
-        # the generated traces talk like an EY Risk Portfolio agent
-        # instead of an AI Stay Planner. Only one LLMObsSubmitter exists
-        # per process, so global reassignment is safe.
+        # Default is a vertical-neutral AI Assistant. `finance` swaps to the
+        # EY Risk Portfolio agent and `hospitality` to the AI Stay Planner;
+        # every other vertical (healthcare, insurance, ...) gets the generic
+        # assistant so traces aren't tied to an industry. Only one
+        # LLMObsSubmitter exists per process, so global reassignment is safe.
+        global SCENARIOS, ERROR_SCENARIOS, MODEL_VARIANTS
+        global EVALUATION_DEFINITIONS, INTENT_PROMPT_VERSIONS
+        global RECOMMENDATION_PROMPT_VERSIONS
         if vertical_name == "finance":
-            global SCENARIOS, ERROR_SCENARIOS, MODEL_VARIANTS
-            global EVALUATION_DEFINITIONS, INTENT_PROMPT_VERSIONS
-            global RECOMMENDATION_PROMPT_VERSIONS
             SCENARIOS = FINANCE_SCENARIOS
             ERROR_SCENARIOS = FINANCE_ERROR_SCENARIOS
             MODEL_VARIANTS = FINANCE_MODEL_VARIANTS
@@ -681,12 +838,32 @@ class LLMObsSubmitter:
             self._scenario_attr_prefix = "ey"
             self._service_host = "risk-eval-agent-01"
             self._service_framework = "langgraph"
-        else:
+        elif vertical_name == "hospitality":
+            # Restore the curated AI Stay Planner library explicitly.
+            SCENARIOS = HOSPITALITY_SCENARIOS
+            ERROR_SCENARIOS = HOSPITALITY_ERROR_SCENARIOS
+            MODEL_VARIANTS = HOSPITALITY_MODEL_VARIANTS
+            EVALUATION_DEFINITIONS = HOSPITALITY_EVALUATION_DEFINITIONS
+            INTENT_PROMPT_VERSIONS = HOSPITALITY_INTENT_PROMPT_VERSIONS
+            RECOMMENDATION_PROMPT_VERSIONS = HOSPITALITY_RECOMMENDATION_PROMPT_VERSIONS
             self._service_name = "ai-stay-planner"
-            self._display_name = "Hospitality"
+            self._display_name = "AI Stay Planner"
             self._ml_app = "ai-stay-planner"
             self._scenario_attr_prefix = "hospitality"
             self._service_host = "ai-stay-planner-host-01"
+            self._service_framework = "langchain"
+        else:
+            SCENARIOS = GENERIC_SCENARIOS
+            ERROR_SCENARIOS = GENERIC_ERROR_SCENARIOS
+            EVALUATION_DEFINITIONS = GENERIC_EVALUATION_DEFINITIONS
+            INTENT_PROMPT_VERSIONS = GENERIC_INTENT_PROMPT_VERSIONS
+            RECOMMENDATION_PROMPT_VERSIONS = GENERIC_RECOMMENDATION_PROMPT_VERSIONS
+            # MODEL_VARIANTS is vertical-neutral — reuse the module default.
+            self._service_name = "ai-assistant"
+            self._display_name = "AI Assistant"
+            self._ml_app = "ai-assistant"
+            self._scenario_attr_prefix = "assistant"
+            self._service_host = "ai-assistant-01"
             self._service_framework = "langchain"
 
         # Dedicated TracerProvider for the configured LLM-agent service.
@@ -718,7 +895,7 @@ class LLMObsSubmitter:
 
         logger.info(
             f"LLM Obs: OTel GenAI trace generator initialised "
-            f"(endpoint={endpoint}, vertical={vertical_name or 'hospitality'}, "
+            f"(endpoint={endpoint}, vertical={vertical_name or 'generic'}, "
             f"service={self._service_name}, semconv=v1.37+, "
             f"evals={'enabled' if self._eval._enabled else 'disabled'})"
         )
@@ -748,7 +925,7 @@ class LLMObsSubmitter:
     # ------------------------------------------------------------------
 
     def _generate_trace(self, scenario: Dict[str, Any]) -> None:
-        """Generate a full AI Stay Planner trace with nested GenAI spans."""
+        """Generate a full agent trace with nested GenAI spans."""
         session_id = str(uuid.uuid4())
 
         # Select model variant for this trace (A/B experiment)
@@ -766,7 +943,7 @@ class LLMObsSubmitter:
                 "session.id": session_id,
                 f"{prefix}.scenario": scenario["name"],
                 f"{prefix}.intent": scenario["intent"],
-                f"{prefix}.property_type": scenario["property_type"],
+                f"{prefix}.topic": scenario["property_type"],
                 f"{prefix}.region": scenario["region"],
                 "ml_app": self._ml_app,
                 model_variant["experiment_tag"].split(":")[0]: model_variant["experiment_tag"].split(":")[1],
@@ -783,31 +960,31 @@ class LLMObsSubmitter:
             self._intent_classification(scenario, model_variant)
             _sim_delay(0.08, 0.16)
 
-            # 2. Property Availability Search (tool call)
+            # 2. Catalog / availability search (tool call)
             self._tool_call(
-                name="Property Availability Search",
+                name="Catalog Search",
                 input_value=scenario["search_query"],
                 output_value=scenario["search_results"],
-                tool_name="property_search_api",
+                tool_name="catalog_search_api",
                 duration_range=(0.05, 0.12),
             )
             _sim_delay(0.04, 0.08)
 
-            # 3. Loyalty Profile Lookup (tool call)
+            # 3. User profile lookup (tool call)
             self._tool_call(
-                name="Loyalty Profile Lookup",
-                input_value="Fetch loyalty profile, preferences, and stay history",
+                name="User Profile Lookup",
+                input_value="Fetch user profile, plan, and preferences",
                 output_value=scenario["loyalty_profile"],
-                tool_name="loyalty_profile_api",
+                tool_name="user_profile_api",
                 duration_range=(0.03, 0.08),
             )
             _sim_delay(0.03, 0.06)
 
-            # 4. Guest Preference Embedding
+            # 4. Query embedding
             self._embedding_call(scenario, model_variant)
             _sim_delay(0.02, 0.05)
 
-            # 5. Property Knowledge Base RAG Retrieval
+            # 5. Knowledge base RAG retrieval
             self._retrieval_call(scenario)
             _sim_delay(0.03, 0.06)
 
@@ -856,8 +1033,8 @@ class LLMObsSubmitter:
             "intent": scenario["intent"],
             "confidence": round(random.uniform(0.92, 0.99), 3),
             "entities": {
-                "destination": scenario["search_query"].split(",")[0],
-                "property_type_preference": scenario["property_type"],
+                "primary_entity": scenario["search_query"].split(",")[0],
+                "topic": scenario["property_type"],
             },
         })
 
@@ -940,7 +1117,7 @@ class LLMObsSubmitter:
         input_tokens = len(scenario["embedding_input"].split()) * 2
 
         with self._tracer.start_as_current_span(
-            "Guest Preference Embedding",
+            "Query Embedding",
             kind=SpanKind.CLIENT,
             attributes={
                 "gen_ai.system": model_variant["provider"],
@@ -970,11 +1147,11 @@ class LLMObsSubmitter:
     def _retrieval_call(self, scenario: Dict[str, Any]) -> None:
         """Generate a RAG retrieval span."""
         with self._tracer.start_as_current_span(
-            "Property Knowledge Base",
+            "Knowledge Base",
             kind=SpanKind.CLIENT,
             attributes={
                 "gen_ai.operation.name": "retrieval",
-                "retrieval.source": "property-knowledge-base",
+                "retrieval.source": "knowledge-base",
                 "retrieval.top_k": 3,
                 "gen_ai.input.messages": _format_input_messages([
                     {"role": "user", "content": scenario["embedding_input"]},
@@ -1003,7 +1180,7 @@ class LLMObsSubmitter:
         messages = [
             {"role": "system", "content": system_content},
             {"role": "user", "content": scenario["user_input"]},
-            {"role": "assistant", "content": f"[Intent: {scenario['intent']}]\n[Properties: {scenario['search_results']}]\n[Profile: {scenario['loyalty_profile']}]\n[Knowledge: {scenario['rag_docs']}]"},
+            {"role": "assistant", "content": f"[Intent: {scenario['intent']}]\n[Results: {scenario['search_results']}]\n[Profile: {scenario['loyalty_profile']}]\n[Knowledge: {scenario['rag_docs']}]"},
             {"role": "user", "content": "Now generate the personalised recommendation based on all context above."},
         ]
 
