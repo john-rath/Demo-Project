@@ -1,0 +1,24 @@
+init_config:
+
+instances:
+  - host: sensing-postgres
+    port: 5432
+    username: datadog
+    password: datadog
+    dbname: sensing
+    dbm: true
+    collect_schemas:
+      enabled: true
+    query_metrics:
+      enabled: true
+    query_samples:
+      enabled: true
+    query_activity:
+      enabled: true
+    tags:
+      - service:sensing-postgres
+      - env:demo
+      - vertical:healthcare
+      - incident_domain:care-experience
+      - deployment:cloud
+      - dd-demo-toolkit:true
