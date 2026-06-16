@@ -53,3 +53,6 @@ logs/
 .DS_Store
 Desktop.ini
 docker/sensing_hospital/ccm/focus_costs.csv
+
+# Private location config + any other local-only secrets (file-mounted into containers).
+.secrets/

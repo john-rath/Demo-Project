@@ -716,14 +716,15 @@ services:
   synthetics-private-location:
     image: datadog/synthetics-private-location-worker:latest
     container_name: dd-demo-synthetics-pl
-    environment:
-      # JSON config blob Datadog returns when you create a private location.
-      # Optional + empty-default on purpose: compose interpolates the whole
-      # file before filtering by profile, so a `:?` (required) here would
-      # break EVERY compose call (build/up) when it's unset. The worker only
-      # runs under `make up-synthetics`; set this in .env before that. RUM
-      # also populates without it — just open the care-portal in a browser.
-      - DATADOG_PRIVATE_LOCATION_CONFIG=${DATADOG_PRIVATE_LOCATION_CONFIG:-}
+    # Mount the PL config JSON Datadog downloads when you create the Private
+    # Location. Save it to ./.secrets/synthetics-pl-config.json (gitignored).
+    # Cleaner than trying to one-line the JSON (with its embedded PEM key) into
+    # an env var. The worker reads /etc/datadog/synthetics-check-runner.json
+    # by default. The file path is host-side; if it doesn't exist yet, the
+    # worker container will exit — that's fine because it's behind the opt-in
+    # `synthetics` profile and only starts via `make up-synthetics`.
+    volumes:
+      - ./.secrets/synthetics-pl-config.json:/etc/datadog/synthetics-check-runner.json:ro
     restart: unless-stopped
     profiles:
       - synthetics
