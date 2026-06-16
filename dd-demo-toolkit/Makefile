@@ -187,11 +187,11 @@ build-mock-app: ## Build the Sensing Hospital mock-app images
 logs-mock-app: ## Tail logs from the mock-app microservices + edge fleet
 	$(COMPOSE) logs -f care-portal care-summary-api ai-care-companion rtls-location-service care-experience-platform care-event-router care-event-consumer room-sensing-gateway patient-context-service clinical-alerts-service notification-service edge-device-fleet remediation-controller
 
-up-traffic: check-op ## Start the real-browser RUM traffic generator (Playwright) — run with the mock-app up
-	$(OP_RUN) $(COMPOSE) --profile mock-app --profile traffic up $(UP_FLAGS) -d rum-traffic-generator
+up-traffic: check-op ## Start just the RUM traffic generator (mock-app must be running)
+	$(OP_RUN) $(COMPOSE) --profile mock-app up $(UP_FLAGS) -d rum-traffic-generator
 
-down-traffic: ## Stop the RUM traffic generator
-	$(COMPOSE) --profile traffic down --remove-orphans
+down-traffic: ## Stop just the RUM traffic generator (leaves the rest of mock-app running)
+	$(COMPOSE) stop rum-traffic-generator
 
 logs-traffic: ## Tail the RUM traffic generator
 	$(COMPOSE) logs -f rum-traffic-generator
