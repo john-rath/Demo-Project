@@ -161,7 +161,7 @@ services:
   # never use env_file for DD_API_KEY, always require it from the compose
   # shell env via :? (populated by `op run`).
   datadog-agent:
-    image: gcr.io/datadoghq/agent:7
+    image: gcr.io/datadoghq/agent:latest
     container_name: dd-demo-datadog-agent
     environment:
       - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up-data-obs`}
@@ -172,6 +172,10 @@ services:
       - DD_DATA_STREAMS_ENABLED=true
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      # Silence the auto-multiline tokenizer "Tokens are required ..." ERROR
+      # spam (same fix as datadog-agent-sh); harmless on older agents.
+      - DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION=false
+      - DD_LOGS_CONFIG_FORCE_AUTO_MULTI_LINE_DETECTION_V1=true
       - DD_CONTAINER_EXCLUDE=name:dd-demo-kafka
       - DD_TAGS=dd-demo-toolkit:true vertical:finance incident_domain:ai-eval-pipeline env:demo
     volumes:
@@ -446,7 +450,7 @@ services:
   # Same secret-handling pattern as the rest of the stack (no env_file for
   # DD_API_KEY; requires op run via `make up-payment-processor`).
   datadog-agent-pp:
-    image: gcr.io/datadoghq/agent:7
+    image: gcr.io/datadoghq/agent:latest
     container_name: dd-demo-datadog-agent-pp
     depends_on:
       authorization-db:
@@ -458,6 +462,9 @@ services:
       - DD_APM_ENABLED=false
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=false
+      # Silence the auto-multiline tokenizer "Tokens are required ..." ERROR spam.
+      - DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION=false
+      - DD_LOGS_CONFIG_FORCE_AUTO_MULTI_LINE_DETECTION_V1=true
       - DD_PROCESS_AGENT_ENABLED=false
       - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-finance}
       - DD_TAGS=service:authorization-engine env:demo vertical:${DD_DEMO_VERTICAL:-finance} dd-demo-toolkit:true
