@@ -39,16 +39,20 @@ Within a minute you should see, in Datadog:
 - **Logs** — trace-correlated, from every container.
 
 ## 3. RUM + Synthetics (browser traffic)
-RUM needs a real browser. Either open `http://localhost:8800` yourself, or use
-the Synthetic private location:
+**RUM is turnkey** when `rum` is ticked in the product picker: `make ui` (and
+`make rum-provision`) find-or-create the RUM application, store the client token
+in your **1Password** Datadog item (auto-derived from `DD_API_KEY`'s `op://`
+ref), and write `DD_RUM_APPLICATION_ID` + `DD_CLIENT_TOKEN=op://…` to `.env`.
+No paste, no plain secret on disk. Then just open `http://localhost:8800` in a
+browser — RUM only flows once a real browser loads the page (it auto-polls).
+
+For hands-off browser traffic, use the Synthetic private location:
 ```bash
 # One-time: create a Private Location in Datadog, paste its config + id into .env
 #   DATADOG_PRIVATE_LOCATION_CONFIG=... , DD_SYNTHETICS_PRIVATE_LOCATION_ID=pl:...
 make up-synthetics
 make synthetics-create            # browser test on care-portal + API test
 ```
-RUM creds (`DD_RUM_APPLICATION_ID`, `DD_CLIENT_TOKEN`) are set on the Configure
-tab of `make ui` (or directly in `.env`).
 
 ## 4. The demo arc
 1. Open the **care portal** → RUM sessions begin; show the RUM→APM link.

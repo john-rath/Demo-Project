@@ -57,7 +57,7 @@ _LIFECYCLE_PROFILES := $(_DBM_PROFILE) $(_MOCK_PROFILE)
         up-data-obs down-data-obs logs-data-obs logs-dbt dbt-run-now \
         up-mock-app down-mock-app build-mock-app logs-mock-app remediate \
         up-synthetics down-synthetics synthetics-create synthetics-delete \
-        rum-create rum-delete \
+        rum-create rum-delete rum-provision \
         logs-payment-processor \
         logs-experiment \
         clean-orphans clean-all \
@@ -219,6 +219,9 @@ rum-delete: check-op ## Delete the RUM browser application
 	  -e DD_API_KEY -e DD_APP_KEY -e DD_SITE -e RUM_APP_NAME \
 	  care-portal python manage_rum.py delete
 
+rum-provision: check-op ## Turnkey RUM (if 'rum' selected): create app, store token in 1Password, write .env op:// refs. Auto-run by `make ui`.
+	$(OP_RUN) ./.venv-ui/bin/python -m dd_demo_toolkit_ui.provision_rum
+
 dbt-run-now: check-op ## Trigger an immediate dbt build (no need to wait for the loop interval)
 	$(OP_RUN) $(COMPOSE) exec data-obs-dbt-runner bash -c 'cd /dbt_project && dbt build 2>&1 | tail -30'
 
@@ -260,7 +263,7 @@ ui-install: ## Create .venv-ui (Python 3.13) and install editable + UI extras
 	./.venv-ui/bin/pip install --quiet --upgrade pip
 	./.venv-ui/bin/pip install -e '.[dev,ui]'
 
-ui: check-op build up-d ## Build images, start collector + simulator, then launch the UI on http://127.0.0.1:8765
+ui: check-op build rum-provision up-d ## Build images, provision RUM (if selected), start the stack, then launch the UI on http://127.0.0.1:8765
 	$(OP_RUN) ./.venv-ui/bin/dd-demo-ui
 
 test: ## Run the unit + static analysis test suite (no secrets needed)
