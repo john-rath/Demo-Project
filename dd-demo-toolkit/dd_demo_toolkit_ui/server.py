@@ -77,9 +77,11 @@ logger = logging.getLogger(__name__)
 #   (hospital.eud.*/cxp.*), DSM (data_obs/ Kafka workers with dd-trace
 #   DSM enabled), LLM Observability (simulator/llm_obs.py +
 #   data_obs/llm_experiments + the ey overlay), Sensitive Data Scanner
-#   (resources/sds.py), Workflow Automation / Incidents / Case Management
-#   (resource managers), and Bits AI (the cascades are purpose-built for
-#   its RCA). SKUs the toolkit does NOT yet emit are marked
+#   (resources/sds.py), Synthetic Monitoring (private-location browser+API
+#   tests in docker/sensing_hospital/synthetics), Workflow Automation /
+#   Incidents / Case Management (resource managers), and Bits AI (the cascades
+#   are purpose-built for its RCA). SKUs the toolkit does NOT yet emit are
+#   marked
 #   available=False; the UI renders those disabled with a "not yet
 #   available" note so SEs see the full landscape without selecting
 #   something the demo can't actually show.
@@ -120,8 +122,8 @@ PRODUCT_CATALOG: List[Dict[str, Any]] = [
      "description": "Patient/clinician device experience — app launch, crashes, on-device network.",
      "available": True, "default": True},
     {"key": "synthetics", "label": "Synthetic Monitoring", "group": "Digital experience",
-     "description": "Scripted API and browser checks.",
-     "available": False, "default": False},
+     "description": "Browser + API tests via a private location (drives the mock app's RUM traffic).",
+     "available": True, "default": False},
     # --- Data & streaming ---
     {"key": "dsm", "label": "Data Streams Monitoring", "group": "Data & streaming",
      "description": "Kafka/queue pipeline lag and throughput (data-obs stack).",
@@ -215,6 +217,8 @@ class EnvWriteRequest(BaseModel):
     DD_DEMO_SUB_VERTICAL: Optional[str] = None
     DD_DEMO_PRODUCTS: Optional[str] = None
     DD_DEMO_DBM: Optional[str] = None
+    DD_RUM_APPLICATION_ID: Optional[str] = None
+    DD_CLIENT_TOKEN: Optional[str] = None
     EMIT_INTERVAL: Optional[str] = None
     DISPLAY_NAME: Optional[str] = None
     OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = None

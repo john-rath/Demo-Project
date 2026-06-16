@@ -105,6 +105,24 @@
           <button id="btn-test" type="button">Test connection</button>
           <span id="test-result" class="muted"></span>
         </div>
+        <p class="muted" style="margin-top:14px">
+          <strong>RUM (browser) credentials</strong> — used by the Sensing
+          Hospital <code>care-portal</code> frontend. The application ID is a
+          UUID (not a secret); the client token is public-by-design but stored
+          as an <code>op://</code> reference per policy.
+        </p>
+        <div class="row">
+          <label>
+            DD_RUM_APPLICATION_ID
+            <input type="text" id="input-rum-app-id" autocomplete="off" spellcheck="false"
+                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+          </label>
+          <label>
+            DD_CLIENT_TOKEN
+            <input type="text" id="input-client-token" autocomplete="off" spellcheck="false"
+                   placeholder="op://Employee/Datadog/rum-client-token" />
+          </label>
+        </div>
       </section>
 
       <section class="card" id="card-simulator-settings">

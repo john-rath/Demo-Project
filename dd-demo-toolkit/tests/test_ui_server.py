@@ -283,9 +283,9 @@ def test_products_availability_reflects_toolkit_support(client):
     not uploaded to Datadog (data_obs/dbt_runner/run_loop.sh).
     """
     catalog = {p["key"]: p for p in client.get("/api/products").json()}
-    for key in ("apm", "logs", "dbm", "rum", "eud", "llmobs", "dsm", "sds", "bits"):
+    for key in ("apm", "logs", "dbm", "rum", "eud", "llmobs", "dsm", "sds", "bits", "synthetics"):
         assert catalog[key]["available"] is True, f"{key} should be available"
-    for key in ("profiler", "synthetics", "npm", "csm", "dataobs"):
+    for key in ("profiler", "npm", "csm", "dataobs"):
         assert catalog[key]["available"] is False, f"{key} should be marked not-yet-available"
     # No product is pre-checked unless it's actually available.
     for p in catalog.values():

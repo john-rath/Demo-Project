@@ -28,6 +28,8 @@
     selectSite: $("#select-site"),
     inputApiKey: $("#input-api-key"),
     inputAppKey: $("#input-app-key"),
+    inputRumAppId: $("#input-rum-app-id"),
+    inputClientToken: $("#input-client-token"),
     inputDisplayName: $("#input-display-name"),
     inputEmitInterval: $("#input-emit-interval"),
     inputOtelEndpoint: $("#input-otel-endpoint"),
@@ -53,6 +55,7 @@
     nonCompliant: [],         // SECRET_KEYS still holding plain values on disk
     apiKeyDirty: false,       // true once the user types in the API key field
     appKeyDirty: false,
+    clientTokenDirty: false,  // true once the user types in the RUM client token
     activeTab: "configure",   // configure | simulator | deploy
     // Per-process status snapshots (refreshed via polling + status updates
     // returned from start/stop). Keyed by logical name.
@@ -234,12 +237,15 @@
     // returns "*****abcd". Either way we drop it into the input as-is.
     els.inputApiKey.value = store.env.DD_API_KEY || "";
     els.inputAppKey.value = store.env.DD_APP_KEY || "";
+    els.inputRumAppId.value = store.env.DD_RUM_APPLICATION_ID || "";
+    els.inputClientToken.value = store.env.DD_CLIENT_TOKEN || "";
     els.inputDisplayName.value = store.env.DISPLAY_NAME || "";
     els.inputEmitInterval.value = store.env.EMIT_INTERVAL || "";
     els.inputOtelEndpoint.value = store.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
     els.selectOtelProtocol.value = store.env.OTEL_EXPORTER_OTLP_PROTOCOL || "";
     store.apiKeyDirty = false;
     store.appKeyDirty = false;
+    store.clientTokenDirty = false;
   }
 
   function renderBanner() {
@@ -279,6 +285,8 @@
       OTEL_EXPORTER_OTLP_PROTOCOL: els.selectOtelProtocol.value,
       DD_API_KEY: store.apiKeyDirty ? els.inputApiKey.value : KEEP_EXISTING,
       DD_APP_KEY: store.appKeyDirty ? els.inputAppKey.value : KEEP_EXISTING,
+      DD_RUM_APPLICATION_ID: els.inputRumAppId.value,
+      DD_CLIENT_TOKEN: store.clientTokenDirty ? els.inputClientToken.value : KEEP_EXISTING,
     };
     return payload;
   }
@@ -738,6 +746,7 @@
     els.selectVertical.addEventListener("change", renderOverlays);
     els.inputApiKey.addEventListener("input", () => { store.apiKeyDirty = true; });
     els.inputAppKey.addEventListener("input", () => { store.appKeyDirty = true; });
+    els.inputClientToken.addEventListener("input", () => { store.clientTokenDirty = true; });
     els.btnSave.addEventListener("click", onSave);
     els.btnTest.addEventListener("click", onTest);
 
