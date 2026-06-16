@@ -20,6 +20,8 @@ import time
 
 from fastapi import FastAPI
 
+from metrics import statsd
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("rtls-location-service")
 
@@ -51,6 +53,10 @@ def resolve(device_id: str = "unknown"):
         _maybe_drift()
     latency_ms = _resolve_latency_ms()
     time.sleep(latency_ms / 1000.0)
+    # Custom app metrics → DogStatsD → real Agent.
+    statsd.increment("care.rtls.resolves_total")
+    statsd.gauge("care.rtls.resolve_latency_ms", latency_ms)
+    statsd.gauge("care.rtls.poll_rate_per_min", _state["poll_rate_per_min"])
     return {
         "device_id": device_id,
         "bed": f"MedSurg-{random.randint(301, 348)}",

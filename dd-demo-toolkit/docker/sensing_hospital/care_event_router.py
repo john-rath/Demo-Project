@@ -15,6 +15,8 @@ import os
 import requests
 from fastapi import FastAPI
 
+from metrics import statsd
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("care-event-router")
 
@@ -33,11 +35,13 @@ def healthz():
 @app.post("/events")
 def events(event: dict):
     _counters["events"] += 1
+    statsd.increment("care.router.events_total", tags=[f"device_type:{event.get('device_type', 'unknown')}"])
     enriched = dict(event)
     enriched["routed_by"] = "care-event-router"
     try:
         r = SESSION.post(f"{PLATFORM_URL}/ingest", json=enriched, timeout=12)
         return {"accepted": True, "platform": r.json()}
     except requests.RequestException as e:
+        statsd.increment("care.router.forward_errors_total")
         log.warning("forward to platform failed: %s", e)
         return {"accepted": False, "error": str(e)}

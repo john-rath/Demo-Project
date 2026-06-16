@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 
 import requests
 from fastapi import FastAPI
+
+from metrics import statsd
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("care-experience-platform")
@@ -34,9 +37,13 @@ def healthz():
 def ingest(event: dict):
     device_id = event.get("device_id", "unknown")
     location = None
+    statsd.increment("care.platform.ingest_total")
+    start = time.monotonic()
     try:
         r = SESSION.get(f"{RTLS_URL}/resolve", params={"device_id": device_id}, timeout=10)
         location = r.json()
     except requests.RequestException as e:
+        statsd.increment("care.platform.ingest_errors_total")
         log.warning("rtls resolve failed for %s: %s", device_id, e)
+    statsd.gauge("care.platform.ingest_latency_ms", (time.monotonic() - start) * 1000.0)
     return {"status": "processed", "device_id": device_id, "location": location}

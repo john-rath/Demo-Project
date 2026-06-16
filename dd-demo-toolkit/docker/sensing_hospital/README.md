@@ -13,7 +13,8 @@ Datadog Agent + support on-prem as well as cloud" ask.
 
 | Service | Role | deployment tag |
 |---|---|---|
-| `datadog-agent-sh` | **Real Datadog Agent** — APM intake, logs (container collect-all), process/container infra via Docker socket | — |
+| `datadog-agent-sh` | **Real Datadog Agent** — APM intake, DogStatsD, logs (container collect-all), process/container infra via Docker socket | — |
+| `care-portal` | **Web frontend** (RUM-instrumented); host `:8800`; proxies same-origin `/api/*` into the cascade | cloud |
 | `edge-device-fleet` | Config-driven mock IoT fleet (RTLS badges, room-sensing gateways, bedside tablets) posting events | on-prem |
 | `care-event-router` | Edge service; first trace hop; forwards to the cloud platform | on-prem |
 | `care-experience-platform` | Cloud tier; blocks on the on-prem RTLS resolve (where the cascade surfaces) | cloud |
@@ -23,6 +24,41 @@ Datadog Agent + support on-prem as well as cloud" ask.
 All Python services are auto-instrumented with `dd-trace-py` (`ddtrace-run`),
 so the Agent produces a real **APM service map**, distributed traces, and logs.
 `deployment:on-prem` / `deployment:cloud` tags model both worlds on one network.
+
+## Telemetry this actually produces (via the real Agent)
+
+| Signal | Status | Source |
+|---|---|---|
+| APM / distributed traces / service map | ✅ real | `ddtrace-run` on every service; real HTTP between them |
+| Logs (trace-correlated) | ✅ real | Agent container-collect-all + `DD_LOGS_INJECTION` |
+| Infrastructure: container / process / host metrics | ✅ real | Agent via Docker socket + `/proc` + cgroups + process-agent |
+| APM-derived metrics (hits/errors/latency) | ✅ real | generated from traces |
+| **Custom app metrics (DogStatsD)** | ✅ real | `metrics.py` → Agent `:8125`; `care.rtls.*`, `care.platform.*`, `care.router.*`, `care.portal.*` |
+| **RUM** (sessions/views/resources/actions/replay) | ✅ ready | `care-portal` loads the RUM browser SDK; needs `DD_RUM_APPLICATION_ID` + `DD_CLIENT_TOKEN` set, and traffic on the page (see Synthetics below) |
+
+## RUM frontend (`care-portal`)
+
+`care-portal` serves a real browser page instrumented with the Datadog RUM
+Browser SDK. Credentials are injected at runtime via `/config.js` from
+`DD_RUM_APPLICATION_ID` + `DD_CLIENT_TOKEN` (resolved by `op run`; the
+client token is public-by-design but stored as an `op://` ref per policy) —
+never baked into the image. `allowedTracingUrls` links each RUM session to the
+backend APM trace through `care-portal → care-event-router →
+care-experience-platform → rtls-location-service`. Open it at
+`http://localhost:8800` after `make up-mock-app`.
+
+If the RUM env vars are unset the page still works — RUM just stays dormant.
+
+## Generating traffic with Datadog Synthetics (next step)
+
+RUM needs a real browser to load the page; a `curl` won't produce RUM data.
+The intended traffic source is a **Datadog Synthetic browser test** hitting
+`care-portal`. Because the app runs locally, public Synthetic managed
+locations can't reach it — so this needs a **Synthetics Private Location
+worker** (a `datadog/synthetics-private-location-worker` container) that
+executes the test against the local URL, OR a public tunnel. That piece is
+proposed but not yet built; it will also flip Synthetics to "available" in the
+UI product picker.
 
 ## Run it
 
