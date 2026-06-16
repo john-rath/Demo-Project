@@ -28,19 +28,52 @@ def run_session(browser) -> None:
     ctx = browser.new_context(viewport={"width": 1280, "height": 800})
     page = ctx.new_page()
     try:
-        page.goto(PORTAL_URL, wait_until="domcontentloaded", timeout=20000)
-        # Let the RUM SDK initialize and the page's auto-actions fire.
-        page.wait_for_timeout(3000)
+        # Wait for `load` (not just DOMContentLoaded) so LCP has actually
+        # painted before we start interacting. Then settle the network so the
+        # PerformanceObserver has observed final LCP/CLS candidates.
+        page.goto(PORTAL_URL, wait_until="load", timeout=25000)
+        try:
+            page.wait_for_load_state("networkidle", timeout=8000)
+        except Exception:
+            pass
+        page.wait_for_timeout(2000)  # final settle for LCP/CLS
+
+        # Real interactions for INP/FID — hover then click so Chromium
+        # records a proper first-input interaction. Pace between actions.
         for sel in random.sample(ACTIONS, k=random.randint(2, len(ACTIONS))):
             try:
+                page.hover(sel, timeout=3000)
                 page.click(sel, timeout=5000)
             except Exception:
                 pass
             page.wait_for_timeout(int(random.uniform(1200, 3500)))
+
         page.wait_for_timeout(int(SESSION_LINGER_SEC * 1000))
+
+        # Flush web vitals. The RUM browser SDK batches LCP/CLS and beacons
+        # them on `visibilitychange -> hidden` / `pagehide`. Closing the
+        # browser context abruptly skips that flush — vitals stay buffered
+        # and never reach Datadog. Simulate the tab going hidden, then give
+        # the SDK a moment to send via navigator.sendBeacon.
+        try:
+            page.evaluate("""
+                () => {
+                  try { Object.defineProperty(document, 'visibilityState', {value:'hidden', configurable:true}); } catch(e){}
+                  try { Object.defineProperty(document, 'hidden',         {value:true,     configurable:true}); } catch(e){}
+                  document.dispatchEvent(new Event('visibilitychange'));
+                  window.dispatchEvent(new Event('pagehide'));
+                }
+            """)
+            page.wait_for_timeout(1000)
+        except Exception:
+            pass
     except Exception as e:
         print(f"[traffic] session error: {e}", flush=True)
     finally:
+        try:
+            page.close()
+        except Exception:
+            pass
         ctx.close()  # ends the RUM session
 
 
