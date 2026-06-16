@@ -519,8 +519,9 @@ services:
   # Dedicated Datadog Agent for the mock app (distinct from the data-obs /
   # dbm agents so the profiles compose cleanly when run together).
   datadog-agent-sh:
-    # Pinned (not floating :7) for a deterministic demo.
-    image: gcr.io/datadoghq/agent:7.65.0
+    # Use the cached :7 tag (avoids a ~1GB re-pull). The log-spam fix is the
+    # FORCE_AUTO_MULTI_LINE_DETECTION_V1 flag below, not a version pin.
+    image: gcr.io/datadoghq/agent:7
     container_name: dd-demo-datadog-agent-sh
     environment:
       - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up-mock-app`}
