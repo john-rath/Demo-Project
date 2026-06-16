@@ -35,7 +35,7 @@ def _require_keys():
 
 def create():
     _require_keys()
-    body = {"data": {"type": "rum_application", "attributes": {"name": NAME, "type": "browser"}}}
+    body = {"data": {"type": "rum_application_create", "attributes": {"name": NAME, "type": "browser"}}}
     r = requests.post(f"{API}/api/v2/rum/applications", headers=HEADERS, json=body, timeout=30)
     if r.status_code >= 300:
         sys.exit(f"create failed [{r.status_code}]: {r.text[:300]}")

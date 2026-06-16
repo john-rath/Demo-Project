@@ -94,7 +94,7 @@ def main() -> None:
                     and (on_disk.get("DD_CLIENT_TOKEN") or "").startswith("op://")):
                 _warn_exit(f"RUM app {RUM_APP_NAME!r} exists and .env already references it; nothing to do.")
         else:
-            body = {"data": {"type": "rum_application",
+            body = {"data": {"type": "rum_application_create",
                              "attributes": {"name": RUM_APP_NAME, "type": "browser"}}}
             created = requests.post(f"{base}/api/v2/rum/applications", headers=headers,
                                     json=body, timeout=30)
