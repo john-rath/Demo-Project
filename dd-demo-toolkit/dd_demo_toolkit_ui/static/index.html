@@ -74,6 +74,16 @@
           container stack (<code>DD_DEMO_DBM</code>).
         </p>
         <div id="products-grid"><p class="muted">loading&hellip;</p></div>
+        <label class="checkbox" style="margin-top:14px">
+          <input type="checkbox" id="toggle-mock-fleet" />
+          <span class="product-text">
+            <strong>Run the Sensing Hospital mock app (real Datadog Agent)</strong><br>
+            <span class="muted">Starts the containerized microservice mesh + edge fleet
+            collected by a real Agent (APM, logs, infra, RUM) alongside the simulator.
+            Sets <code>DD_DEMO_MOCK_FLEET</code>; the Simulator tab's Start builds &amp;
+            launches it.</span>
+          </span>
+        </label>
       </section>
 
       <section class="card" id="card-creds">

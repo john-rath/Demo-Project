@@ -25,6 +25,7 @@
     selectVertical: $("#select-vertical"),
     selectOverlay: $("#select-overlay"),
     productsGrid: $("#products-grid"),
+    toggleMockFleet: $("#toggle-mock-fleet"),
     selectSite: $("#select-site"),
     inputApiKey: $("#input-api-key"),
     inputAppKey: $("#input-app-key"),
@@ -209,6 +210,10 @@
       }
       grid.appendChild(groupEl);
     }
+    if (els.toggleMockFleet) {
+      els.toggleMockFleet.checked =
+        (store.env.DD_DEMO_MOCK_FLEET || "").toLowerCase() === "true";
+    }
   }
 
   // Read the currently-checked product keys from the DOM.
@@ -279,6 +284,7 @@
       // Derive DD_DEMO_DBM from the selection so the picker actually drives
       // the stack `make up` starts.
       DD_DEMO_DBM: products.includes("dbm") ? "true" : "false",
+      DD_DEMO_MOCK_FLEET: els.toggleMockFleet && els.toggleMockFleet.checked ? "true" : "false",
       DISPLAY_NAME: els.inputDisplayName.value,
       EMIT_INTERVAL: els.inputEmitInterval.value,
       OTEL_EXPORTER_OTLP_ENDPOINT: els.inputOtelEndpoint.value,

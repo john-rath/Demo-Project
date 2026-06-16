@@ -217,6 +217,7 @@ class EnvWriteRequest(BaseModel):
     DD_DEMO_SUB_VERTICAL: Optional[str] = None
     DD_DEMO_PRODUCTS: Optional[str] = None
     DD_DEMO_DBM: Optional[str] = None
+    DD_DEMO_MOCK_FLEET: Optional[str] = None
     DD_RUM_APPLICATION_ID: Optional[str] = None
     DD_CLIENT_TOKEN: Optional[str] = None
     EMIT_INTERVAL: Optional[str] = None

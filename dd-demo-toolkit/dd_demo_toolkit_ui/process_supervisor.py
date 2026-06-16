@@ -345,7 +345,9 @@ class ProcessSupervisor:
             if h.adopted or h.proc is None:
                 # Container was started outside the UI — use compose down.
                 followup = PROCESS_DEFS[name].get("stop_followup_argv")
-                down_argv = followup or ["docker", "compose", "down", "--remove-orphans"]
+                down_argv = self._inject_profiles(
+                    followup or ["docker", "compose", "down", "--remove-orphans"]
+                )
                 logger.info("supervisor: stopping adopted %s via %s", name, " ".join(down_argv))
                 asyncio.create_task(
                     self._compose_down(h, down_argv),
@@ -417,7 +419,48 @@ class ProcessSupervisor:
     def _argv_for(self, name: str) -> List[str]:
         argv = PROCESS_DEFS[name]["argv"]
         assert isinstance(argv, list)
-        return list(argv)
+        argv = list(argv)
+        # The long-running "simulator" `up` should bring along the same
+        # opt-in profiles the Makefile's `make up` does, so Start in the UI
+        # builds + launches the full stack (mock-app mesh, DBM) — not just the
+        # default otel-collector + simulator. One-shots (setup/teardown) keep
+        # their own --profile and are left untouched.
+        if PROCESS_DEFS[name].get("long_running"):
+            argv = self._inject_profiles(argv)
+        return argv
+
+    def _profile_args(self) -> List[str]:
+        """Profile flags derived from .env, mirroring the Makefile rules:
+        DD_DEMO_MOCK_FLEET=true → mock-app; DD_DEMO_DBM=true or
+        DD_DEMO_SUB_VERTICAL=payment-processor → dbm."""
+        flags: Dict[str, str] = {}
+        try:
+            for line in (self.project_dir / ".env").read_text(encoding="utf-8").splitlines():
+                s = line.strip()
+                for key in ("DD_DEMO_MOCK_FLEET", "DD_DEMO_DBM", "DD_DEMO_SUB_VERTICAL"):
+                    if s.startswith(key + "="):
+                        flags[key] = s.split("=", 1)[1].strip().strip('"').strip("'")
+        except OSError:
+            return []
+        profiles: List[str] = []
+        if flags.get("DD_DEMO_MOCK_FLEET", "").lower() == "true":
+            profiles.append("mock-app")
+        if flags.get("DD_DEMO_DBM", "").lower() == "true" or \
+                flags.get("DD_DEMO_SUB_VERTICAL", "") == "payment-processor":
+            profiles.append("dbm")
+        out: List[str] = []
+        for p in profiles:
+            out += ["--profile", p]
+        return out
+
+    def _inject_profiles(self, argv: List[str]) -> List[str]:
+        """Insert the active --profile flags right after the `compose` token."""
+        profiles = self._profile_args()
+        if not profiles or "compose" not in argv:
+            return list(argv)
+        out = list(argv)
+        i = out.index("compose") + 1
+        return out[:i] + profiles + out[i:]
 
     def _lock(self, name: str) -> asyncio.Lock:
         lock = self._locks.get(name)
@@ -561,6 +604,7 @@ class ProcessSupervisor:
         # because the user has already moved on; we just need cleanup.
         followup = PROCESS_DEFS[h.name].get("stop_followup_argv")
         if was_stopping and followup:
+            followup = self._inject_profiles(followup)
             logger.info("supervisor: running follow-up for %s: %s", h.name, followup)
             try:
                 proc = await asyncio.create_subprocess_exec(
