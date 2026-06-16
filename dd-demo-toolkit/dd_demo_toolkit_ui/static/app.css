@@ -362,6 +362,9 @@ nav.tabs {
 }
 .checkbox.product-item input { margin-top: 2px; }
 .product-text { line-height: 1.35; }
+.checkbox.product-item.unavailable { opacity: 0.55; cursor: not-allowed; }
+.checkbox.product-item.unavailable input { cursor: not-allowed; }
+.product-unavailable { font-style: italic; color: var(--text-muted); }
 
 .log-pane {
   margin: 0;

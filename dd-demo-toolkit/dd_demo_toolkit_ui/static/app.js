@@ -138,13 +138,22 @@
   }
 
   // Which product keys should be checked: the saved DD_DEMO_PRODUCTS list
-  // if present, else the catalog's defaults (first-run convenience).
+  // if present, else the catalog's defaults (first-run convenience). Only
+  // available products are ever checked — an unavailable SKU can't be
+  // demonstrated, so even a stale .env entry for one is ignored.
   function selectedProductKeys() {
+    const available = new Set(
+      store.products.filter((p) => p.available !== false).map((p) => p.key)
+    );
     const raw = (store.env.DD_DEMO_PRODUCTS || "").trim();
     if (raw) {
-      return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+      return new Set(
+        raw.split(",").map((s) => s.trim()).filter((k) => k && available.has(k))
+      );
     }
-    return new Set(store.products.filter((p) => p.default).map((p) => p.key));
+    return new Set(
+      store.products.filter((p) => p.default && p.available !== false).map((p) => p.key)
+    );
   }
 
   function renderProducts() {
@@ -175,19 +184,22 @@
       groupEl.appendChild(h);
 
       for (const p of byGroup[g]) {
+        const available = p.available !== false;
         const label = document.createElement("label");
-        label.className = "checkbox product-item";
+        label.className = "checkbox product-item" + (available ? "" : " unavailable");
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.value = p.key;
         cb.dataset.product = p.key;
-        cb.checked = checked.has(p.key);
+        cb.checked = available && checked.has(p.key);
+        cb.disabled = !available;
         label.appendChild(cb);
         const text = document.createElement("span");
         text.className = "product-text";
-        const flagNote = p.drives_flag ? ` (sets ${p.drives_flag})` : "";
+        const flagNote = available && p.drives_flag ? ` (sets ${p.drives_flag})` : "";
+        const availNote = available ? "" : ' <em class="product-unavailable">— not yet available</em>';
         text.innerHTML =
-          `<strong>${p.label}</strong>${flagNote}` +
+          `<strong>${p.label}</strong>${flagNote}${availNote}` +
           (p.description ? `<br><span class="muted">${p.description}</span>` : "");
         label.appendChild(text);
         groupEl.appendChild(label);

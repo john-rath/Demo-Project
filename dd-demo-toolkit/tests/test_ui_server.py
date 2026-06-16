@@ -264,14 +264,32 @@ def test_products_returns_catalog_with_required_fields(client):
     catalog = r.json()
     assert isinstance(catalog, list) and len(catalog) > 0
     keys = {p["key"] for p in catalog}
-    # Spot-check a few expected products, including the new EuD lens.
-    assert {"apm", "dbm", "eud", "bits"} <= keys
-    # Every entry has the fields the frontend renders.
+    # Spot-check expected products, including the EuD lens and LLM Obs.
+    assert {"apm", "dbm", "eud", "bits", "llmobs"} <= keys
+    # Every entry has the fields the frontend renders, incl. availability.
     for p in catalog:
-        assert {"key", "label", "group", "description", "default"} <= set(p)
+        assert {"key", "label", "group", "description", "default", "available"} <= set(p)
     # Database Monitoring declares the real env flag it drives.
     dbm = next(p for p in catalog if p["key"] == "dbm")
     assert dbm["drives_flag"] == "DD_DEMO_DBM"
+
+
+def test_products_availability_reflects_toolkit_support(client):
+    """Supported SKUs are available; SKUs the toolkit doesn't emit are not.
+
+    Grounded in the codebase: LLM Observability, DSM, Data Observability,
+    and Sensitive Data Scanner ARE generated; Profiler / Synthetics / NPM /
+    CSM are not yet.
+    """
+    catalog = {p["key"]: p for p in client.get("/api/products").json()}
+    for key in ("apm", "logs", "dbm", "rum", "eud", "llmobs", "dsm", "dataobs", "sds", "bits"):
+        assert catalog[key]["available"] is True, f"{key} should be available"
+    for key in ("profiler", "synthetics", "npm", "csm"):
+        assert catalog[key]["available"] is False, f"{key} should be marked not-yet-available"
+    # No product is pre-checked unless it's actually available.
+    for p in catalog.values():
+        if p["default"]:
+            assert p["available"] is True
 
 
 def test_post_env_persists_products_and_derived_dbm_flag(client, app_and_paths):

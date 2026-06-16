@@ -71,36 +71,86 @@ logger = logging.getLogger(__name__)
 # derives that from the selection), which `make up` reads to start the
 # DBM stack. Other entries record intent for now.
 #
-# `default` marks the products pre-checked on first load (no DD_DEMO_PRODUCTS
-# in .env yet) — the core observability story most demos open with.
+# `available`: whether the toolkit currently generates real telemetry /
+#   resources for this SKU. Grounded in the codebase — APM/Logs/Infra
+#   (engine), DBM (docker stack), RUM (simulator/rum.py), EuD
+#   (hospital.eud.*/cxp.*), DSM + Data Observability (data_obs/ Kafka+dbt),
+#   LLM Observability (simulator/llm_obs.py + data_obs/llm_experiments +
+#   the ey overlay), Sensitive Data Scanner (resources/sds.py), Workflow
+#   Automation / Incidents / Case Management (resource managers), and Bits
+#   AI (the cascades are purpose-built for its RCA). SKUs the toolkit does
+#   NOT yet emit are marked available=False; the UI renders those disabled
+#   with a "not yet available" note so SEs see the full landscape without
+#   selecting something the demo can't actually show.
+# `default`: pre-checked on first load (no DD_DEMO_PRODUCTS yet) — the core
+#   story most demos open with. Only available products may be default.
 PRODUCT_CATALOG: List[Dict[str, Any]] = [
+    # --- Core observability ---
     {"key": "apm", "label": "APM & Distributed Tracing", "group": "Core observability",
-     "description": "Service traces, flame graphs, and the on-prem→cloud cascade map.", "default": True},
+     "description": "Service traces, flame graphs, and the on-prem→cloud cascade map.",
+     "available": True, "default": True},
     {"key": "logs", "label": "Log Management", "group": "Core observability",
-     "description": "Correlated service and container logs.", "default": True},
+     "description": "Correlated service and container logs.",
+     "available": True, "default": True},
     {"key": "infra", "label": "Infrastructure Monitoring", "group": "Core observability",
-     "description": "Host, container, and device fleet health.", "default": True},
+     "description": "Host, container, and device fleet health.",
+     "available": True, "default": True},
     {"key": "dbm", "label": "Database Monitoring", "group": "Core observability",
      "description": "Postgres query performance. Also starts the DBM container stack.",
-     "default": False, "drives_flag": "DD_DEMO_DBM"},
+     "available": True, "default": False, "drives_flag": "DD_DEMO_DBM"},
+    {"key": "profiler", "label": "Continuous Profiler", "group": "Core observability",
+     "description": "Code-level CPU/memory profiling.",
+     "available": False, "default": False},
+    {"key": "npm", "label": "Network Monitoring (NPM/CNM)", "group": "Core observability",
+     "description": "Network flows and connection-level performance.",
+     "available": False, "default": False},
+    # --- Digital experience ---
     {"key": "rum", "label": "Real User Monitoring", "group": "Digital experience",
-     "description": "Frontend/web session performance and errors.", "default": False},
+     "description": "Frontend/web session performance and errors.",
+     "available": True, "default": False},
     {"key": "eud", "label": "End-User Devices (EuD)", "group": "Digital experience",
-     "description": "Patient/clinician device experience — app launch, crashes, on-device network.", "default": True},
+     "description": "Patient/clinician device experience — app launch, crashes, on-device network.",
+     "available": True, "default": True},
     {"key": "synthetics", "label": "Synthetic Monitoring", "group": "Digital experience",
-     "description": "Scripted API and browser checks.", "default": False},
-    {"key": "npm", "label": "Network Monitoring", "group": "Infrastructure",
-     "description": "Network flows and device connectivity.", "default": False},
-    {"key": "profiler", "label": "Continuous Profiler", "group": "Infrastructure",
-     "description": "Code-level CPU/memory profiling.", "default": False},
-    {"key": "dsm", "label": "Data Streams Monitoring", "group": "Infrastructure",
-     "description": "Kafka/queue pipeline lag and throughput.", "default": False},
-    {"key": "csm", "label": "Cloud Security Management", "group": "Security",
-     "description": "Misconfig and runtime security signals.", "default": False},
+     "description": "Scripted API and browser checks.",
+     "available": False, "default": False},
+    # --- Data & streaming ---
+    {"key": "dsm", "label": "Data Streams Monitoring", "group": "Data & streaming",
+     "description": "Kafka/queue pipeline lag and throughput (data-obs stack).",
+     "available": True, "default": False},
+    {"key": "dataobs", "label": "Data Observability", "group": "Data & streaming",
+     "description": "dbt model lineage, freshness, and schema tests (data-obs stack).",
+     "available": True, "default": False},
+    # --- AI ---
     {"key": "llmobs", "label": "LLM Observability", "group": "AI",
-     "description": "LLM app traces, evals, and quality.", "default": False},
+     "description": "LLM app traces, evals, and quality (llm_obs + ey overlay).",
+     "available": True, "default": False},
     {"key": "bits", "label": "Bits AI / Watchdog", "group": "AI",
-     "description": "AI-driven detection and root-cause isolation across the disjoint cascade.", "default": True},
+     "description": "AI-driven detection and root-cause isolation across the disjoint cascade.",
+     "available": True, "default": True},
+    # --- Security & compliance ---
+    {"key": "sds", "label": "Sensitive Data Scanner", "group": "Security & compliance",
+     "description": "PII/PHI scanning rules over logs.",
+     "available": True, "default": False},
+    {"key": "csm", "label": "Cloud Security Management", "group": "Security & compliance",
+     "description": "Misconfig and runtime security signals.",
+     "available": False, "default": False},
+    {"key": "asm", "label": "App & API Protection (ASM)", "group": "Security & compliance",
+     "description": "In-app threat detection and protection.",
+     "available": False, "default": False},
+    # --- Software delivery & ops ---
+    {"key": "workflows", "label": "Workflow Automation", "group": "Software delivery & ops",
+     "description": "Self-healing / notification workflows for the cascade.",
+     "available": True, "default": False},
+    {"key": "incidents", "label": "Incident Management", "group": "Software delivery & ops",
+     "description": "Scripted incidents tied to the cascade narrative.",
+     "available": True, "default": False},
+    {"key": "cases", "label": "Case Management", "group": "Software delivery & ops",
+     "description": "Investigation cases for the cascade and fleet reviews.",
+     "available": True, "default": False},
+    {"key": "ci", "label": "CI Visibility / Test Optimization", "group": "Software delivery & ops",
+     "description": "Pipeline and test-suite observability.",
+     "available": False, "default": False},
 ]
 
 # Keys that map a selected product to a real .env toggle the stack reads.
