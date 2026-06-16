@@ -106,6 +106,7 @@ class AdventHealthCareExperienceCascade(IncidentPlugin):
 
     GATEWAY_TYPE = "room_sensing_gateway"
     TABLET_TYPE = "bedside_engagement_tablet"
+    CLINICIAN_TYPE = "clinician_mobile"
 
     # Baselines held during 'normal' so the cascade peak reads as a clear
     # anomaly rather than random-walking toward each metric's midpoint.
@@ -115,6 +116,8 @@ class AdventHealthCareExperienceCascade(IncidentPlugin):
     BASELINE_CALL_ACK_SEC = 18.0
     BASELINE_RESPONSIVENESS = 92.0
     BASELINE_BEDSIDE_LAT_MS = 350.0
+    BASELINE_EUD_RTT_MS = 60.0
+    BASELINE_SECURE_MSG_MS = 300.0
 
     # Metric namespace — sensing/cxp only, no overlap with WiFi cascade.
     RTLS_LAG_METRIC = "hospital.sensing.rtls_sync_lag_ms"
@@ -126,6 +129,9 @@ class AdventHealthCareExperienceCascade(IncidentPlugin):
     RESPONSIVENESS_METRIC = "hospital.cxp.responsiveness_score"
     COMFORT_UNMET_METRIC = "hospital.cxp.comfort_requests_unmet_total"
     BEDSIDE_LAT_METRIC = "hospital.cxp.bedside_app_latency_ms"
+    EUD_RTT_METRIC = "hospital.eud.network_rtt_ms"
+    EUD_HANG_METRIC = "hospital.eud.app_hang_total"
+    SECURE_MSG_METRIC = "hospital.eud.secure_msg_latency_ms"
 
     def __init__(self) -> None:
         # Demo-friendly initial idle: fire within ~1-2 min of start. Kept
@@ -135,6 +141,7 @@ class AdventHealthCareExperienceCascade(IncidentPlugin):
         self._active_tick: Optional[int] = None
         self._incident_gateways: List[Any] = []
         self._incident_tablets: List[Any] = []
+        self._incident_clinicians: List[Any] = []
 
         logger.info(
             "AdventHealth care-experience cascade initialized. First event "
@@ -154,6 +161,7 @@ class AdventHealthCareExperienceCascade(IncidentPlugin):
         self._active_tick = None
         self._incident_gateways = []
         self._incident_tablets = []
+        self._incident_clinicians = []
 
     # ------------------------------------------------------------------
     # Tick entry point
@@ -171,11 +179,15 @@ class AdventHealthCareExperienceCascade(IncidentPlugin):
                     self._incident_gateways.append(d)
                 elif self._matches_type(d, self.TABLET_TYPE):
                     self._incident_tablets.append(d)
+                elif self._matches_type(d, self.CLINICIAN_TYPE):
+                    self._incident_clinicians.append(d)
             if self._incident_gateways:
                 logger.info(
-                    "Indexed %d sensing gateways + %d bedside tablets in %s",
+                    "Indexed %d sensing gateways + %d bedside tablets + "
+                    "%d clinician mobiles in %s",
                     len(self._incident_gateways),
                     len(self._incident_tablets),
+                    len(self._incident_clinicians),
                     self.INCIDENT_DEPARTMENT,
                 )
 
@@ -371,3 +383,40 @@ class AdventHealthCareExperienceCascade(IncidentPlugin):
             else:
                 self._set_state(tablet, self.BEDSIDE_LAT_METRIC,
                                 _clamp(_drift(self.BASELINE_BEDSIDE_LAT_MS, 60), 150, 800))
+
+        # End-user-device (EuD) experience — both the patient tablet and the
+        # care-provider mobile. On-device network RTT climbs as the cloud
+        # platform saturates (the device "feels slow"); clinician secure-
+        # messaging latency follows. Held at baseline otherwise so the EuD
+        # lens shows a clean, demonstrable degrade-and-recover during the
+        # cascade without overlapping the WiFi cascade's network namespace.
+        for dev in self._incident_tablets + self._incident_clinicians:
+            is_clinician = dev in self._incident_clinicians
+            if phase == "routing_saturation":
+                progress = phase_tick / self.ROUTING_SATURATION_TICKS
+                self._set_state(dev, self.EUD_RTT_METRIC,
+                                _clamp(_drift(200 + progress * 1600, 150), 60, 4000))
+                if is_clinician:
+                    self._set_state(dev, self.SECURE_MSG_METRIC,
+                                    _clamp(_drift(500 + progress * 2000, 200), 200, 5000))
+            elif phase == "experience_impact":
+                self._set_state(dev, self.EUD_RTT_METRIC,
+                                _clamp(_drift(2400, 400), 1500, 4000))
+                if is_clinician:
+                    self._set_state(dev, self.SECURE_MSG_METRIC,
+                                    _clamp(_drift(3200, 500), 2000, 6000))
+                if random.random() < 0.12:
+                    self._set_state(dev, self.EUD_HANG_METRIC, random.randint(1, 3))
+            elif phase == "recovery":
+                progress = phase_tick / self.RECOVERY_TICKS
+                self._set_state(dev, self.EUD_RTT_METRIC,
+                                _clamp(_drift(2400 - progress * 2300, 200), 60, 2600))
+                if is_clinician:
+                    self._set_state(dev, self.SECURE_MSG_METRIC,
+                                    _clamp(_drift(3200 - progress * 2850, 250), 250, 3400))
+            else:
+                self._set_state(dev, self.EUD_RTT_METRIC,
+                                _clamp(_drift(self.BASELINE_EUD_RTT_MS, 12), 20, 200))
+                if is_clinician:
+                    self._set_state(dev, self.SECURE_MSG_METRIC,
+                                    _clamp(_drift(self.BASELINE_SECURE_MSG_MS, 50), 120, 700))

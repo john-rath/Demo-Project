@@ -204,6 +204,103 @@ device_categories:
         unit: '1'
         range: [0, 15]
         drift: 0.8
+      # --- End-user-device (EuD) experience signals --------------------
+      # Device-fleet experience as the patient sees the tablet itself —
+      # app launch, crashes/hangs, session length, on-device network RTT.
+      # Distinct from hospital.cxp.bedside_app_latency_ms (the round-trip
+      # to the cloud platform); these describe the device experience.
+      - name: hospital.eud.app_launch_ms
+        type: gauge
+        unit: ms
+        range: [300, 6000]
+        drift: 30.0
+      - name: hospital.eud.app_crashes_total
+        type: counter
+        unit: '1'
+        range: [0, 2]
+        drift: 0.04
+      - name: hospital.eud.app_hang_total
+        type: counter
+        unit: '1'
+        range: [0, 3]
+        drift: 0.06
+      - name: hospital.eud.session_length_min
+        type: gauge
+        unit: min
+        range: [1, 45]
+        drift: 1.5
+      - name: hospital.eud.network_rtt_ms
+        type: gauge
+        unit: ms
+        range: [20, 4000]
+        drift: 20.0
+      - name: hospital.eud.sessions_total
+        type: counter
+        unit: '1'
+        range: [0, 20]
+        drift: 1.0
+
+    # ----- Clinician Mobile (care-provider EuD) ------------------------
+    # The end-user device the care provider carries: secure messaging,
+    # results review, care-team coordination. Rounds out the EuD story
+    # from the provider side and pairs with the patient-facing tablet.
+    - type: clinician_mobile
+      manufacturer: AdventHealth
+      model: CareConnect Handset
+      firmware: '16.2'
+      count: 30
+      battery_powered: true
+      metrics:
+      - name: hospital.device.online
+        type: gauge
+        unit: '1'
+        range: [0, 1]
+        drift: 0.005
+      - name: hospital.device.battery_pct
+        type: gauge
+        unit: '%'
+        range: [15, 100]
+        drift: 0.5
+      - name: hospital.device.signal_strength_dbm
+        type: gauge
+        unit: dBm
+        range: [-85, -30]
+        drift: 1.5
+      - name: hospital.eud.app_launch_ms
+        type: gauge
+        unit: ms
+        range: [250, 5000]
+        drift: 25.0
+      - name: hospital.eud.app_crashes_total
+        type: counter
+        unit: '1'
+        range: [0, 2]
+        drift: 0.04
+      - name: hospital.eud.app_hang_total
+        type: counter
+        unit: '1'
+        range: [0, 3]
+        drift: 0.06
+      - name: hospital.eud.session_length_min
+        type: gauge
+        unit: min
+        range: [1, 30]
+        drift: 1.2
+      - name: hospital.eud.network_rtt_ms
+        type: gauge
+        unit: ms
+        range: [20, 4000]
+        drift: 20.0
+      - name: hospital.eud.sessions_total
+        type: counter
+        unit: '1'
+        range: [0, 25]
+        drift: 1.2
+      - name: hospital.eud.secure_msg_latency_ms
+        type: gauge
+        unit: ms
+        range: [120, 6000]
+        drift: 35.0
 
     # ----- Ambient Comfort Sensor --------------------------------------
     # Room environment as experienced by the patient: temperature, noise,

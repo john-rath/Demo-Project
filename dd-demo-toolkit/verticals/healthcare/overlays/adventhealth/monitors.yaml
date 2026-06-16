@@ -180,3 +180,51 @@ monitors:
       - "team:facilities"
       - "incident_domain:care-experience"
     priority: 3
+
+  # ----- End-user-device (EuD) experience monitors ----------------------
+
+  - name: "[Healthcare/AdventHealth] End-User Device App Crashes Spike"
+    type: "query alert"
+    query: "sum(last_15m):sum:hospital.eud.app_crashes_total{department:MedSurg} by {device_type} > 6"
+    message: "📱 More than 6 end-user-device app crashes in 15 min in MedSurg ({{device_type.name}}). Patients/clinicians losing app access. Check app version health and care-experience-platform session API."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+    priority: 2
+
+  - name: "[Healthcare/AdventHealth] Clinician Mobile App Launch Slow"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.eud.app_launch_ms{device_type:clinician_mobile,department:MedSurg} by {device_id} > 4000"
+    message: "📲 Clinician mobile app launch >4s in MedSurg. Care providers waiting on the device before they can act. Check device connectivity and care-experience-platform."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+    priority: 3
+
+  - name: "[Healthcare/AdventHealth] End-User Device Network RTT High"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.eud.network_rtt_ms{department:MedSurg} by {device_type} > 1500"
+    message: "📡 End-user-device on-device network round-trip >1.5s in MedSurg ({{device_type.name}}). The device 'feels slow' to the end user. Often a downstream symptom of care-experience-platform saturation."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:3-symptom"
+    priority: 3
+
+  - name: "[Healthcare/AdventHealth] Clinician Secure-Messaging Latency High"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.eud.secure_msg_latency_ms{device_type:clinician_mobile,department:MedSurg} by {device_id} > 2500"
+    message: "💬 Clinician secure-message delivery >2.5s in MedSurg. Care-team coordination degraded on the provider's end-user device. Correlate with care-team routing latency."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:3-symptom"
+    priority: 3
