@@ -568,9 +568,13 @@ services:
     depends_on:
       datadog-agent-sh: {condition: service_started}
       rtls-location-service: {condition: service_started}
+      patient-context-service: {condition: service_started}
+      clinical-alerts-service: {condition: service_started}
     environment:
       - PYTHONUNBUFFERED=1
       - RTLS_URL=http://rtls-location-service:8080
+      - PATIENT_CONTEXT_URL=http://patient-context-service:8080
+      - CLINICAL_ALERTS_URL=http://clinical-alerts-service:8080
       - DD_AGENT_HOST=datadog-agent-sh
       - DD_TRACE_AGENT_PORT=8126
       - DD_SERVICE=care-experience-platform
@@ -680,7 +684,92 @@ services:
     profiles:
       - mock-app
 
+  # --- Data layer (k8s-portable: StatefulSet/RDS + ElastiCache on AWS) -------
+  sensing-postgres:
+    image: postgres:16-alpine
+    container_name: dd-demo-sensing-postgres
+    environment:
+      - POSTGRES_DB=sensing
+      - POSTGRES_USER=sensing
+      - POSTGRES_PASSWORD=sensing
+    volumes:
+      - ./docker/sensing_hospital/initdb:/docker-entrypoint-initdb.d:ro
+      - sensing-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sensing -d sensing"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  sensing-redis:
+    image: redis:7-alpine
+    container_name: dd-demo-sensing-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  patient-context-service:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-patient-context-service
+    command: ["ddtrace-run", "uvicorn", "patient_context_service:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      sensing-postgres: {condition: service_healthy}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=sensing-postgres
+      - DB_NAME=sensing
+      - DB_USER=sensing
+      - DB_PASSWORD=sensing
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=patient-context-service
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  clinical-alerts-service:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-clinical-alerts-service
+    command: ["ddtrace-run", "uvicorn", "clinical_alerts_service:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      sensing-postgres: {condition: service_healthy}
+      sensing-redis: {condition: service_healthy}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=sensing-postgres
+      - DB_NAME=sensing
+      - DB_USER=sensing
+      - DB_PASSWORD=sensing
+      - REDIS_HOST=sensing-redis
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=clinical-alerts-service
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:clinical-systems
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
 volumes:
+  sensing-pgdata: {}
   # Ephemeral volume shared between simulator and authorization-db-worker.
   # The cascade plugin writes the current phase here; the db-worker reads it
   # to choose normal vs. degraded query patterns.

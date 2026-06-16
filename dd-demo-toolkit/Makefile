@@ -182,7 +182,7 @@ build-mock-app: ## Build the Sensing Hospital mock-app images
 	$(COMPOSE) --profile mock-app build
 
 logs-mock-app: ## Tail logs from the mock-app microservices + edge fleet
-	$(COMPOSE) logs -f care-portal rtls-location-service care-experience-platform care-event-router edge-device-fleet remediation-controller
+	$(COMPOSE) logs -f care-portal rtls-location-service care-experience-platform care-event-router patient-context-service clinical-alerts-service edge-device-fleet remediation-controller
 
 remediate: ## Manually fire the on-prem remediation (clamp rtls poll rate) against the running mock app
 	$(COMPOSE) exec remediation-controller python -c "import requests; print(requests.post('http://localhost:8080/remediate', json={'target':'on-prem'}).json())"

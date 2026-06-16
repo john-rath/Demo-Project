@@ -14,16 +14,39 @@ Datadog Agent + support on-prem as well as cloud" ask.
 | Service | Role | deployment tag |
 |---|---|---|
 | `datadog-agent-sh` | **Real Datadog Agent** — APM intake, DogStatsD, logs (container collect-all), process/container infra via Docker socket | — |
-| `care-portal` | **Web frontend** (RUM-instrumented); host `:8800`; proxies same-origin `/api/*` into the cascade | cloud |
+| `care-portal` | **Web frontend** (RUM-instrumented); host `:8800`; proxies same-origin `/api/*` into the mesh | cloud |
 | `edge-device-fleet` | Config-driven mock IoT fleet (RTLS badges, room-sensing gateways, bedside tablets) posting events | on-prem |
 | `care-event-router` | Edge service; first trace hop; forwards to the cloud platform | on-prem |
-| `care-experience-platform` | Cloud tier; blocks on the on-prem RTLS resolve (where the cascade surfaces) | cloud |
+| `care-experience-platform` | Cloud orchestrator; **fans out** to RTLS + patient-context + clinical-alerts | cloud |
 | `rtls-location-service` | On-prem edge; **cascade root cause** — resolve latency climbs with poll rate | on-prem |
+| `patient-context-service` | Cloud; resolves device→patient→bed from **Postgres** | cloud |
+| `clinical-alerts-service` | Cloud; evaluates alerts using **Postgres** (durable) + **Redis** (dedup) | cloud |
 | `remediation-controller` | Phase 4 detect→repair webhook; clamps the RTLS poll rate to recover | cloud |
+| `sensing-postgres` | Data store — beds / patients / device bindings / alerts | — |
+| `sensing-redis` | Cache / alert dedup (and the async queue in the next increment) | — |
 
 All Python services are auto-instrumented with `dd-trace-py` (`ddtrace-run`),
 so the Agent produces a real **APM service map**, distributed traces, and logs.
 `deployment:on-prem` / `deployment:cloud` tags model both worlds on one network.
+
+## Distributed topology (a mesh, not a chain)
+
+`care-experience-platform` fans out to three downstream services in parallel —
+the on-prem RTLS (location), patient-context (Postgres identity), and
+clinical-alerts (Postgres + Redis) — so the service map is a branching,
+multi-tier graph with real **infrastructure dependencies** (a database and a
+cache), not a single linear hop. Container/process metrics for Postgres and
+Redis come from the Agent; the DB and cache calls appear as spans.
+
+## k8s portability (laptop now → EKS on AWS later)
+
+Every service is **stateless, 12-factor (env-config only), one process per
+container, exposes `/healthz`, and makes no host assumptions** — so each
+compose service maps 1:1 to a k8s Deployment + Service, and the data stores
+map to StatefulSets or managed **RDS + ElastiCache**. Nothing here needs to
+change to lift into EKS; only the orchestration manifests get added. Kept
+lightweight (small Python images + one Postgres + one Redis) so the whole mesh
+runs on a laptop.
 
 ## Telemetry this actually produces (via the real Agent)
 
