@@ -1,27 +1,24 @@
-"""care-event-router — ON-PREM/edge service.
+"""care-event-router — ON-PREM/edge service, front of the ASYNC path.
 
-Receives raw device events from the edge fleet, lightly enriches them, and
-forwards to the cloud care-experience-platform /ingest. First hop in the
-trace, so its latency reflects the full downstream cascade as experienced
-closest to the device.
+Receives raw device/room events and publishes them onto the `care-events`
+Redis Stream. This decouples ingestion from processing: the care-event-consumer
+worker drains the stream and drives the cloud fan-out. The async boundary is
+deliberate — it's the realistic shape (edge buffers, cloud processes) and it
+shows a queue in the architecture, not just request/response.
 
 DD_SERVICE/DD_TAGS (deployment:on-prem) come from docker-compose.
 """
 from __future__ import annotations
 
 import logging
-import os
 
-import requests
 from fastapi import FastAPI
 
+from db import stream_publish
 from metrics import statsd
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("care-event-router")
-
-PLATFORM_URL = os.getenv("PLATFORM_URL", "http://care-experience-platform:8080")
-SESSION = requests.Session()
 
 app = FastAPI()
 _counters = {"events": 0}
@@ -36,12 +33,10 @@ def healthz():
 def events(event: dict):
     _counters["events"] += 1
     statsd.increment("care.router.events_total", tags=[f"device_type:{event.get('device_type', 'unknown')}"])
-    enriched = dict(event)
-    enriched["routed_by"] = "care-event-router"
     try:
-        r = SESSION.post(f"{PLATFORM_URL}/ingest", json=enriched, timeout=12)
-        return {"accepted": True, "platform": r.json()}
-    except requests.RequestException as e:
-        statsd.increment("care.router.forward_errors_total")
-        log.warning("forward to platform failed: %s", e)
+        msg_id = stream_publish(event)
+        return {"accepted": True, "stream_id": msg_id}
+    except Exception as e:  # redis down / transient
+        statsd.increment("care.router.publish_errors_total")
+        log.warning("stream publish failed: %s", e)
         return {"accepted": False, "error": str(e)}

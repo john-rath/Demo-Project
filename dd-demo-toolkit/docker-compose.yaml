@@ -593,10 +593,10 @@ services:
     command: ["ddtrace-run", "uvicorn", "care_event_router:app", "--host", "0.0.0.0", "--port", "8080"]
     depends_on:
       datadog-agent-sh: {condition: service_started}
-      care-experience-platform: {condition: service_started}
+      sensing-redis: {condition: service_healthy}
     environment:
       - PYTHONUNBUFFERED=1
-      - PLATFORM_URL=http://care-experience-platform:8080
+      - REDIS_HOST=sensing-redis
       - DD_AGENT_HOST=datadog-agent-sh
       - DD_TRACE_AGENT_PORT=8126
       - DD_SERVICE=care-event-router
@@ -615,14 +615,14 @@ services:
     command: ["ddtrace-run", "uvicorn", "care_portal:app", "--host", "0.0.0.0", "--port", "8080"]
     depends_on:
       datadog-agent-sh: {condition: service_started}
-      care-event-router: {condition: service_started}
+      care-summary-api: {condition: service_started}
     ports:
       # Exposed on the host so a browser (or a Datadog Synthetic private
       # location worker) can load the RUM-instrumented page.
       - "8800:8080"
     environment:
       - PYTHONUNBUFFERED=1
-      - ROUTER_URL=http://care-event-router:8080
+      - SUMMARY_URL=http://care-summary-api:8080
       # RUM browser SDK credentials. Resolved by `op run` (DD_CLIENT_TOKEN is a
       # public-by-design browser token but stored as an op:// ref per policy);
       # served to the browser at runtime via /config.js, never baked in.
@@ -749,6 +749,7 @@ services:
       datadog-agent-sh: {condition: service_started}
       sensing-postgres: {condition: service_healthy}
       sensing-redis: {condition: service_healthy}
+      notification-service: {condition: service_started}
     environment:
       - PYTHONUNBUFFERED=1
       - DB_HOST=sensing-postgres
@@ -756,6 +757,7 @@ services:
       - DB_USER=sensing
       - DB_PASSWORD=sensing
       - REDIS_HOST=sensing-redis
+      - NOTIFICATION_URL=http://notification-service:8080
       - DD_AGENT_HOST=datadog-agent-sh
       - DD_TRACE_AGENT_PORT=8126
       - DD_SERVICE=clinical-alerts-service
@@ -764,6 +766,96 @@ services:
       - DD_DEPLOYMENT=cloud
       - DD_LOGS_INJECTION=true
       - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:clinical-systems
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  notification-service:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-notification-service
+    command: ["ddtrace-run", "uvicorn", "notification_service:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=notification-service
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  care-summary-api:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-care-summary-api
+    command: ["ddtrace-run", "uvicorn", "care_summary_api:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      patient-context-service: {condition: service_started}
+      clinical-alerts-service: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PATIENT_CONTEXT_URL=http://patient-context-service:8080
+      - CLINICAL_ALERTS_URL=http://clinical-alerts-service:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=care-summary-api
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  care-event-consumer:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-care-event-consumer
+    command: ["ddtrace-run", "python", "care_event_consumer.py"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      sensing-redis: {condition: service_healthy}
+      care-experience-platform: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=sensing-redis
+      - PLATFORM_URL=http://care-experience-platform:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=care-event-consumer
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  room-sensing-gateway:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-room-sensing-gateway
+    command: ["ddtrace-run", "python", "room_sensing_gateway.py"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      care-event-router: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ROUTER_URL=http://care-event-router:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=room-sensing-gateway
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=on-prem
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:on-prem team:facilities
     restart: unless-stopped
     profiles:
       - mock-app

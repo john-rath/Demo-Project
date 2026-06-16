@@ -71,3 +71,25 @@ def get_redis() -> redis.Redis:
             decode_responses=True,
         )
     return _REDIS
+
+
+# --- Redis Stream helpers (the async event bus) ----------------------------
+CARE_EVENTS_STREAM = os.getenv("CARE_EVENTS_STREAM", "care-events")
+CARE_EVENTS_GROUP = os.getenv("CARE_EVENTS_GROUP", "care-consumers")
+
+
+def stream_publish(fields: dict) -> str:
+    """XADD an event onto the care-events stream. Returns the message id."""
+    # Redis stream values must be flat strings; JSON-encode the payload.
+    import json
+    return get_redis().xadd(CARE_EVENTS_STREAM, {"payload": json.dumps(fields)})
+
+
+def ensure_consumer_group() -> None:
+    """Create the consumer group (idempotent), making the stream if needed."""
+    r = get_redis()
+    try:
+        r.xgroup_create(CARE_EVENTS_STREAM, CARE_EVENTS_GROUP, id="0", mkstream=True)
+    except redis.ResponseError as e:
+        if "BUSYGROUP" not in str(e):
+            raise

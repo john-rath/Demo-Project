@@ -31,7 +31,7 @@ from metrics import statsd
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("care-portal")
 
-ROUTER_URL = os.getenv("ROUTER_URL", "http://care-event-router:8080")
+SUMMARY_URL = os.getenv("SUMMARY_URL", "http://care-summary-api:8080")
 STATIC_DIR = Path(__file__).parent / "portal_static"
 SESSION = requests.Session()
 
@@ -83,15 +83,14 @@ def index() -> FileResponse:
 
 
 @app.get("/api/ping")
-def api_ping() -> JSONResponse:
-    """Same-origin call the browser makes on a timer. Forwards a portal
-    interaction event into the cascade so a RUM session links to the backend
-    APM trace. Emits a custom metric for the frontend request rate."""
+def api_ping(device_id: str = "rtls_badge-000") -> JSONResponse:
+    """Same-origin call the browser makes on a timer. Hits the synchronous
+    care-summary-api read path so a RUM session links to the backend APM trace
+    and its downstream fan-out. Emits a custom metric for the frontend rate."""
     statsd.increment("care.portal.requests_total")
-    event = {"device_id": "care-portal", "device_type": "web_portal", "event": "portal_interaction"}
     try:
-        r = SESSION.post(f"{ROUTER_URL}/events", json=event, timeout=12)
-        return JSONResponse({"ok": True, "downstream": r.json()})
+        r = SESSION.get(f"{SUMMARY_URL}/summary", params={"device_id": device_id}, timeout=12)
+        return JSONResponse({"ok": True, "summary": r.json()})
     except requests.RequestException as e:
         statsd.increment("care.portal.errors_total")
         return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
