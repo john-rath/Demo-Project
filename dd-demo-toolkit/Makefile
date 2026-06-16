@@ -56,6 +56,7 @@ _LIFECYCLE_PROFILES := $(_DBM_PROFILE) $(_MOCK_PROFILE)
         setup teardown teardown-all \
         up-data-obs down-data-obs logs-data-obs logs-dbt dbt-run-now \
         up-mock-app down-mock-app build-mock-app logs-mock-app remediate \
+        up-traffic down-traffic logs-traffic \
         up-synthetics down-synthetics synthetics-create synthetics-delete \
         rum-create rum-delete rum-provision \
         logs-payment-processor \
@@ -184,7 +185,16 @@ build-mock-app: ## Build the Sensing Hospital mock-app images
 	$(COMPOSE) --profile mock-app build
 
 logs-mock-app: ## Tail logs from the mock-app microservices + edge fleet
-	$(COMPOSE) logs -f care-portal care-summary-api rtls-location-service care-experience-platform care-event-router care-event-consumer room-sensing-gateway patient-context-service clinical-alerts-service notification-service edge-device-fleet remediation-controller
+	$(COMPOSE) logs -f care-portal care-summary-api ai-care-companion rtls-location-service care-experience-platform care-event-router care-event-consumer room-sensing-gateway patient-context-service clinical-alerts-service notification-service edge-device-fleet remediation-controller
+
+up-traffic: check-op ## Start the real-browser RUM traffic generator (Playwright) — run with the mock-app up
+	$(OP_RUN) $(COMPOSE) --profile mock-app --profile traffic up $(UP_FLAGS) -d rum-traffic-generator
+
+down-traffic: ## Stop the RUM traffic generator
+	$(COMPOSE) --profile traffic down --remove-orphans
+
+logs-traffic: ## Tail the RUM traffic generator
+	$(COMPOSE) logs -f rum-traffic-generator
 
 remediate: ## Manually fire the on-prem remediation (clamp rtls poll rate) against the running mock app
 	$(COMPOSE) exec remediation-controller python -c "import requests; print(requests.post('http://localhost:8080/remediate', json={'target':'on-prem'}).json())"

@@ -937,6 +937,22 @@ services:
     profiles:
       - mock-app
 
+  # Real-browser RUM traffic generator (opt-in `traffic` profile — large
+  # Playwright image). Drives care-portal with headless Chromium so the RUM
+  # SDK emits genuine sessions linked to APM + the AI Care Companion LLM Obs.
+  rum-traffic-generator:
+    build: {context: ./docker/traffic_generator, dockerfile: Dockerfile}
+    container_name: dd-demo-rum-traffic-generator
+    # No depends_on: run alongside the mock-app stack; the script retries the
+    # portal each loop, so it tolerates the portal not being ready yet.
+    environment:
+      - PORTAL_URL=http://care-portal:8080
+      - SESSION_GAP_SEC=4
+      - SESSION_LINGER_SEC=12
+    restart: unless-stopped
+    profiles:
+      - traffic
+
 volumes:
   sensing-pgdata: {}
   # Ephemeral volume shared between simulator and authorization-db-worker.
