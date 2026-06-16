@@ -287,7 +287,7 @@ services:
       - DBT_POSTGRES_DB=ey_risk
       - DBT_POSTGRES_SCHEMA=analytics
       - DBT_RUN_INTERVAL_SEC=600
-      - DBT_SERVICE_NAME=ey-risk-portfolio-dbt
+      - DBT_SERVICE_NAME=analytics-dbt-runner
       - DD_ENV=demo
       - DD_SITE=${DD_SITE:-datadoghq.com}
       # DD_API_KEY required for the artifact upload to Datadog Data
