@@ -943,6 +943,12 @@ services:
   rum-traffic-generator:
     build: {context: ./docker/traffic_generator, dockerfile: Dockerfile}
     container_name: dd-demo-rum-traffic-generator
+    depends_on:
+      # Force the generator onto the same compose network as care-portal so
+      # Docker DNS resolves the service name. Without this a stale generator
+      # from a prior profile can sit on an old network and hit
+      # ERR_NAME_NOT_RESOLVED forever.
+      care-portal: {condition: service_started}
     environment:
       - PORTAL_URL=http://care-portal:8080
       - SESSION_GAP_SEC=4

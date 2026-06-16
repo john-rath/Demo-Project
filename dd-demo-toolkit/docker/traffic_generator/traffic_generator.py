@@ -31,7 +31,19 @@ def run_session(browser) -> None:
         # Wait for `load` (not just DOMContentLoaded) so LCP has actually
         # painted before we start interacting. Then settle the network so the
         # PerformanceObserver has observed final LCP/CLS candidates.
-        page.goto(PORTAL_URL, wait_until="load", timeout=25000)
+        # Retry on transient DNS / connection issues so a slow portal startup
+        # or a flaky network resolver doesn't kill the whole session.
+        last_err = None
+        for attempt in range(3):
+            try:
+                page.goto(PORTAL_URL, wait_until="load", timeout=25000)
+                last_err = None
+                break
+            except Exception as e:
+                last_err = e
+                time.sleep(2 * (attempt + 1))
+        if last_err is not None:
+            raise last_err
         try:
             page.wait_for_load_state("networkidle", timeout=8000)
         except Exception:
