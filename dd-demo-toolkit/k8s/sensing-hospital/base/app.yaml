@@ -1,0 +1,354 @@
+# Sensing Hospital app mesh — one Deployment (+ Service for HTTP services) per
+# compose service. All share sensing-config (ConfigMap) + sensing-secrets
+# (Secret) via envFrom; DD_AGENT_HOST comes from the node (DaemonSet agent).
+# Image sensing-hospital:latest — build from docker/sensing_hospital/Dockerfile
+# and push to ECR, then override via a Kustomize `images:` transformer.
+
+# ---------- HTTP services (have a Service) ----------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: care-portal, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: care-portal}}
+  template:
+    metadata: {labels: {app: care-portal, tags.datadoghq.com/service: care-portal}}
+    spec:
+      containers:
+        - name: care-portal
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "uvicorn", "care_portal:app", "--host", "0.0.0.0", "--port", "8080"]
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: care-portal}
+            - {name: DD_DEPLOYMENT, value: cloud}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: care-portal, namespace: sensing-hospital}
+spec:
+  selector: {app: care-portal}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: care-event-router, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: care-event-router}}
+  template:
+    metadata: {labels: {app: care-event-router}}
+    spec:
+      containers:
+        - name: care-event-router
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "uvicorn", "care_event_router:app", "--host", "0.0.0.0", "--port", "8080"]
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: care-event-router}
+            - {name: DD_DEPLOYMENT, value: on-prem}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: care-event-router, namespace: sensing-hospital}
+spec:
+  selector: {app: care-event-router}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: care-experience-platform, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: care-experience-platform}}
+  template:
+    metadata: {labels: {app: care-experience-platform}}
+    spec:
+      containers:
+        - name: care-experience-platform
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "uvicorn", "care_experience_platform:app", "--host", "0.0.0.0", "--port", "8080"]
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: care-experience-platform}
+            - {name: DD_DEPLOYMENT, value: cloud}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: care-experience-platform, namespace: sensing-hospital}
+spec:
+  selector: {app: care-experience-platform}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: rtls-location-service, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: rtls-location-service}}
+  template:
+    metadata: {labels: {app: rtls-location-service}}
+    spec:
+      containers:
+        - name: rtls-location-service
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "uvicorn", "rtls_location_service:app", "--host", "0.0.0.0", "--port", "8080"]
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: rtls-location-service}
+            - {name: DD_DEPLOYMENT, value: on-prem}
+            - {name: RTLS_AUTO_CASCADE, value: "true"}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: rtls-location-service, namespace: sensing-hospital}
+spec:
+  selector: {app: rtls-location-service}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: patient-context-service, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: patient-context-service}}
+  template:
+    metadata: {labels: {app: patient-context-service}}
+    spec:
+      containers:
+        - name: patient-context-service
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "uvicorn", "patient_context_service:app", "--host", "0.0.0.0", "--port", "8080"]
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: patient-context-service}
+            - {name: DD_DEPLOYMENT, value: cloud}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: patient-context-service, namespace: sensing-hospital}
+spec:
+  selector: {app: patient-context-service}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: clinical-alerts-service, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: clinical-alerts-service}}
+  template:
+    metadata: {labels: {app: clinical-alerts-service}}
+    spec:
+      containers:
+        - name: clinical-alerts-service
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "uvicorn", "clinical_alerts_service:app", "--host", "0.0.0.0", "--port", "8080"]
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: clinical-alerts-service}
+            - {name: DD_DEPLOYMENT, value: cloud}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: clinical-alerts-service, namespace: sensing-hospital}
+spec:
+  selector: {app: clinical-alerts-service}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: notification-service, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: notification-service}}
+  template:
+    metadata: {labels: {app: notification-service}}
+    spec:
+      containers:
+        - name: notification-service
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "uvicorn", "notification_service:app", "--host", "0.0.0.0", "--port", "8080"]
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: notification-service}
+            - {name: DD_DEPLOYMENT, value: cloud}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: notification-service, namespace: sensing-hospital}
+spec:
+  selector: {app: notification-service}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: care-summary-api, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: care-summary-api}}
+  template:
+    metadata: {labels: {app: care-summary-api}}
+    spec:
+      containers:
+        - name: care-summary-api
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "uvicorn", "care_summary_api:app", "--host", "0.0.0.0", "--port", "8080"]
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: care-summary-api}
+            - {name: DD_DEPLOYMENT, value: cloud}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: care-summary-api, namespace: sensing-hospital}
+spec:
+  selector: {app: care-summary-api}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: remediation-controller, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: remediation-controller}}
+  template:
+    metadata: {labels: {app: remediation-controller}}
+    spec:
+      containers:
+        - name: remediation-controller
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "uvicorn", "remediation_controller:app", "--host", "0.0.0.0", "--port", "8080"]
+          ports: [{containerPort: 8080}]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: remediation-controller}
+            - {name: DD_DEPLOYMENT, value: cloud}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+          readinessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: remediation-controller, namespace: sensing-hospital}
+spec:
+  selector: {app: remediation-controller}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+# ---------- Workers (no Service) --------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: care-event-consumer, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: care-event-consumer}}
+  template:
+    metadata: {labels: {app: care-event-consumer}}
+    spec:
+      containers:
+        - name: care-event-consumer
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "python", "care_event_consumer.py"]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: care-event-consumer}
+            - {name: DD_DEPLOYMENT, value: cloud}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: room-sensing-gateway, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: room-sensing-gateway}}
+  template:
+    metadata: {labels: {app: room-sensing-gateway}}
+    spec:
+      containers:
+        - name: room-sensing-gateway
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "python", "room_sensing_gateway.py"]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: room-sensing-gateway}
+            - {name: DD_DEPLOYMENT, value: on-prem}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: edge-device-fleet, namespace: sensing-hospital}
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: edge-device-fleet}}
+  template:
+    metadata: {labels: {app: edge-device-fleet}}
+    spec:
+      containers:
+        - name: edge-device-fleet
+          image: sensing-hospital:latest
+          command: ["ddtrace-run", "python", "edge_device.py"]
+          envFrom:
+            - {configMapRef: {name: sensing-config}}
+            - {secretRef: {name: sensing-secrets}}
+          env:
+            - {name: DD_SERVICE, value: edge-device-fleet}
+            - {name: DD_DEPLOYMENT, value: on-prem}
+            - {name: MOCK_SCENARIO, value: healthcare}
+            - {name: DD_LOGS_INJECTION, value: "true"}
+            - {name: DD_AGENT_HOST, valueFrom: {fieldRef: {fieldPath: status.hostIP}}}
