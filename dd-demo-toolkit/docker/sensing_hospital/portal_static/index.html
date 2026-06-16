@@ -108,10 +108,18 @@
 
     async function askCompanion(actionName) {
       if (window.DD_RUM && window.DD_RUM.addAction) window.DD_RUM.addAction(actionName);
+      // Pick a role per click so the Companion sees a realistic mix instead of
+      // 100% patient — a hospital portal serves both patients (med questions,
+      // discharge, triage) and clinicians (overnight shift summaries). Without
+      // this the dashboard's "Patient vs Clinician Mix" shows 100% patient and
+      // the clinician care_plan scenario never lights up in LLM Obs traces.
+      // 70/30 weighting roughly matches real portal traffic.
+      var role = Math.random() < 0.7 ? 'patient' : 'clinician';
+      if (window.DD_RUM && window.DD_RUM.addAction) window.DD_RUM.addAction('role_' + role);
       try {
         var res = await fetch('/api/ask', {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ role: 'patient' })
+          body: JSON.stringify({ role: role })
         });
         var body = await res.json();
         var c = body.companion || {};

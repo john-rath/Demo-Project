@@ -716,6 +716,12 @@ services:
   synthetics-private-location:
     image: datadog/synthetics-private-location-worker:latest
     container_name: dd-demo-synthetics-pl
+    # Datadog only publishes this image for linux/amd64. Force the platform so
+    # Apple Silicon (arm64) hosts run it via Docker Desktop's Rosetta x86
+    # emulation — without this, the pull fails with:
+    #   "no matching manifest for linux/arm64/v8 in the manifest list entries"
+    # Performance hit is negligible (the worker is I/O-bound, not CPU-bound).
+    platform: linux/amd64
     # Mount the PL config JSON Datadog downloads when you create the Private
     # Location. Save it to ./.secrets/synthetics-pl-config.json (gitignored).
     # Cleaner than trying to one-line the JSON (with its embedded PEM key) into
