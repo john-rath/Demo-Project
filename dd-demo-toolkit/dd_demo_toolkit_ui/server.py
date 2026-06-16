@@ -74,14 +74,22 @@ logger = logging.getLogger(__name__)
 # `available`: whether the toolkit currently generates real telemetry /
 #   resources for this SKU. Grounded in the codebase — APM/Logs/Infra
 #   (engine), DBM (docker stack), RUM (simulator/rum.py), EuD
-#   (hospital.eud.*/cxp.*), DSM + Data Observability (data_obs/ Kafka+dbt),
-#   LLM Observability (simulator/llm_obs.py + data_obs/llm_experiments +
-#   the ey overlay), Sensitive Data Scanner (resources/sds.py), Workflow
-#   Automation / Incidents / Case Management (resource managers), and Bits
-#   AI (the cascades are purpose-built for its RCA). SKUs the toolkit does
-#   NOT yet emit are marked available=False; the UI renders those disabled
-#   with a "not yet available" note so SEs see the full landscape without
-#   selecting something the demo can't actually show.
+#   (hospital.eud.*/cxp.*), DSM (data_obs/ Kafka workers with dd-trace
+#   DSM enabled), LLM Observability (simulator/llm_obs.py +
+#   data_obs/llm_experiments + the ey overlay), Sensitive Data Scanner
+#   (resources/sds.py), Workflow Automation / Incidents / Case Management
+#   (resource managers), and Bits AI (the cascades are purpose-built for
+#   its RCA). SKUs the toolkit does NOT yet emit are marked
+#   available=False; the UI renders those disabled with a "not yet
+#   available" note so SEs see the full landscape without selecting
+#   something the demo can't actually show.
+#
+#   NOTE on Data Observability: data_obs/ runs dbt and produces
+#   manifest.json / run_results.json, but the upload to Datadog is NOT
+#   wired (datadog-ci dropped the dbt plugin in v5; see
+#   data_obs/dbt_runner/run_loop.sh report_artifacts()). dbt lineage /
+#   freshness / tests do not reach Datadog today, so dataobs is
+#   available=False until the Agent dbt integration is configured.
 # `default`: pre-checked on first load (no DD_DEMO_PRODUCTS yet) — the core
 #   story most demos open with. Only available products may be default.
 PRODUCT_CATALOG: List[Dict[str, Any]] = [
@@ -119,8 +127,8 @@ PRODUCT_CATALOG: List[Dict[str, Any]] = [
      "description": "Kafka/queue pipeline lag and throughput (data-obs stack).",
      "available": True, "default": False},
     {"key": "dataobs", "label": "Data Observability", "group": "Data & streaming",
-     "description": "dbt model lineage, freshness, and schema tests (data-obs stack).",
-     "available": True, "default": False},
+     "description": "dbt model lineage, freshness, and schema tests. dbt runs but artifacts aren't uploaded to Datadog yet.",
+     "available": False, "default": False},
     # --- AI ---
     {"key": "llmobs", "label": "LLM Observability", "group": "AI",
      "description": "LLM app traces, evals, and quality (llm_obs + ey overlay).",

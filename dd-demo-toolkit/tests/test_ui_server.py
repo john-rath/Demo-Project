@@ -277,14 +277,15 @@ def test_products_returns_catalog_with_required_fields(client):
 def test_products_availability_reflects_toolkit_support(client):
     """Supported SKUs are available; SKUs the toolkit doesn't emit are not.
 
-    Grounded in the codebase: LLM Observability, DSM, Data Observability,
-    and Sensitive Data Scanner ARE generated; Profiler / Synthetics / NPM /
-    CSM are not yet.
+    Grounded in the codebase: LLM Observability, DSM, and Sensitive Data
+    Scanner ARE generated; Profiler / Synthetics / NPM / CSM are not yet.
+    Data Observability is NOT available — dbt runs but its artifacts are
+    not uploaded to Datadog (data_obs/dbt_runner/run_loop.sh).
     """
     catalog = {p["key"]: p for p in client.get("/api/products").json()}
-    for key in ("apm", "logs", "dbm", "rum", "eud", "llmobs", "dsm", "dataobs", "sds", "bits"):
+    for key in ("apm", "logs", "dbm", "rum", "eud", "llmobs", "dsm", "sds", "bits"):
         assert catalog[key]["available"] is True, f"{key} should be available"
-    for key in ("profiler", "synthetics", "npm", "csm"):
+    for key in ("profiler", "synthetics", "npm", "csm", "dataobs"):
         assert catalog[key]["available"] is False, f"{key} should be marked not-yet-available"
     # No product is pre-checked unless it's actually available.
     for p in catalog.values():
