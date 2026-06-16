@@ -993,9 +993,14 @@ class LLMObsSubmitter:
         insecure: bool = True,
         vertical_name: Optional[str] = None,
     ):
+        # LLM-trace rate. Each tick of the simulator runs at EMIT_INTERVAL
+        # (default 15s). Emit one trace every `LLMOBS_TICKS_PER_TRACE` ticks
+        # — default 1 so the LLM Observability view feels alive in a live
+        # demo (~4 traces/min). Override via env (e.g. "2" to halve the rate).
         self._tick_counter = 0
-        self._interval = random.randint(3, 5)
-        self._error_rate = 0.05
+        self._ticks_per_trace = max(1, int(os.getenv("LLMOBS_TICKS_PER_TRACE", "1")))
+        self._interval = self._ticks_per_trace
+        self._error_rate = float(os.getenv("LLMOBS_ERROR_RATE", "0.15"))
 
         # ---- Vertical-aware library selection --------------------------
         # Default is a vertical-neutral AI Assistant. `finance` swaps to the
@@ -1103,7 +1108,7 @@ class LLMObsSubmitter:
         if self._tick_counter < self._interval:
             return
         self._tick_counter = 0
-        self._interval = random.randint(3, 5)
+        self._interval = self._ticks_per_trace
 
         if random.random() < self._error_rate:
             self._generate_error_trace()
