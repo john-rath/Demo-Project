@@ -687,6 +687,21 @@ services:
     profiles:
       - mock-app
 
+  # Datadog Synthetics private-location worker — executes synthetic tests from
+  # INSIDE the compose network so they can reach the local app (public managed
+  # locations can't hit localhost). Gated by its own `synthetics` profile since
+  # it needs a private-location config blob (create the PL in Datadog first).
+  # Drives the RUM-instrumented care-portal to generate browser traffic.
+  synthetics-private-location:
+    image: datadog/synthetics-private-location-worker:latest
+    container_name: dd-demo-synthetics-pl
+    environment:
+      # JSON config blob Datadog returns when you create a private location.
+      - DATADOG_PRIVATE_LOCATION_CONFIG=${DATADOG_PRIVATE_LOCATION_CONFIG:?create a Datadog private location and set DATADOG_PRIVATE_LOCATION_CONFIG}
+    restart: unless-stopped
+    profiles:
+      - synthetics
+
   # --- Data layer (k8s-portable: StatefulSet/RDS + ElastiCache on AWS) -------
   sensing-postgres:
     image: postgres:16-alpine

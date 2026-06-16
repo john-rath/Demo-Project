@@ -56,6 +56,7 @@ _LIFECYCLE_PROFILES := $(_DBM_PROFILE) $(_MOCK_PROFILE)
         setup teardown teardown-all \
         up-data-obs down-data-obs logs-data-obs logs-dbt dbt-run-now \
         up-mock-app down-mock-app build-mock-app logs-mock-app remediate \
+        up-synthetics down-synthetics synthetics-create synthetics-delete \
         logs-payment-processor \
         logs-experiment \
         clean-orphans clean-all \
@@ -186,6 +187,24 @@ logs-mock-app: ## Tail logs from the mock-app microservices + edge fleet
 
 remediate: ## Manually fire the on-prem remediation (clamp rtls poll rate) against the running mock app
 	$(COMPOSE) exec remediation-controller python -c "import requests; print(requests.post('http://localhost:8080/remediate', json={'target':'on-prem'}).json())"
+
+## -- Synthetics (drives RUM traffic via a private location) ------------------
+
+up-synthetics: check-op ## Start the Synthetics private-location worker (needs DATADOG_PRIVATE_LOCATION_CONFIG in .env)
+	$(OP_RUN) $(COMPOSE) --profile synthetics up $(UP_FLAGS) -d synthetics-private-location
+
+down-synthetics: ## Stop the Synthetics private-location worker
+	$(COMPOSE) --profile synthetics down --remove-orphans
+
+synthetics-create: check-op ## Create the Sensing Hospital synthetic tests (browser + API) on the private location
+	$(OP_RUN) $(COMPOSE) --profile mock-app run --rm --no-deps \
+	  -e DD_API_KEY -e DD_APP_KEY -e DD_SITE -e DD_SYNTHETICS_PRIVATE_LOCATION_ID \
+	  care-portal python synthetics/manage_synthetics.py create
+
+synthetics-delete: check-op ## Delete the Sensing Hospital synthetic tests
+	$(OP_RUN) $(COMPOSE) --profile mock-app run --rm --no-deps \
+	  -e DD_API_KEY -e DD_APP_KEY -e DD_SITE \
+	  care-portal python synthetics/manage_synthetics.py delete
 
 dbt-run-now: check-op ## Trigger an immediate dbt build (no need to wait for the loop interval)
 	$(OP_RUN) $(COMPOSE) exec data-obs-dbt-runner bash -c 'cd /dbt_project && dbt build 2>&1 | tail -30'
