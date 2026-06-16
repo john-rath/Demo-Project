@@ -529,6 +529,13 @@ services:
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      # Disable auto multi-line detection. Its tokenizer (the
+      # decoder/preprocessor that owns user_samples / timestamp_detector /
+      # pattern_table) error-logs "Tokens are required ..." once per low-token
+      # line when collecting all container logs — pure noise that floods the
+      # agent output. We don't need multi-line aggregation for these
+      # single-line JSON/uvicorn logs.
+      - DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION=false
       - DD_PROCESS_AGENT_ENABLED=true
       - DD_CONTAINER_EXCLUDE=name:dd-demo-otel-collector name:dd-demo-kafka
       - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience env:demo
