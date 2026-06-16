@@ -1,0 +1,12 @@
+init_config:
+
+instances:
+  - host: sensing-redis
+    port: 6379
+    tags:
+      - service:sensing-redis
+      - env:demo
+      - vertical:healthcare
+      - incident_domain:care-experience
+      - deployment:cloud
+      - dd-demo-toolkit:true

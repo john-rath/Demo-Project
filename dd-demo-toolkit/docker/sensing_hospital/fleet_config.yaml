@@ -1,0 +1,51 @@
+# Per-vertical mock edge-device fleet description.
+#
+# The edge_device generator reads MOCK_SCENARIO (defaults to DD_DEMO_VERTICAL)
+# and picks the matching block, so the same container image re-skins for any
+# vertical. Each device_type is simulated `count` times; every device posts a
+# JSON event to the care-event-router on `interval_sec`. This is what makes
+# the fleet "easy to configure per vertical" per David's note — add a block
+# here and the same containers light up a new industry scenario.
+
+scenarios:
+
+  healthcare:
+    display_name: "AdventHealth Sensing Hospital"
+    # Maps to the AdventHealth overlay's care-experience cascade footprint.
+    location:
+      floor: "3"
+      wing: "East"
+      department: "MedSurg"
+    device_types:
+      - type: rtls_badge
+        count: 40
+        interval_sec: 3
+        event: location_ping
+      - type: room_sensing_gateway
+        count: 12
+        interval_sec: 5
+        event: room_state
+      - type: bedside_engagement_tablet
+        count: 24
+        interval_sec: 4
+        event: patient_interaction
+
+  # Placeholder blocks — extend per vertical. Kept minimal so the fleet still
+  # runs if MOCK_SCENARIO points at one of these; flesh out as demos need them.
+  finance:
+    display_name: "Global Financial Services"
+    location: {region: "us-east", tier: "core"}
+    device_types:
+      - type: branch_kiosk
+        count: 20
+        interval_sec: 4
+        event: txn_heartbeat
+
+  manufacturing:
+    display_name: "Connected Factory"
+    location: {plant: "P1", line: "A"}
+    device_types:
+      - type: plc_controller
+        count: 30
+        interval_sec: 2
+        event: sensor_reading

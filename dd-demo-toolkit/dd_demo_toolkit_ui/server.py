@@ -62,6 +62,113 @@ from .process_supervisor import (
 logger = logging.getLogger(__name__)
 
 
+# Catalog of Datadog products/features a demo can showcase. Surfaced by
+# GET /api/products and rendered as a checkbox grid in the Configure tab.
+# The user's selection is persisted to DD_DEMO_PRODUCTS (comma-separated)
+# so the demo's intended scope is captured for setup and downstream asset
+# filtering. The one product with a real container toggle today is
+# Database Monitoring: selecting it also flips DD_DEMO_DBM (the frontend
+# derives that from the selection), which `make up` reads to start the
+# DBM stack. Other entries record intent for now.
+#
+# `available`: whether the toolkit currently generates real telemetry /
+#   resources for this SKU. Grounded in the codebase — APM/Logs/Infra
+#   (engine), DBM (docker stack), RUM (simulator/rum.py), EuD
+#   (hospital.eud.*/cxp.*), DSM (data_obs/ Kafka workers with dd-trace
+#   DSM enabled), LLM Observability (simulator/llm_obs.py +
+#   data_obs/llm_experiments + the ey overlay), Sensitive Data Scanner
+#   (resources/sds.py), Synthetic Monitoring (private-location browser+API
+#   tests in docker/sensing_hospital/synthetics), Workflow Automation /
+#   Incidents / Case Management (resource managers), and Bits AI (the cascades
+#   are purpose-built for its RCA). SKUs the toolkit does NOT yet emit are
+#   marked
+#   available=False; the UI renders those disabled with a "not yet
+#   available" note so SEs see the full landscape without selecting
+#   something the demo can't actually show.
+#
+#   NOTE on Data Observability: data_obs/ runs dbt and produces
+#   manifest.json / run_results.json, but the upload to Datadog is NOT
+#   wired (datadog-ci dropped the dbt plugin in v5; see
+#   data_obs/dbt_runner/run_loop.sh report_artifacts()). dbt lineage /
+#   freshness / tests do not reach Datadog today, so dataobs is
+#   available=False until the Agent dbt integration is configured.
+# `default`: pre-checked on first load (no DD_DEMO_PRODUCTS yet) — the core
+#   story most demos open with. Only available products may be default.
+PRODUCT_CATALOG: List[Dict[str, Any]] = [
+    # --- Core observability ---
+    {"key": "apm", "label": "APM & Distributed Tracing", "group": "Core observability",
+     "description": "Service traces, flame graphs, and the on-prem→cloud cascade map.",
+     "available": True, "default": True},
+    {"key": "logs", "label": "Log Management", "group": "Core observability",
+     "description": "Correlated service and container logs.",
+     "available": True, "default": True},
+    {"key": "infra", "label": "Infrastructure Monitoring", "group": "Core observability",
+     "description": "Host, container, and device fleet health.",
+     "available": True, "default": True},
+    {"key": "dbm", "label": "Database Monitoring", "group": "Core observability",
+     "description": "Postgres query performance. On healthcare it monitors sensing-postgres (mock-app); on finance it starts the authorization-db DBM stack.",
+     "available": True, "default": False, "drives_flag": "DD_DEMO_DBM"},
+    {"key": "profiler", "label": "Continuous Profiler", "group": "Core observability",
+     "description": "Code-level CPU/memory profiling.",
+     "available": False, "default": False},
+    {"key": "npm", "label": "Network Monitoring (NPM/CNM)", "group": "Core observability",
+     "description": "Network flows and connection-level performance.",
+     "available": False, "default": False},
+    # --- Digital experience ---
+    {"key": "rum", "label": "Real User Monitoring", "group": "Digital experience",
+     "description": "Frontend/web session performance and errors.",
+     "available": True, "default": False},
+    {"key": "eud", "label": "End-User Devices (EuD)", "group": "Digital experience",
+     "description": "Patient/clinician device experience — app launch, crashes, on-device network.",
+     "available": True, "default": True},
+    {"key": "synthetics", "label": "Synthetic Monitoring", "group": "Digital experience",
+     "description": "Browser + API tests via a private location (drives the mock app's RUM traffic).",
+     "available": True, "default": False},
+    # --- Data & streaming ---
+    {"key": "dsm", "label": "Data Streams Monitoring", "group": "Data & streaming",
+     "description": "Kafka/queue pipeline lag and throughput (data-obs stack).",
+     "available": True, "default": False},
+    {"key": "dataobs", "label": "Data Observability", "group": "Data & streaming",
+     "description": "dbt model lineage, freshness, and schema tests. dbt runs but artifacts aren't uploaded to Datadog yet.",
+     "available": False, "default": False},
+    # --- AI ---
+    {"key": "llmobs", "label": "LLM Observability", "group": "AI",
+     "description": "LLM app traces, evals, and quality (llm_obs + ey overlay).",
+     "available": True, "default": False},
+    {"key": "bits", "label": "Bits AI / Watchdog", "group": "AI",
+     "description": "AI-driven detection and root-cause isolation across the disjoint cascade.",
+     "available": True, "default": True},
+    # --- Security & compliance ---
+    {"key": "sds", "label": "Sensitive Data Scanner", "group": "Security & compliance",
+     "description": "PII/PHI scanning rules over logs.",
+     "available": True, "default": False},
+    {"key": "csm", "label": "Cloud Security Management", "group": "Security & compliance",
+     "description": "Misconfig and runtime security signals.",
+     "available": False, "default": False},
+    {"key": "asm", "label": "App & API Protection (ASM)", "group": "Security & compliance",
+     "description": "In-app threat detection and protection.",
+     "available": False, "default": False},
+    # --- Software delivery & ops ---
+    {"key": "workflows", "label": "Workflow Automation", "group": "Software delivery & ops",
+     "description": "Self-healing / notification workflows for the cascade.",
+     "available": True, "default": False},
+    {"key": "incidents", "label": "Incident Management", "group": "Software delivery & ops",
+     "description": "Scripted incidents tied to the cascade narrative.",
+     "available": True, "default": False},
+    {"key": "cases", "label": "Case Management", "group": "Software delivery & ops",
+     "description": "Investigation cases for the cascade and fleet reviews.",
+     "available": True, "default": False},
+    {"key": "ci", "label": "CI Visibility / Test Optimization", "group": "Software delivery & ops",
+     "description": "Pipeline and test-suite observability.",
+     "available": False, "default": False},
+]
+
+# Keys that map a selected product to a real .env toggle the stack reads.
+PRODUCT_DRIVEN_FLAGS: Dict[str, str] = {
+    p["key"]: p["drives_flag"] for p in PRODUCT_CATALOG if p.get("drives_flag")
+}
+
+
 @dataclass(frozen=True)
 class UIConfig:
     """Where the UI server looks on disk for toolkit state.
@@ -108,6 +215,11 @@ class EnvWriteRequest(BaseModel):
     DD_SITE: Optional[str] = None
     DD_DEMO_VERTICAL: Optional[str] = None
     DD_DEMO_SUB_VERTICAL: Optional[str] = None
+    DD_DEMO_PRODUCTS: Optional[str] = None
+    DD_DEMO_DBM: Optional[str] = None
+    DD_DEMO_MOCK_FLEET: Optional[str] = None
+    DD_RUM_APPLICATION_ID: Optional[str] = None
+    DD_CLIENT_TOKEN: Optional[str] = None
     EMIT_INTERVAL: Optional[str] = None
     DISPLAY_NAME: Optional[str] = None
     OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = None
@@ -181,6 +293,17 @@ def build_app(cfg: UIConfig) -> FastAPI:
         # Sorted for stable UI rendering. Reuses the toolkit's authoritative
         # map so a new region added to the toolkit shows up here automatically.
         return sorted(DatadogAPIClient.SITE_MAPPING.keys())
+
+    @app.get("/api/products")
+    def products() -> List[Dict[str, Any]]:
+        """Catalog of demonstrable Datadog products for the checkbox picker.
+
+        Static catalog (see PRODUCT_CATALOG). The frontend renders these as
+        a grouped checkbox grid, pre-checks `default: true` entries when
+        DD_DEMO_PRODUCTS is unset, and persists the selection back to
+        DD_DEMO_PRODUCTS on save.
+        """
+        return PRODUCT_CATALOG
 
     # ----- Verticals & overlays ---------------------------------------------
 

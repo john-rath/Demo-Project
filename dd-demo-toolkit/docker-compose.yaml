@@ -161,7 +161,7 @@ services:
   # never use env_file for DD_API_KEY, always require it from the compose
   # shell env via :? (populated by `op run`).
   datadog-agent:
-    image: gcr.io/datadoghq/agent:7
+    image: gcr.io/datadoghq/agent:latest
     container_name: dd-demo-datadog-agent
     environment:
       - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up-data-obs`}
@@ -172,6 +172,10 @@ services:
       - DD_DATA_STREAMS_ENABLED=true
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      # Silence the auto-multiline tokenizer "Tokens are required ..." ERROR
+      # spam (same fix as datadog-agent-sh); harmless on older agents.
+      - DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION=false
+      - DD_LOGS_CONFIG_FORCE_AUTO_MULTI_LINE_DETECTION_V1=true
       - DD_CONTAINER_EXCLUDE=name:dd-demo-kafka
       - DD_TAGS=dd-demo-toolkit:true vertical:finance incident_domain:ai-eval-pipeline env:demo
     volumes:
@@ -287,7 +291,7 @@ services:
       - DBT_POSTGRES_DB=ey_risk
       - DBT_POSTGRES_SCHEMA=analytics
       - DBT_RUN_INTERVAL_SEC=600
-      - DBT_SERVICE_NAME=ey-risk-portfolio-dbt
+      - DBT_SERVICE_NAME=analytics-dbt-runner
       - DD_ENV=demo
       - DD_SITE=${DD_SITE:-datadoghq.com}
       # DD_API_KEY required for the artifact upload to Datadog Data
@@ -446,7 +450,7 @@ services:
   # Same secret-handling pattern as the rest of the stack (no env_file for
   # DD_API_KEY; requires op run via `make up-payment-processor`).
   datadog-agent-pp:
-    image: gcr.io/datadoghq/agent:7
+    image: gcr.io/datadoghq/agent:latest
     container_name: dd-demo-datadog-agent-pp
     depends_on:
       authorization-db:
@@ -458,6 +462,9 @@ services:
       - DD_APM_ENABLED=false
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=false
+      # Silence the auto-multiline tokenizer "Tokens are required ..." ERROR spam.
+      - DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION=false
+      - DD_LOGS_CONFIG_FORCE_AUTO_MULTI_LINE_DETECTION_V1=true
       - DD_PROCESS_AGENT_ENABLED=false
       - DD_DEMO_VERTICAL=${DD_DEMO_VERTICAL:-finance}
       - DD_TAGS=service:authorization-engine env:demo vertical:${DD_DEMO_VERTICAL:-finance} dd-demo-toolkit:true
@@ -506,7 +513,452 @@ services:
     profiles:
       - dbm
 
+  # ===========================================================================
+  # Sensing Hospital mock environment — `mock-app` profile (DD_DEMO_MOCK_FLEET).
+  #
+  # A real containerized microservice app + mock IoT edge fleet, collected by
+  # the ACTUAL Datadog Agent (not the OTel collector): APM service map, traces,
+  # logs, and process/container infra. Mirrors the AdventHealth overlay's
+  # on-prem→cloud care-experience cascade so the live app reinforces the
+  # synthetic story. Gated by its own profile so `make up` is unchanged.
+  # ===========================================================================
+
+  # Dedicated Datadog Agent for the mock app (distinct from the data-obs /
+  # dbm agents so the profiles compose cleanly when run together).
+  datadog-agent-sh:
+    # Always-current agent (latest) — preferred so new features are available
+    # and deprecated ones aren't a surprise. The log-spam fix is the
+    # FORCE_AUTO_MULTI_LINE_DETECTION_V1 flag below, independent of version.
+    image: gcr.io/datadoghq/agent:latest
+    container_name: dd-demo-datadog-agent-sh
+    environment:
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up-mock-app`}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      # Silence the "Tokens are required ..." ERROR spam from the log
+      # auto-multiline tokenizer (decoder/preprocessor: user_samples /
+      # timestamp_detector / pattern_table). Two levers, belt-and-suspenders:
+      #   1) turn the feature off, and
+      #   2) force the legacy v1 path — v1 has no tokenizer, so even if
+      #      auto-multiline is enabled anywhere it can't emit these errors.
+      # Our service logs are single-line JSON/uvicorn; no multi-line needed.
+      - DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION=false
+      - DD_LOGS_CONFIG_FORCE_AUTO_MULTI_LINE_DETECTION_V1=true
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_CONTAINER_EXCLUDE=name:dd-demo-otel-collector name:dd-demo-kafka
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience env:demo
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+      # Postgres (DBM) + Redis integration configs.
+      - ./docker/datadog/sensing/conf.d/postgres.d:/etc/datadog-agent/conf.d/postgres.d:ro
+      - ./docker/datadog/sensing/conf.d/redisdb.d:/etc/datadog-agent/conf.d/redisdb.d:ro
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  rtls-location-service:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-rtls-location-service
+    command: ["ddtrace-run", "uvicorn", "rtls_location_service:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RTLS_AUTO_CASCADE=${RTLS_AUTO_CASCADE:-true}
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=rtls-location-service
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=on-prem
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:on-prem team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  care-experience-platform:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-care-experience-platform
+    command: ["ddtrace-run", "uvicorn", "care_experience_platform:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      rtls-location-service: {condition: service_started}
+      patient-context-service: {condition: service_started}
+      clinical-alerts-service: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RTLS_URL=http://rtls-location-service:8080
+      - PATIENT_CONTEXT_URL=http://patient-context-service:8080
+      - CLINICAL_ALERTS_URL=http://clinical-alerts-service:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=care-experience-platform
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  care-event-router:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-care-event-router
+    command: ["ddtrace-run", "uvicorn", "care_event_router:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      sensing-redis: {condition: service_healthy}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=sensing-redis
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=care-event-router
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=on-prem
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:on-prem team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  care-portal:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-care-portal
+    command: ["ddtrace-run", "uvicorn", "care_portal:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      care-summary-api: {condition: service_started}
+      ai-care-companion: {condition: service_started}
+    ports:
+      # Exposed on the host so a browser (or a Datadog Synthetic private
+      # location worker) can load the RUM-instrumented page.
+      - "8800:8080"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - SUMMARY_URL=http://care-summary-api:8080
+      - COMPANION_URL=http://ai-care-companion:8080
+      # RUM browser SDK credentials. Resolved by `op run` (DD_CLIENT_TOKEN is a
+      # public-by-design browser token but stored as an op:// ref per policy);
+      # served to the browser at runtime via /config.js, never baked in.
+      - DD_RUM_APPLICATION_ID=${DD_RUM_APPLICATION_ID:-}
+      - DD_CLIENT_TOKEN=${DD_CLIENT_TOKEN:-}
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=care-portal
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  remediation-controller:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-remediation-controller
+    command: ["ddtrace-run", "uvicorn", "remediation_controller:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      rtls-location-service: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RTLS_URL=http://rtls-location-service:8080
+      - SAFE_POLL_RATE=60
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=remediation-controller
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud workflow-type:auto-remediation
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  edge-device-fleet:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-edge-device-fleet
+    command: ["ddtrace-run", "python", "edge_device.py"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      care-event-router: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ROUTER_URL=http://care-event-router:8080
+      - MOCK_SCENARIO=${DD_DEMO_VERTICAL:-healthcare}
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=edge-device-fleet
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:on-prem team:biomed
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  # Datadog Synthetics private-location worker — executes synthetic tests from
+  # INSIDE the compose network so they can reach the local app (public managed
+  # locations can't hit localhost). Gated by its own `synthetics` profile since
+  # it needs a private-location config blob (create the PL in Datadog first).
+  # Drives the RUM-instrumented care-portal to generate browser traffic.
+  synthetics-private-location:
+    image: datadog/synthetics-private-location-worker:latest
+    container_name: dd-demo-synthetics-pl
+    # Mount the PL config JSON Datadog downloads when you create the Private
+    # Location. Save it to ./.secrets/synthetics-pl-config.json (gitignored).
+    # Cleaner than trying to one-line the JSON (with its embedded PEM key) into
+    # an env var. The worker reads /etc/datadog/synthetics-check-runner.json
+    # by default. The file path is host-side; if it doesn't exist yet, the
+    # worker container will exit — that's fine because it's behind the opt-in
+    # `synthetics` profile and only starts via `make up-synthetics`.
+    volumes:
+      - ./.secrets/synthetics-pl-config.json:/etc/datadog/synthetics-check-runner.json:ro
+    restart: unless-stopped
+    profiles:
+      - synthetics
+
+  # --- Data layer (k8s-portable: StatefulSet/RDS + ElastiCache on AWS) -------
+  sensing-postgres:
+    image: postgres:16-alpine
+    container_name: dd-demo-sensing-postgres
+    # Preload pg_stat_statements so the Agent's DBM query_metrics populate.
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "track_activity_query_size=4096"
+    environment:
+      - POSTGRES_DB=sensing
+      - POSTGRES_USER=sensing
+      - POSTGRES_PASSWORD=sensing
+    volumes:
+      - ./docker/sensing_hospital/initdb:/docker-entrypoint-initdb.d:ro
+      - sensing-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sensing -d sensing"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  sensing-redis:
+    image: redis:7-alpine
+    container_name: dd-demo-sensing-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  patient-context-service:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-patient-context-service
+    command: ["ddtrace-run", "uvicorn", "patient_context_service:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      sensing-postgres: {condition: service_healthy}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=sensing-postgres
+      - DB_NAME=sensing
+      - DB_USER=sensing
+      - DB_PASSWORD=sensing
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=patient-context-service
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  clinical-alerts-service:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-clinical-alerts-service
+    command: ["ddtrace-run", "uvicorn", "clinical_alerts_service:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      sensing-postgres: {condition: service_healthy}
+      sensing-redis: {condition: service_healthy}
+      notification-service: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DB_HOST=sensing-postgres
+      - DB_NAME=sensing
+      - DB_USER=sensing
+      - DB_PASSWORD=sensing
+      - REDIS_HOST=sensing-redis
+      - NOTIFICATION_URL=http://notification-service:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=clinical-alerts-service
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:clinical-systems
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  notification-service:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-notification-service
+    command: ["ddtrace-run", "uvicorn", "notification_service:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=notification-service
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  care-summary-api:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-care-summary-api
+    command: ["ddtrace-run", "uvicorn", "care_summary_api:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      patient-context-service: {condition: service_started}
+      clinical-alerts-service: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PATIENT_CONTEXT_URL=http://patient-context-service:8080
+      - CLINICAL_ALERTS_URL=http://clinical-alerts-service:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=care-summary-api
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  # The executive-grade healthcare AI service. Emits LLM Observability spans +
+  # safety/cost evals; self-degrades ~5 min every 30 min for live triage.
+  ai-care-companion:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-ai-care-companion
+    command: ["ddtrace-run", "uvicorn", "ai_care_companion:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=ai-care-companion
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:ai-care-companion deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  care-event-consumer:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-care-event-consumer
+    command: ["ddtrace-run", "python", "care_event_consumer.py"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      sensing-redis: {condition: service_healthy}
+      care-experience-platform: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=sensing-redis
+      - PLATFORM_URL=http://care-experience-platform:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=care-event-consumer
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=cloud
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  room-sensing-gateway:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-room-sensing-gateway
+    command: ["ddtrace-run", "python", "room_sensing_gateway.py"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      care-event-router: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ROUTER_URL=http://care-event-router:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=room-sensing-gateway
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_DEPLOYMENT=on-prem
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:on-prem team:facilities
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  # Real-browser RUM traffic generator. Lives in the mock-app profile so it
+  # comes up automatically with the rest of the stack (one-time ~1.7GB
+  # Playwright image pull on first build). Drives care-portal with headless
+  # Chromium so the RUM SDK emits genuine sessions linked to APM + the AI Care
+  # Companion LLM Obs. The script retries each loop, so it tolerates the portal
+  # not being ready yet (no depends_on).
+  rum-traffic-generator:
+    build: {context: ./docker/traffic_generator, dockerfile: Dockerfile}
+    container_name: dd-demo-rum-traffic-generator
+    depends_on:
+      # Force the generator onto the same compose network as care-portal so
+      # Docker DNS resolves the service name. Without this a stale generator
+      # from a prior profile can sit on an old network and hit
+      # ERR_NAME_NOT_RESOLVED forever.
+      care-portal: {condition: service_started}
+    environment:
+      - PORTAL_URL=http://care-portal:8080
+      - SESSION_GAP_SEC=4
+      - SESSION_LINGER_SEC=12
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
 volumes:
+  sensing-pgdata: {}
   # Ephemeral volume shared between simulator and authorization-db-worker.
   # The cascade plugin writes the current phase here; the db-worker reads it
   # to choose normal vs. degraded query patterns.

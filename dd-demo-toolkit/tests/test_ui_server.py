@@ -253,3 +253,67 @@ def test_post_env_round_trip_preserves_hand_edited_var(client, app_and_paths):
     on_disk = em.read_env(cfg.env_path, mask=False)
     assert on_disk["MY_CUSTOM"] == "hand-edited-value"
     assert on_disk["DD_SITE"] == "datadoghq.eu"
+
+
+# ----- /api/products + product picker round-trip ----------------------------
+
+
+def test_products_returns_catalog_with_required_fields(client):
+    r = client.get("/api/products")
+    assert r.status_code == 200
+    catalog = r.json()
+    assert isinstance(catalog, list) and len(catalog) > 0
+    keys = {p["key"] for p in catalog}
+    # Spot-check expected products, including the EuD lens and LLM Obs.
+    assert {"apm", "dbm", "eud", "bits", "llmobs"} <= keys
+    # Every entry has the fields the frontend renders, incl. availability.
+    for p in catalog:
+        assert {"key", "label", "group", "description", "default", "available"} <= set(p)
+    # Database Monitoring declares the real env flag it drives.
+    dbm = next(p for p in catalog if p["key"] == "dbm")
+    assert dbm["drives_flag"] == "DD_DEMO_DBM"
+
+
+def test_products_availability_reflects_toolkit_support(client):
+    """Supported SKUs are available; SKUs the toolkit doesn't emit are not.
+
+    Grounded in the codebase: LLM Observability, DSM, and Sensitive Data
+    Scanner ARE generated; Profiler / Synthetics / NPM / CSM are not yet.
+    Data Observability is NOT available — dbt runs but its artifacts are
+    not uploaded to Datadog (data_obs/dbt_runner/run_loop.sh).
+    """
+    catalog = {p["key"]: p for p in client.get("/api/products").json()}
+    for key in ("apm", "logs", "dbm", "rum", "eud", "llmobs", "dsm", "sds", "bits", "synthetics"):
+        assert catalog[key]["available"] is True, f"{key} should be available"
+    for key in ("profiler", "npm", "csm", "dataobs"):
+        assert catalog[key]["available"] is False, f"{key} should be marked not-yet-available"
+    # No product is pre-checked unless it's actually available.
+    for p in catalog.values():
+        if p["default"]:
+            assert p["available"] is True
+
+
+def test_post_env_persists_products_and_derived_dbm_flag(client, app_and_paths):
+    """The picker writes DD_DEMO_PRODUCTS and the derived DD_DEMO_DBM toggle."""
+    _, cfg = app_and_paths
+    r = client.post("/api/env", json={
+        "DD_DEMO_PRODUCTS": "apm,logs,eud,dbm",
+        "DD_DEMO_DBM": "true",
+    })
+    assert r.status_code == 200
+    on_disk = em.read_env(cfg.env_path, mask=False)
+    assert on_disk["DD_DEMO_PRODUCTS"] == "apm,logs,eud,dbm"
+    assert on_disk["DD_DEMO_DBM"] == "true"
+
+
+def test_post_env_clears_dbm_when_unselected(client, app_and_paths):
+    _, cfg = app_and_paths
+    cfg.env_path.write_text("DD_DEMO_DBM=true\n")
+    r = client.post("/api/env", json={
+        "DD_DEMO_PRODUCTS": "apm,logs",
+        "DD_DEMO_DBM": "false",
+    })
+    assert r.status_code == 200
+    on_disk = em.read_env(cfg.env_path, mask=False)
+    assert on_disk["DD_DEMO_DBM"] == "false"
+    assert "dbm" not in on_disk["DD_DEMO_PRODUCTS"]

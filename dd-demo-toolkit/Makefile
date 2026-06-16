@@ -40,10 +40,25 @@ _DBM := $(shell grep '^DD_DEMO_DBM=' .env 2>/dev/null | cut -d= -f2 | tr -d ' \r
 # ey and bd are resource-only overlays — no extra profile needed.
 _DBM_PROFILE := $(if $(or $(filter true,$(_DBM)),$(filter payment-processor,$(_SUB_VERTICAL))),--profile dbm,)
 
+# Read the mock-app (Sensing Hospital) flag from .env (empty if not set).
+_MOCK_FLEET := $(shell grep '^DD_DEMO_MOCK_FLEET=' .env 2>/dev/null | cut -d= -f2 | tr -d ' \r')
+
+# Activate the `mock-app` profile when DD_DEMO_MOCK_FLEET=true. Adds the real
+# Datadog Agent + instrumented microservices + edge fleet to the default
+# lifecycle so they ride along with `make up`.
+_MOCK_PROFILE := $(if $(filter true,$(_MOCK_FLEET)),--profile mock-app,)
+
+# Combined profile flags for the default lifecycle targets.
+_LIFECYCLE_PROFILES := $(_DBM_PROFILE) $(_MOCK_PROFILE)
+
 .PHONY: help check-op migrate-secrets \
         build rebuild up up-d down logs ps \
         setup teardown teardown-all \
         up-data-obs down-data-obs logs-data-obs logs-dbt dbt-run-now \
+        up-mock-app down-mock-app build-mock-app logs-mock-app remediate \
+        up-traffic down-traffic logs-traffic \
+        up-synthetics down-synthetics synthetics-create synthetics-delete \
+        rum-create rum-delete rum-provision ccm-generate ccm-upload \
         logs-payment-processor \
         logs-experiment \
         clean-orphans clean-all \
@@ -113,22 +128,22 @@ migrate-secrets: ## Print step-by-step instructions to migrate a plain .env to 1
 ## -- Build / lifecycle -------------------------------------------------------
 
 build: ## Build images (uses cache; faster)
-	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_DBM_PROFILE) build
+	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_LIFECYCLE_PROFILES) build
 
 rebuild: ## Build images from scratch (--no-cache; slower, deterministic)
-	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_DBM_PROFILE) build --no-cache
+	$(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_LIFECYCLE_PROFILES) build --no-cache
 
-up: check-op ## Start otel-collector + simulator (+ DBM stack if DD_DEMO_DBM=true or DD_DEMO_SUB_VERTICAL=payment-processor)
-	$(OP_RUN) $(COMPOSE) $(_DBM_PROFILE) up $(UP_FLAGS)
+up: check-op ## Start otel-collector + simulator (+ DBM and/or mock-app stacks per .env flags)
+	$(OP_RUN) $(COMPOSE) $(_LIFECYCLE_PROFILES) up $(UP_FLAGS)
 
 up-d: check-op ## Same as `up` but detached
-	$(OP_RUN) $(COMPOSE) $(_DBM_PROFILE) up $(UP_FLAGS) -d
+	$(OP_RUN) $(COMPOSE) $(_LIFECYCLE_PROFILES) up $(UP_FLAGS) -d
 
 down: ## Stop and remove the long-running services + any orphans
-	$(COMPOSE) $(_DBM_PROFILE) down --remove-orphans
+	$(COMPOSE) $(_LIFECYCLE_PROFILES) down --remove-orphans
 
 logs: ## Tail logs from running services
-	$(COMPOSE) $(_DBM_PROFILE) logs -f
+	$(COMPOSE) $(_LIFECYCLE_PROFILES) logs -f
 
 ps: ## Show running containers for this project
 	$(COMPOSE) ps
@@ -157,6 +172,73 @@ logs-data-obs: ## Tail logs from the EY DSM workers (producer / pipeline / eval)
 
 logs-dbt: ## Tail logs from the dbt runner (build cycles + datadog-ci upload)
 	$(COMPOSE) logs -f data-obs-dbt-runner
+
+## -- Sensing Hospital mock app (real Datadog Agent) --------------------------
+
+up-mock-app: check-op ## Start the Sensing Hospital mock app: dd-agent + microservices + edge fleet
+	$(OP_RUN) $(COMPOSE) --profile mock-app up $(UP_FLAGS) -d
+
+down-mock-app: ## Stop only the Sensing Hospital mock app
+	$(COMPOSE) --profile mock-app down --remove-orphans
+
+build-mock-app: ## Build the Sensing Hospital mock-app images
+	$(COMPOSE) --profile mock-app build
+
+logs-mock-app: ## Tail logs from the mock-app microservices + edge fleet
+	$(COMPOSE) logs -f care-portal care-summary-api ai-care-companion rtls-location-service care-experience-platform care-event-router care-event-consumer room-sensing-gateway patient-context-service clinical-alerts-service notification-service edge-device-fleet remediation-controller
+
+up-traffic: check-op ## Start just the RUM traffic generator (mock-app must be running)
+	$(OP_RUN) $(COMPOSE) --profile mock-app up $(UP_FLAGS) -d rum-traffic-generator
+
+down-traffic: ## Stop just the RUM traffic generator (leaves the rest of mock-app running)
+	$(COMPOSE) stop rum-traffic-generator
+
+logs-traffic: ## Tail the RUM traffic generator
+	$(COMPOSE) logs -f rum-traffic-generator
+
+remediate: ## Manually fire the on-prem remediation (clamp rtls poll rate) against the running mock app
+	$(COMPOSE) exec remediation-controller python -c "import requests; print(requests.post('http://localhost:8080/remediate', json={'target':'on-prem'}).json())"
+
+## -- Synthetics (drives RUM traffic via a private location) ------------------
+
+up-synthetics: check-op ## Start the Synthetics private-location worker (needs DATADOG_PRIVATE_LOCATION_CONFIG in .env)
+	$(OP_RUN) $(COMPOSE) --profile synthetics up $(UP_FLAGS) -d synthetics-private-location
+
+down-synthetics: ## Stop the Synthetics private-location worker
+	$(COMPOSE) --profile synthetics down --remove-orphans
+
+synthetics-create: check-op ## Create the Sensing Hospital synthetic tests (browser + API) on the private location
+	$(OP_RUN) $(COMPOSE) --profile mock-app run --rm --no-deps \
+	  -e DD_API_KEY -e DD_APP_KEY -e DD_SITE -e DD_SYNTHETICS_PRIVATE_LOCATION_ID \
+	  care-portal python synthetics/manage_synthetics.py create
+
+synthetics-delete: check-op ## Delete the Sensing Hospital synthetic tests
+	$(OP_RUN) $(COMPOSE) --profile mock-app run --rm --no-deps \
+	  -e DD_API_KEY -e DD_APP_KEY -e DD_SITE \
+	  care-portal python synthetics/manage_synthetics.py delete
+
+## -- RUM application (browser frontend) --------------------------------------
+
+rum-create: check-op ## Create the RUM browser application; prints applicationId + clientToken to set
+	$(OP_RUN) $(COMPOSE) --profile mock-app run --rm --no-deps \
+	  -e DD_API_KEY -e DD_APP_KEY -e DD_SITE -e RUM_APP_NAME \
+	  care-portal python manage_rum.py create
+
+rum-delete: check-op ## Delete the RUM browser application
+	$(OP_RUN) $(COMPOSE) --profile mock-app run --rm --no-deps \
+	  -e DD_API_KEY -e DD_APP_KEY -e DD_SITE -e RUM_APP_NAME \
+	  care-portal python manage_rum.py delete
+
+rum-provision: check-op ## Turnkey RUM (if 'rum' selected): create app, store token in 1Password, write .env op:// refs. Auto-run by `make ui`.
+	$(OP_RUN) ./.venv-ui/bin/python -m dd_demo_toolkit_ui.provision_rum
+
+## -- Cloud Cost Management (mock FOCUS billing) ------------------------------
+
+ccm-generate: ## Generate mock AdventHealth FOCUS billing CSV (docker/sensing_hospital/ccm/focus_costs.csv)
+	./.venv-ui/bin/python docker/sensing_hospital/ccm/mock_billing.py generate
+
+ccm-upload: check-op ## Best-effort upload of the mock FOCUS costs to Datadog CCM Custom Costs
+	$(OP_RUN) ./.venv-ui/bin/python docker/sensing_hospital/ccm/mock_billing.py upload
 
 dbt-run-now: check-op ## Trigger an immediate dbt build (no need to wait for the loop interval)
 	$(OP_RUN) $(COMPOSE) exec data-obs-dbt-runner bash -c 'cd /dbt_project && dbt build 2>&1 | tail -30'
@@ -199,7 +281,7 @@ ui-install: ## Create .venv-ui (Python 3.13) and install editable + UI extras
 	./.venv-ui/bin/pip install --quiet --upgrade pip
 	./.venv-ui/bin/pip install -e '.[dev,ui]'
 
-ui: check-op build up-d ## Build images, start collector + simulator, then launch the UI on http://127.0.0.1:8765
+ui: check-op down build rum-provision ## Clean any running stack, rebuild fresh images, provision RUM, then launch the UI idle (Start from the Simulator tab). http://127.0.0.1:8765
 	$(OP_RUN) ./.venv-ui/bin/dd-demo-ui
 
 test: ## Run the unit + static analysis test suite (no secrets needed)

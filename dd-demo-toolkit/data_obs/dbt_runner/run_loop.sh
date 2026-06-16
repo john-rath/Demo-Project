@@ -5,7 +5,7 @@ set -uo pipefail
 
 PROJECT_DIR=/dbt_project
 INTERVAL_SEC=${DBT_RUN_INTERVAL_SEC:-600}
-DBT_SERVICE_NAME=${DBT_SERVICE_NAME:-ey-risk-portfolio-dbt}
+DBT_SERVICE_NAME=${DBT_SERVICE_NAME:-analytics-dbt-runner}
 DD_ENV=${DD_ENV:-demo}
 
 cd "$PROJECT_DIR"

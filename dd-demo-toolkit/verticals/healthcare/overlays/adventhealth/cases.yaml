@@ -1,0 +1,21 @@
+cases:
+
+  - title: "AdventHealth RTLS Location-Sync Drift — Care-Experience Impact (MedSurg)"
+    description: "An on-prem rtls-location-service config drift drove location-event sync lag from ~150ms to multi-second across MedSurg SenseHub gateways. Stale staff-badge location data starved the cloud care-experience-platform routing engine, slowing nurse-call acknowledgement, dropping perceived patient responsiveness, and degrading the bedside engagement tablets. Automated repair pinned the service to last-good config and restarted the sync as a stop-gap. Action items: (1) confirm the offending config change and root-cause the push, (2) capacity-plan the location-event sync workers, (3) add a guardrail monitor on rtls_sync_lag_ms so future drift is caught before it reaches patients."
+    priority: "P2"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+
+  - title: "Sensing-Hospital Patient-Experience Quality Review (MedSurg)"
+    description: "Recurring review of the AdventHealth sensing-hospital fleet from the patient and care-provider perspective: nurse-call acknowledgement latency, perceived responsiveness score, comfort-request fulfilment, bedside engagement tablet health, and room-comfort (temperature/noise/light) trends. Cross-reference against HCAHPS responsiveness and quietness domains."
+    priority: "P3"
+    type: "STANDARD"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "audience:nursing"

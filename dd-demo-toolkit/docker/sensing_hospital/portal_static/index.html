@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AdventHealth — Sensing Hospital Care Portal</title>
+
+  <!-- Runtime RUM config (applicationId / clientToken / site) injected from env. -->
+  <script src="/config.js"></script>
+  <!-- Datadog RUM Browser SDK (async loader, v5). CDN region from config. -->
+  <script>
+    (function (h, o, u, n, d) {
+      h = h[d] = h[d] || { q: [], onReady: function (c) { h.q.push(c); } };
+      d = o.createElement(u); d.async = 1;
+      d.src = 'https://www.datadoghq-browser-agent.com/' +
+        ((window.DD_RUM_CONFIG && window.DD_RUM_CONFIG.cdnRegion) || 'us1') + '/v5/datadog-rum.js';
+      n = o.getElementsByTagName(u)[0]; n.parentNode.insertBefore(d, n);
+    })(window, document, 'script', 0, 'DD_RUM');
+
+    window.DD_RUM.onReady(function () {
+      var c = window.DD_RUM_CONFIG || {};
+      if (!c.applicationId || !c.clientToken) {
+        console.warn('[care-portal] RUM not configured — set DD_RUM_APPLICATION_ID and DD_CLIENT_TOKEN');
+        return;
+      }
+      window.DD_RUM.init({
+        applicationId: c.applicationId,
+        clientToken: c.clientToken,
+        site: c.site,
+        service: c.service,
+        env: c.env,
+        version: c.version,
+        sessionSampleRate: 100,
+        sessionReplaySampleRate: 20,
+        trackUserInteractions: true,
+        trackResources: true,
+        trackLongTasks: true,
+        defaultPrivacyLevel: 'mask-user-input',
+        // Link RUM sessions to backend APM traces on same-origin /api calls.
+        allowedTracingUrls: [window.location.origin]
+      });
+      window.DD_RUM.startSessionReplayRecording();
+    });
+  </script>
+
+  <style>
+    :root { color-scheme: light; }
+    body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #f5f7fb; color: #1b2733; }
+    header { background: #0a6b3b; color: #fff; padding: 18px 28px; }
+    header h1 { margin: 0; font-size: 20px; }
+    header .sub { opacity: .85; font-size: 13px; }
+    main { max-width: 880px; margin: 28px auto; padding: 0 20px; }
+    .card { background: #fff; border: 1px solid #e3e8ef; border-radius: 10px; padding: 20px; margin-bottom: 18px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    button { background: #0a6b3b; color: #fff; border: 0; border-radius: 8px; padding: 10px 16px; font-size: 14px; cursor: pointer; }
+    button.secondary { background: #2b6cb0; }
+    #log { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: #0e1726; color: #cbd5e1; border-radius: 8px; padding: 12px; height: 180px; overflow: auto; }
+    .muted { color: #5b6b7b; font-size: 13px; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #e6f4ec; color: #0a6b3b; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AdventHealth · Sensing Hospital Care Portal</h1>
+    <div class="sub">Patient &amp; care-team experience · MedSurg, Floor 3 East</div>
+  </header>
+
+  <main>
+    <section class="card">
+      <p>This portal is the <span class="pill">RUM</span>-instrumented frontend of the
+      Sensing Hospital mock environment. Each action calls the care-experience
+      platform, so a RUM session links to the backend APM trace through the full
+      on-prem→cloud cascade.</p>
+      <div class="row">
+        <button id="btn-locate">Locate patient device</button>
+        <button id="btn-summary" class="secondary">Refresh care summary</button>
+        <button id="btn-ask">Ask the AI Care Companion</button>
+      </div>
+      <p class="muted" id="status">Auto-refreshing care activity every 5s…</p>
+    </section>
+
+    <section class="card">
+      <h3 style="margin-top:0">Activity</h3>
+      <div id="log"></div>
+    </section>
+  </main>
+
+  <script>
+    var logEl = document.getElementById('log');
+    function logLine(msg) {
+      var t = new Date().toLocaleTimeString();
+      logEl.innerHTML = '[' + t + '] ' + msg + '\n' + logEl.innerHTML;
+    }
+
+    async function ping(actionName) {
+      // Record a RUM custom action when the SDK is live.
+      if (window.DD_RUM && window.DD_RUM.addAction) {
+        window.DD_RUM.addAction(actionName);
+      }
+      try {
+        var res = await fetch('/api/ping', { headers: { 'accept': 'application/json' } });
+        var body = await res.json();
+        logLine(actionName + ' → ' + (body.ok ? 'ok' : ('error: ' + body.error)));
+      } catch (e) {
+        logLine(actionName + ' → request failed: ' + e);
+      }
+    }
+
+    async function askCompanion(actionName) {
+      if (window.DD_RUM && window.DD_RUM.addAction) window.DD_RUM.addAction(actionName);
+      try {
+        var res = await fetch('/api/ask', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ role: 'patient' })
+        });
+        var body = await res.json();
+        var c = body.companion || {};
+        logLine('care_companion → ' + (c.scenario || '?') +
+          (c.escalated_to_human ? ' [ESCALATED]' : '') +
+          (c.evals ? ' (halluc ' + c.evals.hallucination_risk + ')' : ''));
+      } catch (e) { logLine('care_companion → failed: ' + e); }
+    }
+
+    document.getElementById('btn-locate').addEventListener('click', function () { ping('locate_patient_device'); });
+    document.getElementById('btn-summary').addEventListener('click', function () { ping('refresh_care_summary'); });
+    document.getElementById('btn-ask').addEventListener('click', function () { askCompanion('ask_care_companion'); });
+
+    // Background activity so the portal always has live RUM + APM data.
+    ping('page_load');
+    setInterval(function () { ping('auto_refresh'); }, 5000);
+    // Periodically exercise the AI Care Companion so LLM Obs always has data.
+    askCompanion('ask_care_companion');
+    setInterval(function () { askCompanion('ask_care_companion'); }, 8000);
+  </script>
+</body>
+</html>

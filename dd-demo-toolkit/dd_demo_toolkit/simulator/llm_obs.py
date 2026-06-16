@@ -1,7 +1,7 @@
 """
 LLM Observability trace generator using OpenTelemetry GenAI semantic conventions.
 
-Generates realistic AI Stay Planner traces that flow through the OTel collector
+Generates realistic AI agent traces that flow through the OTel collector
 and are mapped by Datadog's OTel exporter to LLM Observability.
 
 OTel GenAI semantic conventions (v1.37+):
@@ -270,6 +270,344 @@ EVALUATION_DEFINITIONS = [
         "categories": ["positive", "positive", "positive", "neutral"],  # weighted toward positive
         "error_categories": ["negative", "neutral"],
         "description": "Sentiment of the recommendation response",
+    },
+]
+
+
+# Capture the hospitality library (the module-level defaults above) under
+# explicit names so the hospitality branch can restore them regardless of any
+# prior global reassignment by finance/generic.
+HOSPITALITY_SCENARIOS = SCENARIOS
+HOSPITALITY_ERROR_SCENARIOS = ERROR_SCENARIOS
+HOSPITALITY_INTENT_PROMPT_VERSIONS = INTENT_PROMPT_VERSIONS
+HOSPITALITY_RECOMMENDATION_PROMPT_VERSIONS = RECOMMENDATION_PROMPT_VERSIONS
+HOSPITALITY_MODEL_VARIANTS = MODEL_VARIANTS
+HOSPITALITY_EVALUATION_DEFINITIONS = EVALUATION_DEFINITIONS
+
+
+# ---------------------------------------------------------------------------
+# Healthcare library — AdventHealth AI Care Companion
+# ---------------------------------------------------------------------------
+# Selected when vertical_name="healthcare". Emits LLM Obs traces under
+# ml_app="ai-care-companion" with clinical-safety + cost evals — the
+# executive-grade healthcare AI story. Same field contract as the other
+# libraries (intent / property_type / region / loyalty_profile etc.); here
+# `property_type` carries the question topic (Medication / Discharge / ...)
+# and `loyalty_profile` carries the patient or clinician profile.
+
+HEALTHCARE_SCENARIOS: List[Dict[str, Any]] = [
+    {
+        "name": "Medication Question — Missed Dose",
+        "user_input": "I forgot my evening metformin yesterday. Should I double up this morning?",
+        "intent": "medication_question",
+        "search_query": "med:metformin, event:missed_dose, patient_role:diabetic",
+        "search_results": "Metformin (AdventHealth med guide) — missed-dose policy; renal-function flag.",
+        "loyalty_profile": '{"patient_id": "pat-1001", "acuity": "stable", "diagnoses": ["T2DM"], "preferences": ["med_reminders"], "language": "en"}',
+        "rag_docs": "Metformin missed-dose policy (AdventHealth): if a dose is missed, skip it and resume the normal schedule; do NOT double up — risk of GI distress and hypoglycemia when combined with other agents. Contact the care team if multiple consecutive doses are missed. Renal function check required every 6 months.",
+        "embedding_input": "metformin, missed dose, double dose, type 2 diabetes, AdventHealth med guide",
+        "recommendation": "Don't double up — skip the missed evening dose and take your normal morning dose. Doubling metformin raises the risk of low blood sugar and stomach upset. If you've missed several doses in a row, message your care team. Want me to log this missed dose and notify your nurse?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Medication",
+        "region": "Americas",
+    },
+    {
+        "name": "Discharge Instructions — Post-Op TKA",
+        "user_input": "After my knee replacement, when can I shower and how do I care for the incision?",
+        "intent": "discharge_instructions",
+        "search_query": "procedure:tka, doc_type:discharge_plan, topic:wound_care",
+        "search_results": "Post-op TKA discharge plan (AdventHealth Orthopedics).",
+        "loyalty_profile": '{"patient_id": "pat-1003", "acuity": "stable", "procedure": "TKA", "post_op_day": 2, "language": "en"}',
+        "rag_docs": "Post-op TKA discharge (AdventHealth Orthopedics): keep incision dry for 48 hours, then showering is permitted; pat (do not rub) the incision dry. No baths, soaking, or pools for 3 weeks. Escalation criteria: spreading redness, drainage, separation, or fever >100.4°F. Follow-up wound check at 10–14 days.",
+        "embedding_input": "knee replacement, shower, incision care, discharge instructions, post-op day 2",
+        "recommendation": "You can shower after the first 48 hours — keep the incision dry until then, then pat (don't rub) it dry. No baths or soaking for 3 weeks. Call us for spreading redness, drainage, or a fever over 100.4°F. Your follow-up wound check is set for day 10. Want me to confirm the appointment?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Discharge",
+        "region": "Americas",
+    },
+    {
+        "name": "Symptom Triage — Chest Tightness (Escalate)",
+        "user_input": "I've had chest tightness and shortness of breath since this morning.",
+        "intent": "symptom_triage",
+        "search_query": "symptom:chest_tightness, symptom:dyspnea, risk:cardiac",
+        "search_results": "Triage policy: chest pain/tightness + dyspnea → emergency pathway; do not self-manage.",
+        "loyalty_profile": '{"patient_id": "pat-1004", "acuity": "critical", "diagnoses": ["HTN","HLD"], "fall_risk": false}',
+        "rag_docs": "AdventHealth triage policy (cardiac): any patient reporting chest tightness or chest pain with associated shortness of breath must be escalated to the emergency pathway. The AI assistant must NOT attempt self-management; immediate human-clinician contact and 911 guidance are required.",
+        "embedding_input": "chest tightness, shortness of breath, possible cardiac, escalation, emergency",
+        "recommendation": "Chest tightness with shortness of breath needs urgent evaluation — I'm escalating you to a clinician right now, and if it gets worse or you develop arm/jaw pain, sweating, or fainting, call 911. I am NOT able to manage this in-app. Connecting you to the on-call clinician.",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Triage",
+        "region": "Americas",
+    },
+    {
+        "name": "Care-Plan Summary — Overnight Status",
+        "user_input": "Summarize overnight status and open care-plan items for bed MedSurg-304.",
+        "intent": "care_plan",
+        "search_query": "bed:MedSurg-304, period:overnight, items:open",
+        "search_results": "MedSurg-304 overnight: telemetry stable; pain 4/10; pending orders (CBC, ambulation); fall-risk flag.",
+        "loyalty_profile": '{"clinician_id": "dr-rivera", "role": "hospitalist", "shift": "day", "scope": "MedSurg-3E"}',
+        "rag_docs": "MedSurg-304 chart snapshot — acuity: critical. Overnight telemetry remained stable (HR 72-88, SpO2 95-97). Pain 4/10 controlled with oxycodone. Open items: pending CBC (ordered 22:00), first ambulation pending PT clearance. Fall-risk flag set; bed alarm confirmed active.",
+        "embedding_input": "overnight summary, MedSurg-304, telemetry, pain, pending orders, fall risk, clinician",
+        "recommendation": "MedSurg-304 (critical): telemetry stable overnight (HR 72-88, SpO2 95-97). Pain 4/10 controlled. Two open items — pending CBC and first ambulation (PT clearance pending). Fall-risk flag is set; bed alarm confirmed active. Want me to draft the order acknowledgements and ping PT?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Care Plan",
+        "region": "Americas",
+    },
+    {
+        "name": "Appointment / Follow-up",
+        "user_input": "When is my next follow-up and what should I bring?",
+        "intent": "appointment",
+        "search_query": "patient_id:pat-1003, type:followup, period:next_30d",
+        "search_results": "Next follow-up: ortho 2026-06-26 09:30 (Dr. Patel). Bring med list, incision photos if redness.",
+        "loyalty_profile": '{"patient_id": "pat-1003", "primary_provider": "Dr. Patel", "portal_consent": true}',
+        "rag_docs": "AdventHealth follow-up policy: arrive 15 minutes early, bring current med list (paper or via portal), insurance card, and any post-op photos of the incision if you've noted concerns. Telehealth is supported for routine follow-ups.",
+        "embedding_input": "next follow-up appointment, what to bring, telehealth option, orthopedic post-op",
+        "recommendation": "Your next follow-up is **Friday, June 26 at 9:30 AM** with Dr. Patel (orthopedics). Please arrive 15 minutes early and bring your current med list and insurance card. If you've noticed any redness or drainage, bring or upload a photo. Telehealth is also an option — want me to switch this to a video visit?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Appointment",
+        "region": "Americas",
+    },
+]
+
+HEALTHCARE_ERROR_SCENARIOS = [
+    {
+        "user_input": "Summarize all medication interactions across my full chart history.",
+        "error_msg": "Context window exceeded: 131,072 token limit. Chart history (228k tokens) exceeds context. Use chunked retrieval / chart summary.",
+    },
+    {
+        "user_input": "What's my temperature trend from the last vitals?",
+        "error_msg": "Model inference timeout after 30000ms — Azure OpenAI endpoint throttled (429 Too Many Requests). Retry budget exhausted.",
+    },
+    {
+        "user_input": "Recommend a specific dose of a controlled substance based on my pain level.",
+        "error_msg": "Clinical-safety guardrail triggered: AI is not authorized to prescribe controlled-substance dosing. Falling back to escalation to clinician.",
+        # Optional enrichments for the trace's internal-mechanics view:
+        "search_query": "patient_id:pat-1003, topic:pain_dosing, class:controlled_substance",
+        "search_results": "AdventHealth policy ECP-19.4 (Controlled-Substance Dosing AI Boundary), patient pain log (last 24h), home med list.",
+        "loyalty_profile": '{"patient_id": "pat-1003", "role": "patient", "acuity": "stable", "current_meds": ["acetaminophen"], "policy_consent": true}',
+        "policy_doc": "AdventHealth policy ECP-19.4 — Controlled-Substance Dosing AI Boundary: the AI Care Companion is NOT authorized to recommend specific dosing of controlled substances. Such requests MUST be escalated to a credentialed clinician; the assistant may share general post-op pain-management education only. Audit logging of any such request is required.",
+    },
+]
+
+HEALTHCARE_INTENT_PROMPT_VERSIONS = [
+    {
+        "id": "intent-classifier",
+        "version": "1.0.0",
+        "template": "You are AdventHealth's AI Care Companion intent classifier. Classify the user request into one of: {{intents}}. Return JSON with intent and extracted entities.",
+        "variables": {"intents": "medication_question, discharge_instructions, symptom_triage, care_plan, appointment, billing, general_question"},
+        "weight": 0.3,
+    },
+    {
+        "id": "intent-classifier",
+        "version": "2.0.0",
+        "template": "You are AdventHealth's AI Care Companion intent classifier v2. Classify the request and extract structured entities including topic, urgency (routine/urgent/emergency), and whether escalation to a human clinician is required by policy. Intents: {{intents}}. Return JSON.",
+        "variables": {"intents": "medication_question, discharge_instructions, symptom_triage, care_plan, appointment, billing, general_question"},
+        "weight": 0.7,
+    },
+]
+
+HEALTHCARE_RECOMMENDATION_PROMPT_VERSIONS = [
+    {
+        "id": "recommendation-generator",
+        "version": "1.0.0",
+        "template": "You are AdventHealth's AI Care Companion. Answer using ONLY the retrieved care guidance. If the question involves urgent clinical risk, you MUST recommend escalation to a human clinician rather than self-manage. Be plain-language and supportive. Use markdown.",
+        "variables": {},
+        "weight": 0.4,
+    },
+    {
+        "id": "recommendation-generator",
+        "version": "2.1.0",
+        "template": "You are AdventHealth's AI Care Companion. Answer using ONLY the retrieved guidance, citing AdventHealth policies where relevant. NEVER recommend specific controlled-substance dosing. ALWAYS escalate symptom-triage flags (chest pain, dyspnea, neuro changes, severe bleeding) to a human clinician. Format with markdown headers; close with a clear next step the patient or clinician can take.",
+        "variables": {},
+        "weight": 0.6,
+    },
+]
+
+HEALTHCARE_EVALUATION_DEFINITIONS = [
+    {
+        "label": "clinical_groundedness",
+        "metric_type": "score",
+        "range": (0.85, 0.99),
+        "error_range": (0.35, 0.65),
+        "description": "Was the answer grounded in AdventHealth's care guidance?",
+    },
+    {
+        "label": "hallucination_risk",
+        "metric_type": "score",
+        "range": (0.0, 0.08),  # lower is better
+        "error_range": (0.30, 0.60),
+        "description": "Risk that the answer contains unsupported clinical content (lower is better).",
+    },
+    {
+        "label": "phi_handling",
+        "metric_type": "score",
+        "range": (0.92, 1.0),
+        "error_range": (0.6, 0.85),
+        "description": "Was PHI handled per policy (no unnecessary disclosure)?",
+    },
+    {
+        "label": "answer_relevance",
+        "metric_type": "score",
+        "range": (0.85, 0.99),
+        "error_range": (0.4, 0.7),
+        "description": "Relevance of the response to the patient/clinician question.",
+    },
+    {
+        "label": "escalation_appropriateness",
+        "metric_type": "categorical",
+        "categories": ["appropriate", "appropriate", "appropriate", "under-escalated"],
+        "error_categories": ["under-escalated", "over-escalated"],
+        "description": "Did the AI escalate to a human at the right time (per AdventHealth triage policy)?",
+    },
+]
+
+
+# ---------------------------------------------------------------------------
+# Generic library — vertical-neutral AI Assistant
+# ---------------------------------------------------------------------------
+# Used by default for any vertical without its own library. A plain enterprise
+# knowledge/support assistant so the LLM Obs traces aren't tied to a specific
+# industry. Reuses the same field names as the
+# other libraries (`intent`, `property_type`, `region`) for compatibility —
+# here `property_type` carries a generic topic and `loyalty_profile` a generic
+# user profile. Span attribute keys are emitted under the `assistant.*` prefix.
+
+GENERIC_SCENARIOS: List[Dict[str, Any]] = [
+    {
+        "name": "Account Access Help",
+        "user_input": "I can't log in — my MFA device was replaced and I'm locked out. Enterprise admin account.",
+        "intent": "account_access",
+        "search_query": "topic:mfa_reset, account_type:admin, plan:enterprise, channel:assistant",
+        "search_results": "KB-1042 MFA reset procedure, KB-088 admin recovery, ticket history (no prior lockouts), identity-provider status: operational.",
+        "loyalty_profile": '{"plan": "Enterprise", "role": "admin", "tenure_months": 18, "preferences": ["email_updates"], "seats": 240}',
+        "rag_docs": "MFA reset (KB-1042): admins can self-serve a reset from Settings → Security → Reset MFA after verifying via the recovery email on file. If the recovery email is also unavailable, an org owner can trigger a reset from the Members page. Lockouts auto-clear after 15 minutes of no attempts. SSO-backed orgs reset MFA at the identity provider, not in-app.",
+        "embedding_input": "mfa reset, locked out, replaced device, enterprise admin, recovery email, sso",
+        "recommendation": "Here's how to get back in:\n\n**Fastest path (self-serve):**\n1. Go to **Settings → Security → Reset MFA**.\n2. Verify with the recovery email on file.\n3. Re-enroll your new device.\n\n**If the recovery email is also unavailable:**\n- Have an **org owner** reset it for you from the **Members** page.\n\n**If your org uses SSO:** the MFA reset happens at your identity provider, not here — contact your IdP admin.\n\nLockouts also auto-clear after 15 minutes of no attempts. Want me to open a ticket as a backup?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Account & Access",
+        "region": "Americas",
+    },
+    {
+        "name": "How-To: Export a Report",
+        "user_input": "How do I export last quarter's usage report as a CSV and schedule it to email monthly?",
+        "intent": "how_to",
+        "search_query": "topic:report_export, format:csv, schedule:monthly, plan:enterprise",
+        "search_results": "KB-2210 exporting reports, KB-2231 scheduled exports, feature availability: scheduled exports on Enterprise plan.",
+        "loyalty_profile": '{"plan": "Enterprise", "role": "analyst", "tenure_months": 6, "preferences": ["csv", "scheduled_reports"]}',
+        "rag_docs": "Exporting (KB-2210): open the report, set the time range, then Export → CSV. Scheduled exports (KB-2231, Enterprise only): from a saved report choose Schedule → frequency (daily/weekly/monthly) → recipients. Scheduled CSVs are delivered as email attachments; files over 25MB are linked instead of attached.",
+        "embedding_input": "export report, csv, schedule monthly, email delivery, saved report, enterprise",
+        "recommendation": "Two steps:\n\n**1) Export last quarter as CSV**\n- Open the report, set the time range to **last quarter**.\n- Click **Export → CSV**.\n\n**2) Schedule it monthly**\n- Save the report first (Scheduling works off a saved report).\n- Choose **Schedule → Monthly**, add recipients.\n- It'll arrive as an email attachment; files over 25MB come as a download link.\n\nScheduled exports are an **Enterprise** feature — which your org has. Want me to set the schedule to the first of each month?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Reporting",
+        "region": "EMEA",
+    },
+    {
+        "name": "Troubleshooting: Slow Dashboard",
+        "user_input": "One of my dashboards takes 20+ seconds to load. The others are fine. What should I check?",
+        "intent": "troubleshooting",
+        "search_query": "topic:dashboard_performance, symptom:slow_load, scope:single_dashboard",
+        "search_results": "KB-3301 dashboard performance, KB-3318 widget query cost, telemetry: 38 widgets on the affected dashboard, 9 with wide time ranges.",
+        "loyalty_profile": '{"plan": "Enterprise", "role": "editor", "tenure_months": 31, "preferences": ["dark_mode"]}',
+        "rag_docs": "Dashboard performance (KB-3301): load time scales with widget count and per-widget query cost. Common causes: too many widgets on one board (>30), widgets with very wide time ranges, and high-cardinality group-bys. Fixes: split into multiple boards, narrow default time range, reduce group-by cardinality, and use scalar widgets instead of timeseries where a single number suffices.",
+        "embedding_input": "slow dashboard, 20 seconds load, single dashboard, widget count, time range, cardinality",
+        "recommendation": "Since only one dashboard is slow, it's almost certainly that board's query load, not the platform. Check, in order:\n\n1. **Widget count** — this board has **38 widgets**; anything over ~30 noticeably slows load. Split it into 2 boards.\n2. **Wide time ranges** — 9 widgets pull very wide ranges. Narrow the dashboard's default window.\n3. **High-cardinality group-bys** — reduce `by {…}` cardinality where you can.\n4. **Use scalar widgets** for single-number views instead of timeseries.\n\nStart with the split — it's the biggest win here. Want me to flag the 9 wide-range widgets?",
+        "model": "gpt-4o",
+        "provider": "azure_openai",
+        "property_type": "Performance",
+        "region": "APAC",
+    },
+]
+
+GENERIC_ERROR_SCENARIOS = [
+    {
+        "user_input": "Summarize every knowledge-base article we have about billing.",
+        "error_msg": "Context window exceeded: 131,072 token limit. Input context (158,402 tokens) includes 214 KB articles. Use chunked retrieval.",
+    },
+    {
+        "user_input": "What's the status of my open ticket?",
+        "error_msg": "Model inference timeout after 30000ms — provider endpoint throttled (429 Too Many Requests). Retry budget exhausted.",
+    },
+    {
+        "user_input": "Compare our pricing to your competitors and tell me who's cheaper.",
+        "error_msg": "Guardrail triggered: response contained unverified competitor claim. Content filter blocked output. Falling back to curated response.",
+    },
+]
+
+GENERIC_INTENT_PROMPT_VERSIONS = [
+    {
+        "id": "intent-classifier",
+        "version": "1.0.0",
+        "template": "You are an enterprise AI assistant's intent classifier. Classify the user request into one of: {{intents}}. Return JSON with intent and extracted entities.",
+        "variables": {"intents": "account_access, how_to, troubleshooting, billing, feature_request, general_question"},
+        "weight": 0.3,
+    },
+    {
+        "id": "intent-classifier",
+        "version": "2.0.0",
+        "template": "You are an enterprise AI assistant's intent classifier v2. Classify the request and extract structured entities including topic, plan, and urgency. Intents: {{intents}}. Return JSON.",
+        "variables": {"intents": "account_access, how_to, troubleshooting, billing, feature_request, general_question"},
+        "weight": 0.7,
+    },
+]
+
+GENERIC_RECOMMENDATION_PROMPT_VERSIONS = [
+    {
+        "id": "recommendation-generator",
+        "version": "1.0.0",
+        "template": "You are a helpful enterprise AI assistant. Answer the user's question accurately using the retrieved knowledge. Be specific and actionable. Use markdown formatting.",
+        "variables": {},
+        "weight": 0.4,
+    },
+    {
+        "id": "recommendation-generator",
+        "version": "2.1.0",
+        "template": "You are a helpful enterprise AI assistant. Answer the user's question using ONLY the retrieved knowledge; if the answer isn't supported, say so. Prioritise: 1) correctness, 2) the shortest path to resolution, 3) a clear next step. Format with markdown headers.",
+        "variables": {},
+        "weight": 0.6,
+    },
+]
+
+GENERIC_EVALUATION_DEFINITIONS = [
+    {
+        "label": "answer_relevance",
+        "metric_type": "score",
+        "range": (0.82, 0.99),
+        "error_range": (0.3, 0.6),
+        "description": "Relevance of the response to the user's question",
+    },
+    {
+        "label": "faithfulness",
+        "metric_type": "score",
+        "range": (0.7, 1.0),
+        "error_range": (0.2, 0.5),
+        "description": "Groundedness of the answer in the retrieved knowledge",
+    },
+    {
+        "label": "hallucination_score",
+        "metric_type": "score",
+        "range": (0.0, 0.08),
+        "error_range": (0.15, 0.45),
+        "description": "Hallucination detection — lower is better",
+    },
+    {
+        "label": "completeness",
+        "metric_type": "score",
+        "range": (0.75, 0.98),
+        "error_range": (0.2, 0.5),
+        "description": "Whether the answer fully addresses the request",
+    },
+    {
+        "label": "sentiment",
+        "metric_type": "categorical",
+        "categories": ["positive", "positive", "positive", "neutral"],
+        "error_categories": ["negative", "neutral"],
+        "description": "Sentiment of the assistant response",
     },
 ]
 
@@ -655,20 +993,25 @@ class LLMObsSubmitter:
         insecure: bool = True,
         vertical_name: Optional[str] = None,
     ):
+        # LLM-trace rate. Each tick of the simulator runs at EMIT_INTERVAL
+        # (default 15s). Emit one trace every `LLMOBS_TICKS_PER_TRACE` ticks
+        # — default 1 so the LLM Observability view feels alive in a live
+        # demo (~4 traces/min). Override via env (e.g. "2" to halve the rate).
         self._tick_counter = 0
-        self._interval = random.randint(3, 5)
-        self._error_rate = 0.05
+        self._ticks_per_trace = max(1, int(os.getenv("LLMOBS_TICKS_PER_TRACE", "1")))
+        self._interval = self._ticks_per_trace
+        self._error_rate = float(os.getenv("LLMOBS_ERROR_RATE", "0.15"))
 
         # ---- Vertical-aware library selection --------------------------
-        # The hospitality scenario set is the historical default. When the
-        # active vertical is finance, swap the module-level constants so
-        # the generated traces talk like an EY Risk Portfolio agent
-        # instead of an AI Stay Planner. Only one LLMObsSubmitter exists
-        # per process, so global reassignment is safe.
+        # Default is a vertical-neutral AI Assistant. `finance` swaps to the
+        # EY Risk Portfolio agent and `hospitality` to the AI Stay Planner;
+        # every other vertical (healthcare, insurance, ...) gets the generic
+        # assistant so traces aren't tied to an industry. Only one
+        # LLMObsSubmitter exists per process, so global reassignment is safe.
+        global SCENARIOS, ERROR_SCENARIOS, MODEL_VARIANTS
+        global EVALUATION_DEFINITIONS, INTENT_PROMPT_VERSIONS
+        global RECOMMENDATION_PROMPT_VERSIONS
         if vertical_name == "finance":
-            global SCENARIOS, ERROR_SCENARIOS, MODEL_VARIANTS
-            global EVALUATION_DEFINITIONS, INTENT_PROMPT_VERSIONS
-            global RECOMMENDATION_PROMPT_VERSIONS
             SCENARIOS = FINANCE_SCENARIOS
             ERROR_SCENARIOS = FINANCE_ERROR_SCENARIOS
             MODEL_VARIANTS = FINANCE_MODEL_VARIANTS
@@ -681,12 +1024,48 @@ class LLMObsSubmitter:
             self._scenario_attr_prefix = "ey"
             self._service_host = "risk-eval-agent-01"
             self._service_framework = "langgraph"
-        else:
+        elif vertical_name == "healthcare":
+            # AdventHealth AI Care Companion — healthcare LLM Obs traces with
+            # clinical-safety + cost evals. Emitted by the simulator (proven
+            # OTel GenAI path) under ml_app=ai-care-companion.
+            SCENARIOS = HEALTHCARE_SCENARIOS
+            ERROR_SCENARIOS = HEALTHCARE_ERROR_SCENARIOS
+            EVALUATION_DEFINITIONS = HEALTHCARE_EVALUATION_DEFINITIONS
+            INTENT_PROMPT_VERSIONS = HEALTHCARE_INTENT_PROMPT_VERSIONS
+            RECOMMENDATION_PROMPT_VERSIONS = HEALTHCARE_RECOMMENDATION_PROMPT_VERSIONS
+            # MODEL_VARIANTS is vertical-neutral; reuse default.
+            self._service_name = "ai-care-companion"
+            self._display_name = "AI Care Companion"
+            self._ml_app = "ai-care-companion"
+            self._scenario_attr_prefix = "care_companion"
+            self._service_host = "ai-care-companion-01"
+            self._service_framework = "langchain"
+        elif vertical_name == "hospitality":
+            # Restore the curated AI Stay Planner library explicitly.
+            SCENARIOS = HOSPITALITY_SCENARIOS
+            ERROR_SCENARIOS = HOSPITALITY_ERROR_SCENARIOS
+            MODEL_VARIANTS = HOSPITALITY_MODEL_VARIANTS
+            EVALUATION_DEFINITIONS = HOSPITALITY_EVALUATION_DEFINITIONS
+            INTENT_PROMPT_VERSIONS = HOSPITALITY_INTENT_PROMPT_VERSIONS
+            RECOMMENDATION_PROMPT_VERSIONS = HOSPITALITY_RECOMMENDATION_PROMPT_VERSIONS
             self._service_name = "ai-stay-planner"
-            self._display_name = "Hospitality"
+            self._display_name = "AI Stay Planner"
             self._ml_app = "ai-stay-planner"
             self._scenario_attr_prefix = "hospitality"
             self._service_host = "ai-stay-planner-host-01"
+            self._service_framework = "langchain"
+        else:
+            SCENARIOS = GENERIC_SCENARIOS
+            ERROR_SCENARIOS = GENERIC_ERROR_SCENARIOS
+            EVALUATION_DEFINITIONS = GENERIC_EVALUATION_DEFINITIONS
+            INTENT_PROMPT_VERSIONS = GENERIC_INTENT_PROMPT_VERSIONS
+            RECOMMENDATION_PROMPT_VERSIONS = GENERIC_RECOMMENDATION_PROMPT_VERSIONS
+            # MODEL_VARIANTS is vertical-neutral — reuse the module default.
+            self._service_name = "ai-assistant"
+            self._display_name = "AI Assistant"
+            self._ml_app = "ai-assistant"
+            self._scenario_attr_prefix = "assistant"
+            self._service_host = "ai-assistant-01"
             self._service_framework = "langchain"
 
         # Dedicated TracerProvider for the configured LLM-agent service.
@@ -718,7 +1097,7 @@ class LLMObsSubmitter:
 
         logger.info(
             f"LLM Obs: OTel GenAI trace generator initialised "
-            f"(endpoint={endpoint}, vertical={vertical_name or 'hospitality'}, "
+            f"(endpoint={endpoint}, vertical={vertical_name or 'generic'}, "
             f"service={self._service_name}, semconv=v1.37+, "
             f"evals={'enabled' if self._eval._enabled else 'disabled'})"
         )
@@ -729,7 +1108,7 @@ class LLMObsSubmitter:
         if self._tick_counter < self._interval:
             return
         self._tick_counter = 0
-        self._interval = random.randint(3, 5)
+        self._interval = self._ticks_per_trace
 
         if random.random() < self._error_rate:
             self._generate_error_trace()
@@ -748,7 +1127,7 @@ class LLMObsSubmitter:
     # ------------------------------------------------------------------
 
     def _generate_trace(self, scenario: Dict[str, Any]) -> None:
-        """Generate a full AI Stay Planner trace with nested GenAI spans."""
+        """Generate a full agent trace with nested GenAI spans."""
         session_id = str(uuid.uuid4())
 
         # Select model variant for this trace (A/B experiment)
@@ -766,7 +1145,7 @@ class LLMObsSubmitter:
                 "session.id": session_id,
                 f"{prefix}.scenario": scenario["name"],
                 f"{prefix}.intent": scenario["intent"],
-                f"{prefix}.property_type": scenario["property_type"],
+                f"{prefix}.topic": scenario["property_type"],
                 f"{prefix}.region": scenario["region"],
                 "ml_app": self._ml_app,
                 model_variant["experiment_tag"].split(":")[0]: model_variant["experiment_tag"].split(":")[1],
@@ -783,31 +1162,31 @@ class LLMObsSubmitter:
             self._intent_classification(scenario, model_variant)
             _sim_delay(0.08, 0.16)
 
-            # 2. Property Availability Search (tool call)
+            # 2. Catalog / availability search (tool call)
             self._tool_call(
-                name="Property Availability Search",
+                name="Catalog Search",
                 input_value=scenario["search_query"],
                 output_value=scenario["search_results"],
-                tool_name="property_search_api",
+                tool_name="catalog_search_api",
                 duration_range=(0.05, 0.12),
             )
             _sim_delay(0.04, 0.08)
 
-            # 3. Loyalty Profile Lookup (tool call)
+            # 3. User profile lookup (tool call)
             self._tool_call(
-                name="Loyalty Profile Lookup",
-                input_value="Fetch loyalty profile, preferences, and stay history",
+                name="User Profile Lookup",
+                input_value="Fetch user profile, plan, and preferences",
                 output_value=scenario["loyalty_profile"],
-                tool_name="loyalty_profile_api",
+                tool_name="user_profile_api",
                 duration_range=(0.03, 0.08),
             )
             _sim_delay(0.03, 0.06)
 
-            # 4. Guest Preference Embedding
+            # 4. Query embedding
             self._embedding_call(scenario, model_variant)
             _sim_delay(0.02, 0.05)
 
-            # 5. Property Knowledge Base RAG Retrieval
+            # 5. Knowledge base RAG retrieval
             self._retrieval_call(scenario)
             _sim_delay(0.03, 0.06)
 
@@ -856,8 +1235,8 @@ class LLMObsSubmitter:
             "intent": scenario["intent"],
             "confidence": round(random.uniform(0.92, 0.99), 3),
             "entities": {
-                "destination": scenario["search_query"].split(",")[0],
-                "property_type_preference": scenario["property_type"],
+                "primary_entity": scenario["search_query"].split(",")[0],
+                "topic": scenario["property_type"],
             },
         })
 
@@ -940,7 +1319,7 @@ class LLMObsSubmitter:
         input_tokens = len(scenario["embedding_input"].split()) * 2
 
         with self._tracer.start_as_current_span(
-            "Guest Preference Embedding",
+            "Query Embedding",
             kind=SpanKind.CLIENT,
             attributes={
                 "gen_ai.system": model_variant["provider"],
@@ -970,11 +1349,11 @@ class LLMObsSubmitter:
     def _retrieval_call(self, scenario: Dict[str, Any]) -> None:
         """Generate a RAG retrieval span."""
         with self._tracer.start_as_current_span(
-            "Property Knowledge Base",
+            "Knowledge Base",
             kind=SpanKind.CLIENT,
             attributes={
                 "gen_ai.operation.name": "retrieval",
-                "retrieval.source": "property-knowledge-base",
+                "retrieval.source": "knowledge-base",
                 "retrieval.top_k": 3,
                 "gen_ai.input.messages": _format_input_messages([
                     {"role": "user", "content": scenario["embedding_input"]},
@@ -1003,7 +1382,7 @@ class LLMObsSubmitter:
         messages = [
             {"role": "system", "content": system_content},
             {"role": "user", "content": scenario["user_input"]},
-            {"role": "assistant", "content": f"[Intent: {scenario['intent']}]\n[Properties: {scenario['search_results']}]\n[Profile: {scenario['loyalty_profile']}]\n[Knowledge: {scenario['rag_docs']}]"},
+            {"role": "assistant", "content": f"[Intent: {scenario['intent']}]\n[Results: {scenario['search_results']}]\n[Profile: {scenario['loyalty_profile']}]\n[Knowledge: {scenario['rag_docs']}]"},
             {"role": "user", "content": "Now generate the personalised recommendation based on all context above."},
         ]
 
@@ -1111,10 +1490,62 @@ class LLMObsSubmitter:
 
             _sim_delay(0.05, 0.1)
 
-            # Recommendation generation fails
+            # Run the same internal mechanics as a successful trace — tool
+            # calls, embedding, RAG retrieval — so the trace shows the full
+            # AI workflow including the policy doc the model retrieved BEFORE
+            # the guardrail caught the unsafe response. This is the "AI tried,
+            # Datadog caught it" exec view.
+            synth = {
+                "user_input": error["user_input"],
+                "search_query": error.get(
+                    "search_query",
+                    "lookup:user_request, signals:policy + history",
+                ),
+                "search_results": error.get(
+                    "search_results",
+                    "Policy candidates + recent context retrieved.",
+                ),
+                "loyalty_profile": error.get(
+                    "loyalty_profile",
+                    '{"role": "user", "policy_consent": true}',
+                ),
+                "embedding_input": error["user_input"],
+                "rag_docs": error.get(
+                    "policy_doc",
+                    "Operational policy: AI assistant must defer to a human "
+                    "for any out-of-scope or safety-flagged request.",
+                ),
+            }
+            self._tool_call(
+                name="Catalog Search",
+                input_value=synth["search_query"],
+                output_value=synth["search_results"],
+                tool_name="catalog_search_api",
+                duration_range=(0.05, 0.12),
+            )
+            _sim_delay(0.04, 0.08)
+            self._tool_call(
+                name="User Profile Lookup",
+                input_value="Fetch user profile, plan, and preferences",
+                output_value=synth["loyalty_profile"],
+                tool_name="user_profile_api",
+                duration_range=(0.03, 0.08),
+            )
+            _sim_delay(0.03, 0.06)
+            self._embedding_call(synth, model_variant)
+            _sim_delay(0.02, 0.05)
+            self._retrieval_call(synth)
+            _sim_delay(0.03, 0.06)
+
+            # Recommendation generation: the model HAS the policy in its
+            # context window now (retrieved above) — the trace shows that
+            # context, the attempted generation, and the guardrail decision.
             failed_input_tokens = random.randint(800, 1500)
             fail_messages = [
+                {"role": "system", "content": "You are AdventHealth's AI Care Companion. Answer using ONLY retrieved guidance; NEVER recommend specific controlled-substance dosing — ALWAYS escalate to a clinician."},
                 {"role": "user", "content": error["user_input"]},
+                {"role": "assistant", "content": f"[Intent: {intent_result}]\n[Results: {synth['search_results']}]\n[Profile: {synth['loyalty_profile']}]\n[Knowledge: {synth['rag_docs']}]"},
+                {"role": "user", "content": "Now generate the personalised recommendation based on all context above."},
             ]
 
             with self._tracer.start_as_current_span(
@@ -1140,6 +1571,14 @@ class LLMObsSubmitter:
                         f"Error: {error['error_msg']}", "error"
                     ),
                 )
+                # Exec-legible guardrail metadata — shown in Span Details so
+                # a CIO/CEO can see at a glance what tripped and how the
+                # platform handled it (escalation, not silent failure).
+                rec_span.set_attribute("gen_ai.guardrail.triggered", "clinical_safety")
+                rec_span.set_attribute("gen_ai.guardrail.policy", "ECP-19.4")
+                rec_span.set_attribute("gen_ai.guardrail.category", "controlled_substance_dosing")
+                rec_span.set_attribute("gen_ai.fallback.action", "escalate_to_clinician")
+                rec_span.set_attribute("gen_ai.fallback.audited", True)
                 rec_span.set_status(
                     Status(StatusCode.ERROR, error["error_msg"])
                 )

@@ -1,0 +1,285 @@
+# AdventHealth sub-vertical monitors — Sensing-Hospital care-experience cascade.
+#
+# Tag scheme mirrors the healthcare vertical's existing standards:
+#   - vertical:healthcare / dd-demo-toolkit:true  auto-injected
+#   - team:<role>                 existing role (digital-health)
+#   - incident_domain:<value>     existing key, value `care-experience`
+#   - signal_chain:<position>     same scheme as base
+#   - safety / audience           existing keys, existing values
+#
+# Query language: gauges use avg:/max: only — NO percentile aggregators
+# (Style Guide §1.1; they need histogram metrics + per-metric config and
+# silently return "No data" otherwise). Ratios use sum/sum*100. Range checks
+# are split into two monitors (§1.3 — no ||/&&).
+
+monitors:
+
+  # ----- Signal chain for the care-experience cascade -------------------
+  # 1-root-cause: on-prem RTLS location-event sync lag
+  - name: "[Healthcare/AdventHealth] RTLS Location Sync Lag Elevated"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.sensing.rtls_sync_lag_ms{device_type:room_sensing_gateway,department:MedSurg} by {device_id} > 3000"
+    message: "📡 SenseHub RTLS sync lag >3s in MedSurg (normal ~150ms). Likely on-prem rtls-location-service config drift. Trace upstream before the cloud routing engine starves on stale location data."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  # 1b-root-cause: staff-badge location staleness
+  - name: "[Healthcare/AdventHealth] Staff Location Data Stale"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.sensing.location_staleness_sec{device_type:room_sensing_gateway,department:MedSurg} by {device_id} > 120"
+    message: "⏱ Staff-badge location data >2min stale in MedSurg. Care-team routing cannot resolve the nearest caregiver. Check rtls-location-service sync."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  # 2-leading-indicator: care-team routing latency
+  - name: "[Healthcare/AdventHealth] Care-Team Routing Latency High"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.cxp.care_team_routing_latency_ms{department:MedSurg} by {device_id} > 4000"
+    message: "🐢 Care-team routing latency >4s in MedSurg. Leading indicator for patient-responsiveness impact. Stale RTLS location data is starving care-experience-platform."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # 2b-leading-indicator: routing failures
+  - name: "[Healthcare/AdventHealth] Care-Team Routing Failures Spike"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospital.cxp.routing_failures_total{department:MedSurg} > 8"
+    message: "🔁 More than 8 care-team routing failures in 5 min in MedSurg. Requests are not reaching the nearest caregiver. Check care-experience-platform and upstream location sync."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # 3-symptom: nurse-call acknowledgement latency (patient-visible)
+  - name: "[Healthcare/AdventHealth] Patient Call Acknowledgement Slow"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.cxp.call_ack_latency_sec{department:MedSurg} by {device_id} > 60"
+    message: "🚨 Patient call-button acknowledgement >60s in MedSurg. Patients are waiting at the bedside. Driven upstream by care-team routing latency and stale RTLS location data."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:3-symptom"
+      - "safety:patient-safety"
+    priority: 1
+
+  # 3b-symptom: perceived responsiveness score drop
+  - name: "[Healthcare/AdventHealth] Patient Responsiveness Score Low"
+    type: "query alert"
+    query: "avg(last_10m):avg:hospital.cxp.responsiveness_score{department:MedSurg} < 70"
+    message: "📉 Perceived patient-responsiveness score below 70 in MedSurg. HCAHPS responsiveness domain at risk. Correlate with care-team routing latency."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:3-symptom"
+      - "audience:nursing"
+    priority: 2
+
+  # 3c-symptom: bedside engagement tablet (EuD) latency
+  - name: "[Healthcare/AdventHealth] Bedside Tablet App Latency High"
+    type: "query alert"
+    query: "avg(last_5m):max:hospital.cxp.bedside_app_latency_ms{device_type:bedside_engagement_tablet,department:MedSurg} by {device_id} > 2500"
+    message: "📱 Bedside engagement tablet round-trip >2.5s in MedSurg. The patient-facing end-user device is degraded. Check care-experience-platform session API."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:3-symptom"
+    priority: 2
+
+  # 4-cascade: cloud routing service error rate (the smoking gun)
+  - name: "[Healthcare/AdventHealth] Care Experience Platform Error-Rate Spike"
+    type: "query alert"
+    query: "avg(last_5m):sum:hospital.app.errors_total{service_name:care-experience-platform} / sum:hospital.app.requests_total{service_name:care-experience-platform} * 100 > 5"
+    message: "🔥 care-experience-platform error rate >5%. Routing engine choking on stale location data. Trace dependency upstream to rtls-location-service."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:4-cascade"
+    priority: 1
+
+  # 4b-cascade: on-prem location service latency
+  - name: "[Healthcare/AdventHealth] RTLS Location Service Latency Anomaly"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.app.latency_ms{service_name:rtls-location-service} > 1500"
+    message: "🔗 rtls-location-service avg latency >1.5s. On-prem location resolution degraded — the root of the care-experience cascade. Validate config and sync workers."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:4-cascade"
+    priority: 2
+
+  # ----- Standalone sensing-fleet health monitors (not in cascade) ------
+
+  - name: "[Healthcare/AdventHealth] Room Sensing Gateway Offline"
+    type: "query alert"
+    query: "sum(last_5m):sum:hospital.device.online{device_type:room_sensing_gateway} by {device_id,floor,wing,department} < 1"
+    message: "🛰️ SenseHub room sensing gateway offline on Floor {{floor.name}} {{wing.name}} {{department.name}}. Room loses RTLS, call routing, and comfort sensing."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:biomed"
+      - "incident_domain:care-experience"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/AdventHealth] Bedside Tablet Battery Low"
+    type: "query alert"
+    query: "avg(last_10m):avg:hospital.device.battery_pct{device_type:bedside_engagement_tablet} by {device_id} < 20"
+    message: "🔋 Bedside engagement tablet battery below 20%. Patient loses access to meals, messaging, and education until swapped."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:biomed"
+      - "incident_domain:care-experience"
+    priority: 3
+
+  - name: "[Healthcare/AdventHealth] Patient Room Too Warm"
+    type: "query alert"
+    query: "avg(last_10m):avg:hospital.cxp.room_temp_celsius{device_type:ambient_comfort_sensor} by {device_id} > 25"
+    message: "🌡️ Patient room above 25°C in MedSurg. Comfort impact — dispatch facilities to check HVAC."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:facilities"
+      - "incident_domain:care-experience"
+    priority: 3
+
+  - name: "[Healthcare/AdventHealth] Patient Room Too Cold"
+    type: "query alert"
+    query: "avg(last_10m):avg:hospital.cxp.room_temp_celsius{device_type:ambient_comfort_sensor} by {device_id} < 20"
+    message: "🌡️ Patient room below 20°C in MedSurg. Comfort impact — dispatch facilities to check HVAC."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:facilities"
+      - "incident_domain:care-experience"
+    priority: 3
+
+  # ----- End-user-device (EuD) experience monitors ----------------------
+
+  - name: "[Healthcare/AdventHealth] End-User Device App Crashes Spike"
+    type: "query alert"
+    query: "sum(last_15m):sum:hospital.eud.app_crashes_total{department:MedSurg} by {device_type} > 6"
+    message: "📱 More than 6 end-user-device app crashes in 15 min in MedSurg ({{device_type.name}}). Patients/clinicians losing app access. Check app version health and care-experience-platform session API."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+    priority: 2
+
+  - name: "[Healthcare/AdventHealth] Clinician Mobile App Launch Slow"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.eud.app_launch_ms{device_type:clinician_mobile,department:MedSurg} by {device_id} > 4000"
+    message: "📲 Clinician mobile app launch >4s in MedSurg. Care providers waiting on the device before they can act. Check device connectivity and care-experience-platform."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+    priority: 3
+
+  - name: "[Healthcare/AdventHealth] End-User Device Network RTT High"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.eud.network_rtt_ms{department:MedSurg} by {device_type} > 1500"
+    message: "📡 End-user-device on-device network round-trip >1.5s in MedSurg ({{device_type.name}}). The device 'feels slow' to the end user. Often a downstream symptom of care-experience-platform saturation."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:3-symptom"
+    priority: 3
+
+  - name: "[Healthcare/AdventHealth] Clinician Secure-Messaging Latency High"
+    type: "query alert"
+    query: "avg(last_5m):avg:hospital.eud.secure_msg_latency_ms{device_type:clinician_mobile,department:MedSurg} by {device_id} > 2500"
+    message: "💬 Clinician secure-message delivery >2.5s in MedSurg. Care-team coordination degraded on the provider's end-user device. Correlate with care-team routing latency."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain:3-symptom"
+    priority: 3
+
+  # ----- AI Care Companion (LLM) — the executive AI-safety story -----------
+  # Root cause -> leading indicator -> patient-visible symptom, all on the
+  # companion's real custom metrics. The 30-min self-degrade window trips
+  # these live for triage.
+
+  - name: "[Healthcare/AdventHealth] AI Care Companion — Knowledge Base Latency"
+    type: "query alert"
+    query: "avg(last_5m):avg:care.companion.retrieval_latency_ms{*} > 800"
+    message: "🐢 AI Care Companion RAG knowledge-base retrieval >800ms. Root cause for AI quality degradation — when retrieval slows, the model answers with less grounding. Check the care-knowledge-base / care-experience-platform."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:ai-care-companion"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  - name: "[Healthcare/AdventHealth] AI Care Companion — Hallucination Risk High"
+    type: "query alert"
+    query: "avg(last_5m):avg:care.companion.hallucination_risk{*} > 0.3"
+    message: "🚨 AI Care Companion hallucination risk >0.3 (LLM Obs eval). The AI is answering with low grounding — a patient-safety risk. Correlate with knowledge-base latency; review the LLM Observability traces + evals."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:ai-care-companion"
+      - "signal_chain:2-leading-indicator"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/AdventHealth] AI Care Companion — Escalation Rate Spike"
+    type: "query alert"
+    query: "avg(last_5m):sum:care.companion.escalations_total{*}.as_count() / sum:care.companion.requests_total{*}.as_count() * 100 > 25"
+    message: "👥 AI Care Companion escalating >25% of interactions to humans. The AI is deferring because it can't answer safely — care-team load rises and patients wait. Trace upstream to knowledge-base latency."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:ai-care-companion"
+      - "signal_chain:3-symptom"
+      - "safety:patient-safety"
+    priority: 2
+
+  - name: "[Healthcare/AdventHealth] AI Care Companion — Patient-Facing Latency"
+    type: "query alert"
+    query: "avg(last_5m):avg:care.companion.latency_ms{*} > 3000"
+    message: "⏱ AI Care Companion end-to-end latency >3s. Patients are waiting on the AI. Downstream symptom of the knowledge-base slowdown — see the linked RUM → APM → LLM Obs trace."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:ai-care-companion"
+      - "signal_chain:3-symptom"
+    priority: 2

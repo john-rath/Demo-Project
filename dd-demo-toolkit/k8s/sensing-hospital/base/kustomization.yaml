@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: sensing-hospital
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.example.yaml   # replace with a real Secret out of band
+  - datastores.yaml       # delete on AWS; point at RDS + ElastiCache
+  - app.yaml
+commonLabels:
+  dd-demo-toolkit: "true"
+  vertical: healthcare

@@ -1,21 +1,413 @@
 notebooks:
+
   - id: "incident-investigation-floor3east"
     name: "🏥 Incident Investigation: Infusion Pumps Offline — Floor 3 East"
     type: investigation
     description: "Cross-domain RCA: WiFi AP saturation → device signal degradation → pump disconnects. Demonstrates correlation between network infrastructure and medical device health."
     time_range: "1h"
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "incident_domain:network-to-device"]
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Infusion Pumps Offline — Floor 3 East
+
+              **Symptom report:** Charge nurse on **3 East** pages: *"Several
+              infusion pumps dropped off the monitor and a couple are showing
+              disconnect alarms."*
+
+              **Where to look first?** The pumps. But the pumps are healthy —
+              battery, CPU, and mechanics are normal. The disconnects are a
+              *network* symptom, not a device fault. This notebook walks
+              upstream from the device to the WiFi infrastructure.
+
+              ---
+              ## Step 1 — Confirm the symptom: device connectivity
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "online"
+                    query: "avg:hospital.device.online{*} by {floor,wing}"
+                formulas:
+                  - formula: "online"
+                    alias: "Devices online (avg) by floor/wing"
+                display_type: "line"
+            markers:
+              - value: "y = 1"
+                display_type: "ok dashed"
+                label: "Fully online"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              The dip is isolated to **Floor 3 East**. Other wings stay online,
+              which rules out a fleet-wide outage or a backend problem.
+
+              ---
+              ## Step 2 — Rule out the obvious-but-wrong lane: device health
+
+              On-device health is fine — battery and CPU are nominal, so the
+              pumps themselves aren't failing:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "batt"
+                    query: "avg:hospital.device.battery_pct{*} by {floor,wing}"
+                  - data_source: "metrics"
+                    name: "cpu"
+                    query: "avg:hospital.device.cpu_usage_pct{*} by {floor,wing}"
+                formulas:
+                  - formula: "batt"
+                    alias: "Battery % (avg)"
+                  - formula: "cpu"
+                    alias: "CPU % (avg)"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 3 — Walk upstream: WiFi channel saturation (root cause)
+
+              The access points serving 3 East are saturated. Channel
+              utilization climbs past the 80% congestion threshold and
+              retransmits spike — the root cause:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "util"
+                    query: "max:hospital.network.channel_utilization_pct{*} by {floor,wing}"
+                  - data_source: "metrics"
+                    name: "retx"
+                    query: "avg:hospital.network.retransmit_pct{*} by {floor,wing}"
+                formulas:
+                  - formula: "util"
+                    alias: "Channel utilization % (max)"
+                  - formula: "retx"
+                    alias: "Retransmit % (avg)"
+                display_type: "line"
+            markers:
+              - value: "y = 80"
+                display_type: "error dashed"
+                label: "Congestion threshold"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 4 — Leading indicator: device signal strength
+
+              As the channel saturates, the pumps' signal strength degrades
+              toward the -75 dBm disconnect risk line — the mechanism that
+              links the network root cause to the device symptom:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "rssi"
+                    query: "avg:hospital.device.signal_strength_dbm{*} by {floor,wing}"
+                formulas:
+                  - formula: "rssi"
+                    alias: "Signal strength dBm (avg)"
+                display_type: "line"
+            markers:
+              - value: "y = -75"
+                display_type: "error dashed"
+                label: "Disconnect risk"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 5 — Downstream impact: pump alarms
+
+              Occlusion and air-in-line alarms rise as pumps drop and
+              reconnect — the clinically visible consequence:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "occl"
+                    query: "sum:hospital.pump.occlusion_alerts_total{*} by {floor,wing}.as_count()"
+                  - data_source: "metrics"
+                    name: "air"
+                    query: "sum:hospital.pump.air_in_line_alerts_total{*} by {floor,wing}.as_count()"
+                formulas:
+                  - formula: "occl"
+                    alias: "Occlusion alerts"
+                  - formula: "air"
+                    alias: "Air-in-line alerts"
+                display_type: "bars"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Resolution & business impact
+
+              **Fix:** re-balance the 3 East AP channel plan / cap clients per
+              AP. Signal recovers, pumps re-associate, alarms clear.
+
+              **Why it matters:** a "pump problem" was really a network problem.
+              Cross-domain correlation (network → device → clinical) turned a
+              biomed truck-roll into a 5-minute Wi-Fi config change — and kept
+              infusions running on a full MedSurg wing.
+        type: "notebook_cells"
 
   - id: "executive-report-30day"
     name: "Executive Report: Hospital IT System Health"
     type: report
     description: "30-day health summary for hospital leadership. SLO compliance, device uptime, service health, notable incidents, recommendations."
-    time_range: "30d"
+    time_range: "1mo"
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "audience:executive"]
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Hospital IT System Health — 30-Day Executive Summary
+
+              Leadership view of the connected-hospital estate: device fleet
+              uptime, clinical-service responsiveness, and patient experience.
+              Trends below are rolling 30 days.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "online"
+                    query: "avg:hospital.device.online{*} by {department}"
+                formulas:
+                  - formula: "online"
+                    alias: "Device uptime by department"
+                display_type: "line"
+            markers:
+              - value: "y = 0.995"
+                display_type: "warning dashed"
+                label: "99.5% uptime target"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Nurse-call responsiveness (SLA attainment)
+
+              Percentage of nurse calls answered within the response SLA:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "insla"
+                    query: "sum:hospital.nursecall.calls_answered_in_sla{*}.as_count()"
+                  - data_source: "metrics"
+                    name: "total"
+                    query: "sum:hospital.nursecall.calls_total{*}.as_count()"
+                formulas:
+                  - formula: "insla / total * 100"
+                    alias: "Nurse-call SLA attainment %"
+                display_type: "line"
+            markers:
+              - value: "y = 90"
+                display_type: "warning dashed"
+                label: "90% SLA target"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "sat"
+                    query: "avg:hospital.patient.satisfaction_score{*} by {department}"
+                formulas:
+                  - formula: "sat"
+                    alias: "Patient satisfaction by department"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Recommendations
+
+              1. **Network capacity on high-density wings** — the month's
+                 notable incident (3 East pump disconnects) traced to WiFi
+                 saturation; fund the AP refresh for MedSurg.
+              2. **Sustain nurse-call SLA** — attainment is at target; hold
+                 staffing / routing steady.
+              3. **Device lifecycle** — battery-powered fleet uptime is healthy;
+                 continue the rolling replacement schedule.
+        type: "notebook_cells"
 
   - id: "workflow-alert-triage"
     name: "⚙️ Workflow: Device Alert Triage & Escalation"
     type: runbook
     description: "Alert classification and PagerDuty routing automation. Triage logic, escalation policies, Slack notifications."
-    time_range: "6h"
+    time_range: "4h"
     tags: ["vertical:healthcare", "dd-demo-toolkit:true", "workflow:alert-management"]
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Device Alert Triage & Escalation — Runbook
+
+              How device + telemetry alarms are classified and routed.
+
+              **Triage tiers**
+              - **P1 (page on-call):** patient-safety alarms — pump disconnects,
+                telemetry monitoring gaps.
+              - **P2 (Slack #biomed-ops):** degraded but not safety-critical —
+                low battery, elevated false-alarm rate.
+              - **P3 (ticket):** informational / trending.
+
+              ---
+              ## Live alarm load
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "alarms"
+                    query: "avg:hospital.telemetry.active_alarms{*} by {department}"
+                formulas:
+                  - formula: "alarms"
+                    alias: "Active alarms by department"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "resp"
+                    query: "avg:hospital.telemetry.alarm_response_time_sec{*} by {department}"
+                  - data_source: "metrics"
+                    name: "false"
+                    query: "avg:hospital.telemetry.false_alarm_rate_pct{*} by {department}"
+                formulas:
+                  - formula: "resp"
+                    alias: "Alarm response time (sec)"
+                  - formula: "false"
+                    alias: "False-alarm rate %"
+                display_type: "line"
+            markers:
+              - value: "y = 60"
+                display_type: "warning dashed"
+                label: "Response SLA (60s)"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Escalation activity (nurse-call)
+
+              Escalations fire when a call isn't answered in SLA and route to
+              the charge nurse, then to the on-call via PagerDuty:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "esc"
+                    query: "sum:hospital.nursecall.escalations_total{*} by {department}.as_count()"
+                formulas:
+                  - formula: "esc"
+                    alias: "Escalations"
+                display_type: "bars"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ## Routing
+
+              | Tier | Channel | Target |
+              |---|---|---|
+              | P1 | PagerDuty | Biomed on-call (page) |
+              | P2 | Slack | `#biomed-ops` |
+              | P3 | Ticket | Asset-management queue |
+
+              The escalation workflow auto-classifies by tag
+              (`safety:patient-safety` → P1) and posts the device, floor, and
+              wing so responders skip the triage call.
+        type: "notebook_cells"

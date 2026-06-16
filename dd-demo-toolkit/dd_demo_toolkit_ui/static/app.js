@@ -24,9 +24,13 @@
     bannerKeys: $("#noncompliant-keys"),
     selectVertical: $("#select-vertical"),
     selectOverlay: $("#select-overlay"),
+    productsGrid: $("#products-grid"),
+    toggleMockFleet: $("#toggle-mock-fleet"),
     selectSite: $("#select-site"),
     inputApiKey: $("#input-api-key"),
     inputAppKey: $("#input-app-key"),
+    inputRumAppId: $("#input-rum-app-id"),
+    inputClientToken: $("#input-client-token"),
     inputDisplayName: $("#input-display-name"),
     inputEmitInterval: $("#input-emit-interval"),
     inputOtelEndpoint: $("#input-otel-endpoint"),
@@ -46,11 +50,13 @@
   // secrets and the user needs to see them to edit.)
   const store = {
     verticals: [],            // [{name, display_name, overlays: [...]}]
+    products: [],             // catalog from /api/products: [{key,label,group,description,default,drives_flag?}]
     sites: [],
     env: {},                  // masked plain values; references shown verbatim
     nonCompliant: [],         // SECRET_KEYS still holding plain values on disk
     apiKeyDirty: false,       // true once the user types in the API key field
     appKeyDirty: false,
+    clientTokenDirty: false,  // true once the user types in the RUM client token
     activeTab: "configure",   // configure | simulator | deploy
     // Per-process status snapshots (refreshed via polling + status updates
     // returned from start/stop). Keyed by logical name.
@@ -135,6 +141,88 @@
     }
   }
 
+  // Which product keys should be checked: the saved DD_DEMO_PRODUCTS list
+  // if present, else the catalog's defaults (first-run convenience). Only
+  // available products are ever checked — an unavailable SKU can't be
+  // demonstrated, so even a stale .env entry for one is ignored.
+  function selectedProductKeys() {
+    const available = new Set(
+      store.products.filter((p) => p.available !== false).map((p) => p.key)
+    );
+    const raw = (store.env.DD_DEMO_PRODUCTS || "").trim();
+    if (raw) {
+      return new Set(
+        raw.split(",").map((s) => s.trim()).filter((k) => k && available.has(k))
+      );
+    }
+    return new Set(
+      store.products.filter((p) => p.default && p.available !== false).map((p) => p.key)
+    );
+  }
+
+  function renderProducts() {
+    const grid = els.productsGrid;
+    if (!grid) return;
+    grid.innerHTML = "";
+    if (!store.products.length) {
+      grid.innerHTML = '<p class="muted">No product catalog available.</p>';
+      return;
+    }
+    const checked = selectedProductKeys();
+
+    // Group preserving catalog order of first appearance.
+    const groups = [];
+    const byGroup = {};
+    for (const p of store.products) {
+      const g = p.group || "Other";
+      if (!byGroup[g]) { byGroup[g] = []; groups.push(g); }
+      byGroup[g].push(p);
+    }
+
+    for (const g of groups) {
+      const groupEl = document.createElement("div");
+      groupEl.className = "product-group";
+      const h = document.createElement("h3");
+      h.className = "product-group-title muted";
+      h.textContent = g;
+      groupEl.appendChild(h);
+
+      for (const p of byGroup[g]) {
+        const available = p.available !== false;
+        const label = document.createElement("label");
+        label.className = "checkbox product-item" + (available ? "" : " unavailable");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.value = p.key;
+        cb.dataset.product = p.key;
+        cb.checked = available && checked.has(p.key);
+        cb.disabled = !available;
+        label.appendChild(cb);
+        const text = document.createElement("span");
+        text.className = "product-text";
+        const flagNote = available && p.drives_flag ? ` (sets ${p.drives_flag})` : "";
+        const availNote = available ? "" : ' <em class="product-unavailable">— not yet available</em>';
+        text.innerHTML =
+          `<strong>${p.label}</strong>${flagNote}${availNote}` +
+          (p.description ? `<br><span class="muted">${p.description}</span>` : "");
+        label.appendChild(text);
+        groupEl.appendChild(label);
+      }
+      grid.appendChild(groupEl);
+    }
+    if (els.toggleMockFleet) {
+      els.toggleMockFleet.checked =
+        (store.env.DD_DEMO_MOCK_FLEET || "").toLowerCase() === "true";
+    }
+  }
+
+  // Read the currently-checked product keys from the DOM.
+  function checkedProductKeys() {
+    return Array.from(
+      els.productsGrid.querySelectorAll('input[type="checkbox"][data-product]:checked')
+    ).map((cb) => cb.value);
+  }
+
   function renderSites() {
     els.selectSite.innerHTML = "";
     for (const s of store.sites) {
@@ -154,12 +242,15 @@
     // returns "*****abcd". Either way we drop it into the input as-is.
     els.inputApiKey.value = store.env.DD_API_KEY || "";
     els.inputAppKey.value = store.env.DD_APP_KEY || "";
+    els.inputRumAppId.value = store.env.DD_RUM_APPLICATION_ID || "";
+    els.inputClientToken.value = store.env.DD_CLIENT_TOKEN || "";
     els.inputDisplayName.value = store.env.DISPLAY_NAME || "";
     els.inputEmitInterval.value = store.env.EMIT_INTERVAL || "";
     els.inputOtelEndpoint.value = store.env.OTEL_EXPORTER_OTLP_ENDPOINT || "";
     els.selectOtelProtocol.value = store.env.OTEL_EXPORTER_OTLP_PROTOCOL || "";
     store.apiKeyDirty = false;
     store.appKeyDirty = false;
+    store.clientTokenDirty = false;
   }
 
   function renderBanner() {
@@ -183,16 +274,26 @@
     // are sent as "" (the backend's MANAGED_KEYS guard still accepts
     // them — they clear the value). Secrets get KEEP_EXISTING unless
     // the user actually typed something new.
+    const products = checkedProductKeys();
     const payload = {
       DD_SITE: els.selectSite.value,
       DD_DEMO_VERTICAL: els.selectVertical.value,
       DD_DEMO_SUB_VERTICAL: els.selectOverlay.value,
+      DD_DEMO_PRODUCTS: products.join(","),
+      // DD_DEMO_DBM starts the FINANCE DBM stack (authorization-db) — only
+      // relevant for finance. On other verticals (e.g. healthcare) Database
+      // Monitoring rides on that vertical's own DB in the mock-app stack
+      // (sensing-postgres), so we must NOT start the finance DB here.
+      DD_DEMO_DBM: (products.includes("dbm") && els.selectVertical.value === "finance") ? "true" : "false",
+      DD_DEMO_MOCK_FLEET: els.toggleMockFleet && els.toggleMockFleet.checked ? "true" : "false",
       DISPLAY_NAME: els.inputDisplayName.value,
       EMIT_INTERVAL: els.inputEmitInterval.value,
       OTEL_EXPORTER_OTLP_ENDPOINT: els.inputOtelEndpoint.value,
       OTEL_EXPORTER_OTLP_PROTOCOL: els.selectOtelProtocol.value,
       DD_API_KEY: store.apiKeyDirty ? els.inputApiKey.value : KEEP_EXISTING,
       DD_APP_KEY: store.appKeyDirty ? els.inputAppKey.value : KEEP_EXISTING,
+      DD_RUM_APPLICATION_ID: els.inputRumAppId.value,
+      DD_CLIENT_TOKEN: store.clientTokenDirty ? els.inputClientToken.value : KEEP_EXISTING,
     };
     return payload;
   }
@@ -205,6 +306,7 @@
       store.env = body.values || {};
       store.nonCompliant = body.non_compliant_secret_keys || [];
       renderEnvFields();
+      renderProducts();
       renderBanner();
       setResult(els.saveResult, "saved to .env", "ok");
     } catch (e) {
@@ -651,6 +753,7 @@
     els.selectVertical.addEventListener("change", renderOverlays);
     els.inputApiKey.addEventListener("input", () => { store.apiKeyDirty = true; });
     els.inputAppKey.addEventListener("input", () => { store.appKeyDirty = true; });
+    els.inputClientToken.addEventListener("input", () => { store.clientTokenDirty = true; });
     els.btnSave.addEventListener("click", onSave);
     els.btnTest.addEventListener("click", onTest);
 
@@ -714,15 +817,17 @@
 
     // Load reference data in parallel.
     try {
-      const [verticals, sites, env] = await Promise.all([
+      const [verticals, sites, env, products] = await Promise.all([
         getJSON("/api/verticals"),
         getJSON("/api/sites"),
         getJSON("/api/env"),
+        getJSON("/api/products"),
       ]);
       store.verticals = verticals;
       store.sites = sites;
       store.env = env.values || {};
       store.nonCompliant = env.non_compliant_secret_keys || [];
+      store.products = products || [];
     } catch (e) {
       els.health.textContent = `load error: ${e.message}`;
       els.health.dataset.state = "err";
@@ -731,6 +836,7 @@
 
     renderSites();
     renderVerticals();
+    renderProducts();
     renderEnvFields();
     renderBanner();
     renderDeploySummary();
