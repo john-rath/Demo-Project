@@ -49,9 +49,8 @@ def main() -> None:
     if "rum" not in products:
         _warn_exit("'rum' not selected in DD_DEMO_PRODUCTS; skipping.")
 
-    # 2. Idempotency: already provisioned?
-    if on_disk.get("DD_RUM_APPLICATION_ID") and (on_disk.get("DD_CLIENT_TOKEN") or "").startswith("op://"):
-        _warn_exit("RUM already provisioned (app id + op:// token reference present); skipping.")
+    # (Idempotency is handled against Datadog below via find-or-create — we do
+    # NOT trust .env to mean "the app exists", since the id/ref can be stale.)
 
     # 3. Derive the 1Password vault/item from the existing DD_API_KEY reference.
     api_ref = on_disk.get("DD_API_KEY", "")
@@ -90,6 +89,10 @@ def main() -> None:
             app_id = detail.get("application_id") or app_pub_id
             token = detail.get("client_token", "")
             action = "reused"
+            # App genuinely exists AND .env already references it → no churn.
+            if (on_disk.get("DD_RUM_APPLICATION_ID") == app_id
+                    and (on_disk.get("DD_CLIENT_TOKEN") or "").startswith("op://")):
+                _warn_exit(f"RUM app {RUM_APP_NAME!r} exists and .env already references it; nothing to do.")
         else:
             body = {"data": {"type": "rum_application",
                              "attributes": {"name": RUM_APP_NAME, "type": "browser"}}}

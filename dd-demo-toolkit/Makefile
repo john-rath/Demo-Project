@@ -263,7 +263,7 @@ ui-install: ## Create .venv-ui (Python 3.13) and install editable + UI extras
 	./.venv-ui/bin/pip install --quiet --upgrade pip
 	./.venv-ui/bin/pip install -e '.[dev,ui]'
 
-ui: check-op build rum-provision ## Build images + provision RUM (if selected), then launch the UI. Does NOT start the stack — use the Simulator tab. http://127.0.0.1:8765
+ui: check-op down build rum-provision ## Clean any running stack, rebuild fresh images, provision RUM, then launch the UI idle (Start from the Simulator tab). http://127.0.0.1:8765
 	$(OP_RUN) ./.venv-ui/bin/dd-demo-ui
 
 test: ## Run the unit + static analysis test suite (no secrets needed)
