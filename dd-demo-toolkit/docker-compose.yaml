@@ -519,7 +519,8 @@ services:
   # Dedicated Datadog Agent for the mock app (distinct from the data-obs /
   # dbm agents so the profiles compose cleanly when run together).
   datadog-agent-sh:
-    image: gcr.io/datadoghq/agent:7
+    # Pinned (not floating :7) for a deterministic demo.
+    image: gcr.io/datadoghq/agent:7.65.0
     container_name: dd-demo-datadog-agent-sh
     environment:
       - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up-mock-app`}
@@ -529,13 +530,15 @@ services:
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
-      # Disable auto multi-line detection. Its tokenizer (the
-      # decoder/preprocessor that owns user_samples / timestamp_detector /
-      # pattern_table) error-logs "Tokens are required ..." once per low-token
-      # line when collecting all container logs — pure noise that floods the
-      # agent output. We don't need multi-line aggregation for these
-      # single-line JSON/uvicorn logs.
+      # Silence the "Tokens are required ..." ERROR spam from the log
+      # auto-multiline tokenizer (decoder/preprocessor: user_samples /
+      # timestamp_detector / pattern_table). Two levers, belt-and-suspenders:
+      #   1) turn the feature off, and
+      #   2) force the legacy v1 path — v1 has no tokenizer, so even if
+      #      auto-multiline is enabled anywhere it can't emit these errors.
+      # Our service logs are single-line JSON/uvicorn; no multi-line needed.
       - DD_LOGS_CONFIG_AUTO_MULTI_LINE_DETECTION=false
+      - DD_LOGS_CONFIG_FORCE_AUTO_MULTI_LINE_DETECTION_V1=true
       - DD_PROCESS_AGENT_ENABLED=true
       - DD_CONTAINER_EXCLUDE=name:dd-demo-otel-collector name:dd-demo-kafka
       - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience env:demo
