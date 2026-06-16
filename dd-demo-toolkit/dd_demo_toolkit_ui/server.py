@@ -106,7 +106,7 @@ PRODUCT_CATALOG: List[Dict[str, Any]] = [
      "description": "Host, container, and device fleet health.",
      "available": True, "default": True},
     {"key": "dbm", "label": "Database Monitoring", "group": "Core observability",
-     "description": "Postgres query performance. Also starts the DBM container stack.",
+     "description": "Postgres query performance. On healthcare it monitors sensing-postgres (mock-app); on finance it starts the authorization-db DBM stack.",
      "available": True, "default": False, "drives_flag": "DD_DEMO_DBM"},
     {"key": "profiler", "label": "Continuous Profiler", "group": "Core observability",
      "description": "Code-level CPU/memory profiling.",

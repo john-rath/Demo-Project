@@ -280,10 +280,11 @@
       DD_DEMO_VERTICAL: els.selectVertical.value,
       DD_DEMO_SUB_VERTICAL: els.selectOverlay.value,
       DD_DEMO_PRODUCTS: products.join(","),
-      // Database Monitoring is the one product with a real container toggle.
-      // Derive DD_DEMO_DBM from the selection so the picker actually drives
-      // the stack `make up` starts.
-      DD_DEMO_DBM: products.includes("dbm") ? "true" : "false",
+      // DD_DEMO_DBM starts the FINANCE DBM stack (authorization-db) — only
+      // relevant for finance. On other verticals (e.g. healthcare) Database
+      // Monitoring rides on that vertical's own DB in the mock-app stack
+      // (sensing-postgres), so we must NOT start the finance DB here.
+      DD_DEMO_DBM: (products.includes("dbm") && els.selectVertical.value === "finance") ? "true" : "false",
       DD_DEMO_MOCK_FLEET: els.toggleMockFleet && els.toggleMockFleet.checked ? "true" : "false",
       DISPLAY_NAME: els.inputDisplayName.value,
       EMIT_INTERVAL: els.inputEmitInterval.value,
