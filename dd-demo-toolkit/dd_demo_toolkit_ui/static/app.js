@@ -24,6 +24,7 @@
     bannerKeys: $("#noncompliant-keys"),
     selectVertical: $("#select-vertical"),
     selectOverlay: $("#select-overlay"),
+    productsGrid: $("#products-grid"),
     selectSite: $("#select-site"),
     inputApiKey: $("#input-api-key"),
     inputAppKey: $("#input-app-key"),
@@ -46,6 +47,7 @@
   // secrets and the user needs to see them to edit.)
   const store = {
     verticals: [],            // [{name, display_name, overlays: [...]}]
+    products: [],             // catalog from /api/products: [{key,label,group,description,default,drives_flag?}]
     sites: [],
     env: {},                  // masked plain values; references shown verbatim
     nonCompliant: [],         // SECRET_KEYS still holding plain values on disk
@@ -135,6 +137,72 @@
     }
   }
 
+  // Which product keys should be checked: the saved DD_DEMO_PRODUCTS list
+  // if present, else the catalog's defaults (first-run convenience).
+  function selectedProductKeys() {
+    const raw = (store.env.DD_DEMO_PRODUCTS || "").trim();
+    if (raw) {
+      return new Set(raw.split(",").map((s) => s.trim()).filter(Boolean));
+    }
+    return new Set(store.products.filter((p) => p.default).map((p) => p.key));
+  }
+
+  function renderProducts() {
+    const grid = els.productsGrid;
+    if (!grid) return;
+    grid.innerHTML = "";
+    if (!store.products.length) {
+      grid.innerHTML = '<p class="muted">No product catalog available.</p>';
+      return;
+    }
+    const checked = selectedProductKeys();
+
+    // Group preserving catalog order of first appearance.
+    const groups = [];
+    const byGroup = {};
+    for (const p of store.products) {
+      const g = p.group || "Other";
+      if (!byGroup[g]) { byGroup[g] = []; groups.push(g); }
+      byGroup[g].push(p);
+    }
+
+    for (const g of groups) {
+      const groupEl = document.createElement("div");
+      groupEl.className = "product-group";
+      const h = document.createElement("h3");
+      h.className = "product-group-title muted";
+      h.textContent = g;
+      groupEl.appendChild(h);
+
+      for (const p of byGroup[g]) {
+        const label = document.createElement("label");
+        label.className = "checkbox product-item";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.value = p.key;
+        cb.dataset.product = p.key;
+        cb.checked = checked.has(p.key);
+        label.appendChild(cb);
+        const text = document.createElement("span");
+        text.className = "product-text";
+        const flagNote = p.drives_flag ? ` (sets ${p.drives_flag})` : "";
+        text.innerHTML =
+          `<strong>${p.label}</strong>${flagNote}` +
+          (p.description ? `<br><span class="muted">${p.description}</span>` : "");
+        label.appendChild(text);
+        groupEl.appendChild(label);
+      }
+      grid.appendChild(groupEl);
+    }
+  }
+
+  // Read the currently-checked product keys from the DOM.
+  function checkedProductKeys() {
+    return Array.from(
+      els.productsGrid.querySelectorAll('input[type="checkbox"][data-product]:checked')
+    ).map((cb) => cb.value);
+  }
+
   function renderSites() {
     els.selectSite.innerHTML = "";
     for (const s of store.sites) {
@@ -183,10 +251,16 @@
     // are sent as "" (the backend's MANAGED_KEYS guard still accepts
     // them — they clear the value). Secrets get KEEP_EXISTING unless
     // the user actually typed something new.
+    const products = checkedProductKeys();
     const payload = {
       DD_SITE: els.selectSite.value,
       DD_DEMO_VERTICAL: els.selectVertical.value,
       DD_DEMO_SUB_VERTICAL: els.selectOverlay.value,
+      DD_DEMO_PRODUCTS: products.join(","),
+      // Database Monitoring is the one product with a real container toggle.
+      // Derive DD_DEMO_DBM from the selection so the picker actually drives
+      // the stack `make up` starts.
+      DD_DEMO_DBM: products.includes("dbm") ? "true" : "false",
       DISPLAY_NAME: els.inputDisplayName.value,
       EMIT_INTERVAL: els.inputEmitInterval.value,
       OTEL_EXPORTER_OTLP_ENDPOINT: els.inputOtelEndpoint.value,
@@ -205,6 +279,7 @@
       store.env = body.values || {};
       store.nonCompliant = body.non_compliant_secret_keys || [];
       renderEnvFields();
+      renderProducts();
       renderBanner();
       setResult(els.saveResult, "saved to .env", "ok");
     } catch (e) {
@@ -714,15 +789,17 @@
 
     // Load reference data in parallel.
     try {
-      const [verticals, sites, env] = await Promise.all([
+      const [verticals, sites, env, products] = await Promise.all([
         getJSON("/api/verticals"),
         getJSON("/api/sites"),
         getJSON("/api/env"),
+        getJSON("/api/products"),
       ]);
       store.verticals = verticals;
       store.sites = sites;
       store.env = env.values || {};
       store.nonCompliant = env.non_compliant_secret_keys || [];
+      store.products = products || [];
     } catch (e) {
       els.health.textContent = `load error: ${e.message}`;
       els.health.dataset.state = "err";
@@ -731,6 +808,7 @@
 
     renderSites();
     renderVerticals();
+    renderProducts();
     renderEnvFields();
     renderBanner();
     renderDeploySummary();

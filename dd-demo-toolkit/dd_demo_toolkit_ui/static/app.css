@@ -337,6 +337,32 @@ nav.tabs {
 
 .checkbox input { margin: 0; }
 
+/* Product picker grid (Configure tab). Groups stack; items within a group
+   render as a responsive two-column grid of checkbox rows. */
+#products-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.product-group-title {
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.product-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px 18px;
+}
+.product-group-title { grid-column: 1 / -1; }
+.checkbox.product-item {
+  align-items: flex-start;
+  gap: 8px;
+}
+.checkbox.product-item input { margin-top: 2px; }
+.product-text { line-height: 1.35; }
+
 .log-pane {
   margin: 0;
   padding: 12px 20px;

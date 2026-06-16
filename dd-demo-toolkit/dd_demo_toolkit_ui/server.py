@@ -62,6 +62,53 @@ from .process_supervisor import (
 logger = logging.getLogger(__name__)
 
 
+# Catalog of Datadog products/features a demo can showcase. Surfaced by
+# GET /api/products and rendered as a checkbox grid in the Configure tab.
+# The user's selection is persisted to DD_DEMO_PRODUCTS (comma-separated)
+# so the demo's intended scope is captured for setup and downstream asset
+# filtering. The one product with a real container toggle today is
+# Database Monitoring: selecting it also flips DD_DEMO_DBM (the frontend
+# derives that from the selection), which `make up` reads to start the
+# DBM stack. Other entries record intent for now.
+#
+# `default` marks the products pre-checked on first load (no DD_DEMO_PRODUCTS
+# in .env yet) — the core observability story most demos open with.
+PRODUCT_CATALOG: List[Dict[str, Any]] = [
+    {"key": "apm", "label": "APM & Distributed Tracing", "group": "Core observability",
+     "description": "Service traces, flame graphs, and the on-prem→cloud cascade map.", "default": True},
+    {"key": "logs", "label": "Log Management", "group": "Core observability",
+     "description": "Correlated service and container logs.", "default": True},
+    {"key": "infra", "label": "Infrastructure Monitoring", "group": "Core observability",
+     "description": "Host, container, and device fleet health.", "default": True},
+    {"key": "dbm", "label": "Database Monitoring", "group": "Core observability",
+     "description": "Postgres query performance. Also starts the DBM container stack.",
+     "default": False, "drives_flag": "DD_DEMO_DBM"},
+    {"key": "rum", "label": "Real User Monitoring", "group": "Digital experience",
+     "description": "Frontend/web session performance and errors.", "default": False},
+    {"key": "eud", "label": "End-User Devices (EuD)", "group": "Digital experience",
+     "description": "Patient/clinician device experience — app launch, crashes, on-device network.", "default": True},
+    {"key": "synthetics", "label": "Synthetic Monitoring", "group": "Digital experience",
+     "description": "Scripted API and browser checks.", "default": False},
+    {"key": "npm", "label": "Network Monitoring", "group": "Infrastructure",
+     "description": "Network flows and device connectivity.", "default": False},
+    {"key": "profiler", "label": "Continuous Profiler", "group": "Infrastructure",
+     "description": "Code-level CPU/memory profiling.", "default": False},
+    {"key": "dsm", "label": "Data Streams Monitoring", "group": "Infrastructure",
+     "description": "Kafka/queue pipeline lag and throughput.", "default": False},
+    {"key": "csm", "label": "Cloud Security Management", "group": "Security",
+     "description": "Misconfig and runtime security signals.", "default": False},
+    {"key": "llmobs", "label": "LLM Observability", "group": "AI",
+     "description": "LLM app traces, evals, and quality.", "default": False},
+    {"key": "bits", "label": "Bits AI / Watchdog", "group": "AI",
+     "description": "AI-driven detection and root-cause isolation across the disjoint cascade.", "default": True},
+]
+
+# Keys that map a selected product to a real .env toggle the stack reads.
+PRODUCT_DRIVEN_FLAGS: Dict[str, str] = {
+    p["key"]: p["drives_flag"] for p in PRODUCT_CATALOG if p.get("drives_flag")
+}
+
+
 @dataclass(frozen=True)
 class UIConfig:
     """Where the UI server looks on disk for toolkit state.
@@ -108,6 +155,8 @@ class EnvWriteRequest(BaseModel):
     DD_SITE: Optional[str] = None
     DD_DEMO_VERTICAL: Optional[str] = None
     DD_DEMO_SUB_VERTICAL: Optional[str] = None
+    DD_DEMO_PRODUCTS: Optional[str] = None
+    DD_DEMO_DBM: Optional[str] = None
     EMIT_INTERVAL: Optional[str] = None
     DISPLAY_NAME: Optional[str] = None
     OTEL_EXPORTER_OTLP_ENDPOINT: Optional[str] = None
@@ -181,6 +230,17 @@ def build_app(cfg: UIConfig) -> FastAPI:
         # Sorted for stable UI rendering. Reuses the toolkit's authoritative
         # map so a new region added to the toolkit shows up here automatically.
         return sorted(DatadogAPIClient.SITE_MAPPING.keys())
+
+    @app.get("/api/products")
+    def products() -> List[Dict[str, Any]]:
+        """Catalog of demonstrable Datadog products for the checkbox picker.
+
+        Static catalog (see PRODUCT_CATALOG). The frontend renders these as
+        a grouped checkbox grid, pre-checks `default: true` entries when
+        DD_DEMO_PRODUCTS is unset, and persists the selection back to
+        DD_DEMO_PRODUCTS on save.
+        """
+        return PRODUCT_CATALOG
 
     # ----- Verticals & overlays ---------------------------------------------
 

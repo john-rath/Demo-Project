@@ -63,6 +63,8 @@ MANAGED_KEYS = frozenset({
     "DD_SITE",
     "DD_DEMO_VERTICAL",
     "DD_DEMO_SUB_VERTICAL",
+    "DD_DEMO_PRODUCTS",          # comma-separated product picker selection
+    "DD_DEMO_DBM",              # DBM container stack toggle (derived from picker)
     "EMIT_INTERVAL",
     "DISPLAY_NAME",
     "OTEL_EXPORTER_OTLP_ENDPOINT",
