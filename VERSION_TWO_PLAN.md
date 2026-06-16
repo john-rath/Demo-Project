@@ -179,3 +179,41 @@ These are non-negotiable house rules — each traces to a past demo bug:
 4. Automated repair: real remediation loop, or richer simulated phases for the demo?
 5. On-prem vs cloud: tag-value modeling vs. env-driven topology split?
 6. Mock-fleet scope: how many device types / which "potent combination" matters most for AdventHealth?
+
+---
+
+## 7. Build status — 2026-06-15 (all phases delivered)
+
+All phases built on branch `version-two` and pushed. Live bring-up against a
+Datadog org is the remaining step (owner: John); everything below is
+statically validated (dry-run, py_compile, `docker compose config`, UI tests).
+
+- **P1 AdventHealth overlay** ✅ — `verticals/healthcare/overlays/adventhealth`;
+  patient/care-provider experience, staffing omitted; `dd-demo setup
+  --sub-vertical adventhealth` dry-runs clean (28 resources, 0 errors).
+- **P2 EuD + Bits AI** ✅ — `clinician_mobile` + `hospital.eud.*`; EuD dashboard;
+  cascade reaches the EuD layer; Bits-AI-detectable via 4-axis-disjoint signals.
+- **P3 Containerized mock env + fleet** ✅ — `docker/sensing_hospital/` real
+  app collected by a **real Datadog Agent** (APM, logs, infra, DogStatsD custom
+  metrics), RUM frontend (`care-portal`), grown into a **distributed mesh**
+  (sync + async via Redis Stream) with **Postgres (DBM) + Redis** infra. New
+  `mock-app` compose profile + `DD_DEMO_MOCK_FLEET`.
+- **P4 Infra-ops automated repair** ✅ — `remediation-controller` real
+  detect→repair webhook (on-prem clamp + cloud hook); `deployment:on-prem|cloud`.
+- **P5 UI product picker** ✅ — checkbox picker with accurate `available` flags;
+  RUM cred fields; Synthetics + EuD selectable.
+- **Synthetics** ✅ — private-location worker + browser/API tests (drive RUM).
+- **k8s** ✅ — `k8s/sensing-hospital/` Kustomize base (EKS lift target).
+- **P6** ✅ — plan + per-area READMEs + this status; final validation pass.
+
+### Telemetry the mock app emits (via the real Agent)
+APM/traces/service-map, logs (trace-correlated), infra (container/process/host),
+DogStatsD custom metrics (`care.*`), Postgres DBM, Redis, and RUM (browser).
+
+### Corrections logged during the build
+- **Data Observability** is NOT available (dbt artifacts aren't uploaded to
+  Datadog) — picker marks it not-yet-available.
+- Pre-existing bugs flagged (separate tasks): `is_secret_reference` regex; the
+  base BD plugin's undefined `INCIDENT_FLOOR`/`INCIDENT_WING`.
+
+See `dd-demo-toolkit/DEMO_RUNBOOK.md` for the live bring-up steps.
