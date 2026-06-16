@@ -385,6 +385,11 @@ HEALTHCARE_ERROR_SCENARIOS = [
     {
         "user_input": "Recommend a specific dose of a controlled substance based on my pain level.",
         "error_msg": "Clinical-safety guardrail triggered: AI is not authorized to prescribe controlled-substance dosing. Falling back to escalation to clinician.",
+        # Optional enrichments for the trace's internal-mechanics view:
+        "search_query": "patient_id:pat-1003, topic:pain_dosing, class:controlled_substance",
+        "search_results": "AdventHealth policy ECP-19.4 (Controlled-Substance Dosing AI Boundary), patient pain log (last 24h), home med list.",
+        "loyalty_profile": '{"patient_id": "pat-1003", "role": "patient", "acuity": "stable", "current_meds": ["acetaminophen"], "policy_consent": true}',
+        "policy_doc": "AdventHealth policy ECP-19.4 — Controlled-Substance Dosing AI Boundary: the AI Care Companion is NOT authorized to recommend specific dosing of controlled substances. Such requests MUST be escalated to a credentialed clinician; the assistant may share general post-op pain-management education only. Audit logging of any such request is required.",
     },
 ]
 
@@ -1480,10 +1485,62 @@ class LLMObsSubmitter:
 
             _sim_delay(0.05, 0.1)
 
-            # Recommendation generation fails
+            # Run the same internal mechanics as a successful trace — tool
+            # calls, embedding, RAG retrieval — so the trace shows the full
+            # AI workflow including the policy doc the model retrieved BEFORE
+            # the guardrail caught the unsafe response. This is the "AI tried,
+            # Datadog caught it" exec view.
+            synth = {
+                "user_input": error["user_input"],
+                "search_query": error.get(
+                    "search_query",
+                    "lookup:user_request, signals:policy + history",
+                ),
+                "search_results": error.get(
+                    "search_results",
+                    "Policy candidates + recent context retrieved.",
+                ),
+                "loyalty_profile": error.get(
+                    "loyalty_profile",
+                    '{"role": "user", "policy_consent": true}',
+                ),
+                "embedding_input": error["user_input"],
+                "rag_docs": error.get(
+                    "policy_doc",
+                    "Operational policy: AI assistant must defer to a human "
+                    "for any out-of-scope or safety-flagged request.",
+                ),
+            }
+            self._tool_call(
+                name="Catalog Search",
+                input_value=synth["search_query"],
+                output_value=synth["search_results"],
+                tool_name="catalog_search_api",
+                duration_range=(0.05, 0.12),
+            )
+            _sim_delay(0.04, 0.08)
+            self._tool_call(
+                name="User Profile Lookup",
+                input_value="Fetch user profile, plan, and preferences",
+                output_value=synth["loyalty_profile"],
+                tool_name="user_profile_api",
+                duration_range=(0.03, 0.08),
+            )
+            _sim_delay(0.03, 0.06)
+            self._embedding_call(synth, model_variant)
+            _sim_delay(0.02, 0.05)
+            self._retrieval_call(synth)
+            _sim_delay(0.03, 0.06)
+
+            # Recommendation generation: the model HAS the policy in its
+            # context window now (retrieved above) — the trace shows that
+            # context, the attempted generation, and the guardrail decision.
             failed_input_tokens = random.randint(800, 1500)
             fail_messages = [
+                {"role": "system", "content": "You are AdventHealth's AI Care Companion. Answer using ONLY retrieved guidance; NEVER recommend specific controlled-substance dosing — ALWAYS escalate to a clinician."},
                 {"role": "user", "content": error["user_input"]},
+                {"role": "assistant", "content": f"[Intent: {intent_result}]\n[Results: {synth['search_results']}]\n[Profile: {synth['loyalty_profile']}]\n[Knowledge: {synth['rag_docs']}]"},
+                {"role": "user", "content": "Now generate the personalised recommendation based on all context above."},
             ]
 
             with self._tracer.start_as_current_span(
@@ -1509,6 +1566,14 @@ class LLMObsSubmitter:
                         f"Error: {error['error_msg']}", "error"
                     ),
                 )
+                # Exec-legible guardrail metadata — shown in Span Details so
+                # a CIO/CEO can see at a glance what tripped and how the
+                # platform handled it (escalation, not silent failure).
+                rec_span.set_attribute("gen_ai.guardrail.triggered", "clinical_safety")
+                rec_span.set_attribute("gen_ai.guardrail.policy", "ECP-19.4")
+                rec_span.set_attribute("gen_ai.guardrail.category", "controlled_substance_dosing")
+                rec_span.set_attribute("gen_ai.fallback.action", "escalate_to_clinician")
+                rec_span.set_attribute("gen_ai.fallback.audited", True)
                 rec_span.set_status(
                     Status(StatusCode.ERROR, error["error_msg"])
                 )
