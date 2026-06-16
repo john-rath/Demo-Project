@@ -506,6 +506,146 @@ services:
     profiles:
       - dbm
 
+  # ===========================================================================
+  # Sensing Hospital mock environment — `mock-app` profile (DD_DEMO_MOCK_FLEET).
+  #
+  # A real containerized microservice app + mock IoT edge fleet, collected by
+  # the ACTUAL Datadog Agent (not the OTel collector): APM service map, traces,
+  # logs, and process/container infra. Mirrors the AdventHealth overlay's
+  # on-prem→cloud care-experience cascade so the live app reinforces the
+  # synthetic story. Gated by its own profile so `make up` is unchanged.
+  # ===========================================================================
+
+  # Dedicated Datadog Agent for the mock app (distinct from the data-obs /
+  # dbm agents so the profiles compose cleanly when run together).
+  datadog-agent-sh:
+    image: gcr.io/datadoghq/agent:7
+    container_name: dd-demo-datadog-agent-sh
+    environment:
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make up-mock-app`}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_CONTAINER_EXCLUDE=name:dd-demo-otel-collector name:dd-demo-kafka
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience env:demo
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  rtls-location-service:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-rtls-location-service
+    command: ["ddtrace-run", "uvicorn", "rtls_location_service:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RTLS_AUTO_CASCADE=${RTLS_AUTO_CASCADE:-true}
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=rtls-location-service
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:on-prem team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  care-experience-platform:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-care-experience-platform
+    command: ["ddtrace-run", "uvicorn", "care_experience_platform:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      rtls-location-service: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RTLS_URL=http://rtls-location-service:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=care-experience-platform
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  care-event-router:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-care-event-router
+    command: ["ddtrace-run", "uvicorn", "care_event_router:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      care-experience-platform: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PLATFORM_URL=http://care-experience-platform:8080
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=care-event-router
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:on-prem team:digital-health
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  remediation-controller:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-remediation-controller
+    command: ["ddtrace-run", "uvicorn", "remediation_controller:app", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      rtls-location-service: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RTLS_URL=http://rtls-location-service:8080
+      - SAFE_POLL_RATE=60
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=remediation-controller
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:cloud workflow-type:auto-remediation
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
+  edge-device-fleet:
+    build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
+    container_name: dd-demo-edge-device-fleet
+    command: ["ddtrace-run", "python", "edge_device.py"]
+    depends_on:
+      datadog-agent-sh: {condition: service_started}
+      care-event-router: {condition: service_started}
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ROUTER_URL=http://care-event-router:8080
+      - MOCK_SCENARIO=${DD_DEMO_VERTICAL:-healthcare}
+      - DD_AGENT_HOST=datadog-agent-sh
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=edge-device-fleet
+      - DD_ENV=demo
+      - DD_VERSION=1.0.0
+      - DD_LOGS_INJECTION=true
+      - DD_TAGS=dd-demo-toolkit:true vertical:healthcare incident_domain:care-experience deployment:on-prem team:biomed
+    restart: unless-stopped
+    profiles:
+      - mock-app
+
 volumes:
   # Ephemeral volume shared between simulator and authorization-db-worker.
   # The cascade plugin writes the current phase here; the db-worker reads it
