@@ -74,6 +74,7 @@
       <div class="row">
         <button id="btn-locate">Locate patient device</button>
         <button id="btn-summary" class="secondary">Refresh care summary</button>
+        <button id="btn-ask">Ask the AI Care Companion</button>
       </div>
       <p class="muted" id="status">Auto-refreshing care activity every 5s…</p>
     </section>
@@ -105,12 +106,31 @@
       }
     }
 
+    async function askCompanion(actionName) {
+      if (window.DD_RUM && window.DD_RUM.addAction) window.DD_RUM.addAction(actionName);
+      try {
+        var res = await fetch('/api/ask', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ role: 'patient' })
+        });
+        var body = await res.json();
+        var c = body.companion || {};
+        logLine('care_companion → ' + (c.scenario || '?') +
+          (c.escalated_to_human ? ' [ESCALATED]' : '') +
+          (c.evals ? ' (halluc ' + c.evals.hallucination_risk + ')' : ''));
+      } catch (e) { logLine('care_companion → failed: ' + e); }
+    }
+
     document.getElementById('btn-locate').addEventListener('click', function () { ping('locate_patient_device'); });
     document.getElementById('btn-summary').addEventListener('click', function () { ping('refresh_care_summary'); });
+    document.getElementById('btn-ask').addEventListener('click', function () { askCompanion('ask_care_companion'); });
 
     // Background activity so the portal always has live RUM + APM data.
     ping('page_load');
     setInterval(function () { ping('auto_refresh'); }, 5000);
+    // Periodically exercise the AI Care Companion so LLM Obs always has data.
+    askCompanion('ask_care_companion');
+    setInterval(function () { askCompanion('ask_care_companion'); }, 8000);
   </script>
 </body>
 </html>

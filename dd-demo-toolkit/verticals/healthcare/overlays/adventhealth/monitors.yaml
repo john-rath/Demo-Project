@@ -228,3 +228,58 @@ monitors:
       - "incident_domain:care-experience"
       - "signal_chain:3-symptom"
     priority: 3
+
+  # ----- AI Care Companion (LLM) — the executive AI-safety story -----------
+  # Root cause -> leading indicator -> patient-visible symptom, all on the
+  # companion's real custom metrics. The 30-min self-degrade window trips
+  # these live for triage.
+
+  - name: "[Healthcare/AdventHealth] AI Care Companion — Knowledge Base Latency"
+    type: "query alert"
+    query: "avg(last_5m):avg:care.companion.retrieval_latency_ms{*} > 800"
+    message: "🐢 AI Care Companion RAG knowledge-base retrieval >800ms. Root cause for AI quality degradation — when retrieval slows, the model answers with less grounding. Check the care-knowledge-base / care-experience-platform."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:ai-care-companion"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  - name: "[Healthcare/AdventHealth] AI Care Companion — Hallucination Risk High"
+    type: "query alert"
+    query: "avg(last_5m):avg:care.companion.hallucination_risk{*} > 0.3"
+    message: "🚨 AI Care Companion hallucination risk >0.3 (LLM Obs eval). The AI is answering with low grounding — a patient-safety risk. Correlate with knowledge-base latency; review the LLM Observability traces + evals."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:ai-care-companion"
+      - "signal_chain:2-leading-indicator"
+      - "safety:patient-safety"
+    priority: 1
+
+  - name: "[Healthcare/AdventHealth] AI Care Companion — Escalation Rate Spike"
+    type: "query alert"
+    query: "avg(last_5m):sum:care.companion.escalations_total{*}.as_count() / sum:care.companion.requests_total{*}.as_count() * 100 > 25"
+    message: "👥 AI Care Companion escalating >25% of interactions to humans. The AI is deferring because it can't answer safely — care-team load rises and patients wait. Trace upstream to knowledge-base latency."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:ai-care-companion"
+      - "signal_chain:3-symptom"
+      - "safety:patient-safety"
+    priority: 2
+
+  - name: "[Healthcare/AdventHealth] AI Care Companion — Patient-Facing Latency"
+    type: "query alert"
+    query: "avg(last_5m):avg:care.companion.latency_ms{*} > 3000"
+    message: "⏱ AI Care Companion end-to-end latency >3s. Patients are waiting on the AI. Downstream symptom of the knowledge-base slowdown — see the linked RUM → APM → LLM Obs trace."
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:ai-care-companion"
+      - "signal_chain:3-symptom"
+    priority: 2

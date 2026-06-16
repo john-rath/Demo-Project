@@ -32,6 +32,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger("care-portal")
 
 SUMMARY_URL = os.getenv("SUMMARY_URL", "http://care-summary-api:8080")
+COMPANION_URL = os.getenv("COMPANION_URL", "http://ai-care-companion:8080")
 STATIC_DIR = Path(__file__).parent / "portal_static"
 SESSION = requests.Session()
 
@@ -91,6 +92,21 @@ def api_ping(device_id: str = "rtls_badge-000") -> JSONResponse:
     try:
         r = SESSION.get(f"{SUMMARY_URL}/summary", params={"device_id": device_id}, timeout=12)
         return JSONResponse({"ok": True, "summary": r.json()})
+    except requests.RequestException as e:
+        statsd.increment("care.portal.errors_total")
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=502)
+
+
+@app.post("/api/ask")
+def api_ask(body: dict | None = None) -> JSONResponse:
+    """Same-origin call the browser makes when a user asks the AI Care
+    Companion. RUM injects trace context, so the RUM session links to the
+    backend APM trace AND the LLM Observability spans the companion emits —
+    the end-to-end AI story in one trace."""
+    statsd.increment("care.portal.companion_requests_total")
+    try:
+        r = SESSION.post(f"{COMPANION_URL}/ask", json=body or {}, timeout=20)
+        return JSONResponse({"ok": True, "companion": r.json()})
     except requests.RequestException as e:
         statsd.increment("care.portal.errors_total")
         return JSONResponse({"ok": False, "error": str(e)}, status_code=502)

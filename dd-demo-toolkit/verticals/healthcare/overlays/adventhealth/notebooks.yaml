@@ -330,3 +330,147 @@ notebooks:
               - Add a guardrail monitor on `hospital.sensing.rtls_sync_lag_ms`
                 so future drift is caught upstream of the bedside.
         type: "notebook_cells"
+
+  - id: "adventhealth-ai-care-companion-rca"
+    name: "🤖 AI Care Companion — Hallucination-Risk Incident (Bits AI Walkthrough)"
+    type: investigation
+    description: "Executive AI-safety RCA: the RAG knowledge base slows → the AI Care Companion answers with less grounding → hallucination risk climbs, escalations spike, patients wait. The end-to-end RUM → APM → LLM Observability story, with clinical-safety + cost evals."
+    time_range: "1h"
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "team:digital-health", "incident_domain:ai-care-companion", "audience:executive"]
+    cells:
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # AI Care Companion — Hallucination-Risk Incident
+
+              **For the room:** your AI Care Companion answers patient and
+              clinician questions. It is only as trustworthy as it is *grounded*
+              and *fast*. This notebook shows — in one pane — patient experience
+              (RUM), the service path (APM), and the AI's own behavior (LLM
+              Observability evals), so you catch an AI-safety problem **before a
+              patient feels it**.
+
+              ---
+              ## Step 1 — Root cause: the knowledge base slows down
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "rag", query: "avg:care.companion.retrieval_latency_ms{*}"}
+                formulas:
+                  - {formula: "rag", alias: "RAG retrieval latency (ms)"}
+                display_type: "line"
+            markers:
+              - {value: "y = 800", display_type: "error dashed", label: "Grounding at risk"}
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 2 — Leading indicator: hallucination risk climbs
+
+              As retrieval slows, the model answers with less grounding. The
+              **hallucination-risk eval** (LLM Observability) rises — the
+              earliest safety signal, well before a human notices a bad answer.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "halluc", query: "avg:care.companion.hallucination_risk{*}"}
+                  - {data_source: "metrics", name: "grounded", query: "avg:care.companion.groundedness{*}"}
+                formulas:
+                  - {formula: "halluc", alias: "Hallucination risk"}
+                  - {formula: "grounded", alias: "Groundedness"}
+                display_type: "line"
+            markers:
+              - {value: "y = 0.3", display_type: "error dashed", label: "Hallucination threshold"}
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 3 — Patient-visible symptoms: escalations + latency
+
+              The AI does the safe thing — it escalates to a human rather than
+              guess — so **escalation rate spikes** and **patients wait longer**.
+              Care-team load rises exactly when the AI is least able to help.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "esc", query: "sum:care.companion.escalations_total{*}.as_count()"}
+                  - {data_source: "metrics", name: "reqs", query: "sum:care.companion.requests_total{*}.as_count()"}
+                formulas:
+                  - {formula: "esc / reqs * 100", alias: "Escalation rate %"}
+                display_type: "line"
+            markers:
+              - {value: "y = 25", display_type: "warning dashed", label: "Escalation SLA"}
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "lat", query: "avg:care.companion.latency_ms{*}"}
+                formulas:
+                  - {formula: "lat", alias: "Patient-facing latency (ms)"}
+                display_type: "line"
+            markers:
+              - {value: "y = 3000", display_type: "error dashed", label: "Patient wait threshold"}
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 4 — Cost of the incident (CIO/CFO view)
+
+              AI isn't free. Token volume and cost-per-interaction are tracked
+              per scenario, so you can see the spend behind the AI care
+              experience — and that a degraded model often costs *more* (longer
+              prompts, retries) while delivering *less*.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "cost", query: "avg:care.companion.cost_usd{*} by {scenario}"}
+                formulas:
+                  - {formula: "cost", alias: "Cost / interaction ($) by scenario"}
+                display_type: "line"
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Why this needs Datadog
+
+              Without this, you learn the AI is unsafe when a **patient or
+              clinician reports a bad answer** — after the fact. Here, the
+              **LLM Observability hallucination eval** fires within minutes,
+              the **linked RUM → APM → LLM trace** shows the slow knowledge-base
+              call as the cause, and the **monitors** page the on-call before
+              patient safety, care-team load, or trust take a hit. One platform:
+              patient experience, AI quality, infrastructure, and cost — together.
+        type: "notebook_cells"
