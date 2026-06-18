@@ -90,13 +90,13 @@ _ENV_LINE_RE = re.compile(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$")
 #                                    their own commands)
 #   keychain://<service>          — macOS Keychain (recognized; same)
 #
-# The pattern accepts spaces in the path so that 1Password field names
-# with spaces (e.g. "api key", "app key") are recognised as references.
-# Spaces in the scheme prefix itself (e.g. "op:// vault/...") are still
-# rejected because the scheme token before the first path char is
-# anchored to the literal strings above. Resolution failures for bad
-# paths surface at use time via the `op` CLI, not here.
-_REFERENCE_RE = re.compile(r"^(op://|vault:|keychain://)[\w\-./: ?=#@&%+]+$")
+# Whitespace anywhere is rejected. op item field names follow the toolkit's
+# hyphenated convention (api-key, app-key — see .env.template), never spaces,
+# so a space almost always means a typo (e.g. "op:// vault/..." or
+# "op://Employee /Datadog/api-key"). Catching it here keeps a malformed
+# reference from sneaking past the plain-secret write check; genuinely bad
+# but space-free paths still surface at use time via the `op` CLI.
+_REFERENCE_RE = re.compile(r"^(op://|vault:|keychain://)[\w\-./:?=#@&%+]+$")
 
 
 class PlainSecretRejected(ValueError):

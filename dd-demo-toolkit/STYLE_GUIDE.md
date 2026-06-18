@@ -279,7 +279,7 @@ dashboards inherit the parent vertical's prefix.
 **Automated enforcement**:
 - `make test` → `tests/test_dashboard_query_coverage.py` — static, no
   credentials required; fails on any metric that doesn't match env_prefix.
-- `make validate` → `tests/test_dashboard_live_data.py` — live Datadog
+- `make validate-live` → `tests/test_dashboard_live_data.py` — live Datadog
   API check; fails if any metric has zero data points in the past hour.
   Run this after `make up` to confirm the simulator is emitting every
   metric referenced in every dashboard.

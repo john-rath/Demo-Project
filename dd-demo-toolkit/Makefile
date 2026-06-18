@@ -1,5 +1,7 @@
 # dd-demo-toolkit — common docker compose and dev tasks.
 #
+# SE front door: `make ui` (preflight + launch the web UI — start there).
+# Everything else in this file is advanced / power-user / CI tooling.
 # Run `make help` to see what's available.
 #
 # Secret handling: targets that hit Datadog (up / setup / teardown / ui /
@@ -62,9 +64,13 @@ _LIFECYCLE_PROFILES := $(_DBM_PROFILE) $(_MOCK_PROFILE)
         logs-payment-processor \
         logs-experiment \
         clean-orphans clean-all \
-        ui ui-install test validate
+        ui ui-install doctor _preflight test validate-live
 
 help: ## List available targets
+	@echo ""
+	@echo "  SE front door:  make ui   — preflight + launch the web UI (start here)."
+	@echo "  Everything below is advanced / power-user / CI tooling."
+	@echo ""
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 ## -- Secret handling ---------------------------------------------------------
@@ -281,11 +287,17 @@ ui-install: ## Create .venv-ui (Python 3.13) and install editable + UI extras
 	./.venv-ui/bin/pip install --quiet --upgrade pip
 	./.venv-ui/bin/pip install -e '.[dev,ui]'
 
-ui: check-op down build rum-provision ## Clean any running stack, rebuild fresh images, provision RUM, then launch the UI idle (Start from the Simulator tab). http://127.0.0.1:8765
+doctor: ## Preflight the front door (op, docker, port, .env, vertical, credentials, assets)
+	@./.venv-ui/bin/python -m dd_demo_toolkit_ui.doctor
+
+_preflight:  # internal: advisory preflight used by `make ui` — never blocks launch
+	@./.venv-ui/bin/python -m dd_demo_toolkit_ui.doctor --soft --quick || true
+
+ui: check-op _preflight down build rum-provision ## ★ SE front door — preflight, rebuild fresh images, provision RUM, then launch the web UI. http://127.0.0.1:8765
 	$(OP_RUN) ./.venv-ui/bin/dd-demo-ui
 
 test: ## Run the unit + static analysis test suite (no secrets needed)
-	./.venv/bin/pytest tests/ --no-cov -q -m "not integration"
+	./.venv-ui/bin/pytest tests/ --no-cov -q -m "not integration"
 
-validate: check-op ## Run live dashboard data checks against Datadog (requires make up first)
-	$(OP_RUN) ./.venv/bin/pytest tests/ -m integration -v --no-cov
+validate-live: check-op ## Run LIVE Datadog data checks (requires make up first). For local asset linting use `dd-demo validate`.
+	$(OP_RUN) ./.venv-ui/bin/pytest tests/ -m integration -v --no-cov

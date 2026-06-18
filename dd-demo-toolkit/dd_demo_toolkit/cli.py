@@ -137,6 +137,39 @@ def cmd_setup(args: argparse.Namespace) -> None:
 
         print_info(f"Resources to setup: {', '.join(resources)}")
 
+        # Local validation gate (offline, no credentials) — catch
+        # deploy-blocking asset issues BEFORE any API call is made. Skippable
+        # with --no-validate. See dd_demo_toolkit/validation/.
+        if not getattr(args, "no_validate", False):
+            from dd_demo_toolkit.validation import (
+                ALL_RESOURCE_TYPES as VALIDATABLE,
+                format_text as _format_text,
+                summarize as _summarize,
+                validate_vertical as _validate_vertical,
+            )
+            vtypes = [r for r in resources if r in VALIDATABLE]
+            if vtypes:
+                findings = _validate_vertical(
+                    args.vertical, sub_vertical=sub_vertical,
+                    verticals_dir="verticals", resource_types=vtypes,
+                )
+                vsummary = _summarize(findings)
+                if vsummary["errors"] > 0:
+                    print_header("Validation")
+                    print(_format_text(findings, use_color=sys.stdout.isatty()))
+                    print_error(
+                        f"{vsummary['errors']} blocking issue(s) found before deploy. "
+                        "Fix them, or re-run with --no-validate to override."
+                    )
+                    sys.exit(1)
+                if vsummary["warnings"] > 0:
+                    print_warning(
+                        f"Validation: {vsummary['warnings']} warning(s) "
+                        "(non-blocking) — run 'dd-demo validate' for detail."
+                    )
+                else:
+                    print_success("Local validation passed")
+
         # Initialize API client
         client = get_dd_client(args.env)
 
@@ -640,6 +673,56 @@ def cmd_status(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def cmd_validate(args: argparse.Namespace) -> None:
+    """Handle 'validate' command — local, credential-free asset linting.
+
+    Runs the STYLE_GUIDE rules as machine checks over a vertical's (and an
+    optional overlay's) monitors/dashboards/notebooks/workflows/SLOs. No
+    Datadog credentials or network required. Exits 1 if any ERROR finding is
+    present (or any finding at all under --strict) so it can gate CI and the
+    'setup' command.
+    """
+    from dd_demo_toolkit.validation import (
+        ALL_RESOURCE_TYPES as VALIDATABLE,
+        format_text,
+        summarize,
+        validate_vertical,
+    )
+
+    sub_vertical = getattr(args, "sub_vertical", None)
+    resource_types: Optional[List[str]] = None
+    if args.resources:
+        resource_types = [r.strip() for r in args.resources.split(",")]
+        invalid = [r for r in resource_types if r not in VALIDATABLE]
+        if invalid:
+            print_error(f"Cannot validate resource types: {', '.join(invalid)}")
+            print_info(f"Validatable types: {', '.join(VALIDATABLE)}")
+            sys.exit(2)
+
+    findings = validate_vertical(
+        args.vertical,
+        sub_vertical=sub_vertical,
+        verticals_dir="verticals",
+        resource_types=resource_types,
+    )
+    s = summarize(findings)
+
+    if getattr(args, "format", "text") == "json":
+        import json as _json
+        print(_json.dumps(
+            {"summary": s, "findings": [f.as_dict() for f in findings]},
+            indent=2,
+        ))
+    else:
+        label = args.vertical + (f" + {sub_vertical}" if sub_vertical else "")
+        print_banner(f"Validate - {label}")
+        print(format_text(findings, use_color=sys.stdout.isatty()))
+        print()
+
+    if s["errors"] > 0 or (getattr(args, "strict", False) and s["warnings"] > 0):
+        sys.exit(1)
+
+
 def main() -> None:
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -649,6 +732,7 @@ def main() -> None:
         epilog="""
 Examples:
   dd-demo list                                          List available verticals
+  dd-demo validate --vertical healthcare                Lint a vertical's assets locally (no credentials)
   dd-demo setup --vertical healthcare                   Setup all resources for healthcare
   dd-demo setup --vertical healthcare --resources dashboards,monitors,workflows
                                                         Setup only specific resource types
@@ -706,6 +790,12 @@ Examples:
         "--clean",
         action="store_true",
         help="Tear down existing resources before deploying (idempotent rebuild)",
+    )
+    setup_parser.add_argument(
+        "--no-validate",
+        dest="no_validate",
+        action="store_true",
+        help="Skip the local asset-validation gate (deploy even if it reports errors).",
     )
     setup_parser.set_defaults(func=cmd_setup)
 
@@ -781,6 +871,32 @@ Examples:
         help="Vertical name to check",
     )
     status_parser.set_defaults(func=cmd_status)
+
+    # 'validate' command — local asset linting, no credentials needed
+    validate_parser = subparsers.add_parser(
+        "validate",
+        help="Lint a vertical's assets locally against the Style Guide (no credentials)",
+    )
+    validate_parser.add_argument(
+        "--vertical", required=True, help="Vertical name to validate",
+    )
+    validate_parser.add_argument(
+        "--sub-vertical", dest="sub_vertical", default=None,
+        help="Optional overlay to validate alongside the base vertical.",
+    )
+    validate_parser.add_argument(
+        "--resources",
+        help="Comma-separated subset: monitors,dashboards,notebooks,workflows,slos",
+    )
+    validate_parser.add_argument(
+        "--strict", action="store_true",
+        help="Treat warnings as failures (exit 1 on any finding).",
+    )
+    validate_parser.add_argument(
+        "--format", choices=["text", "json"], default="text",
+        help="Output format (default: text). 'json' is for the UI / CI.",
+    )
+    validate_parser.set_defaults(func=cmd_validate)
 
     # Parse arguments
     args = parser.parse_args()

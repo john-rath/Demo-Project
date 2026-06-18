@@ -8,7 +8,7 @@ notebooks:
 
   - id: "executive-report-plant-operations"
     name: "📊 Executive Report: Plant Operations & OEE"
-    type: executive_report
+    type: report
     description: "30-day KPI summary for manufacturing leadership. OEE metrics, production targets (units/day), quality (PPM), equipment uptime, maintenance costs, supply chain health, energy consumption, carbon footprint."
     time_range: "30d"
     tags: ["vertical:manufacturing", "dd-demo-toolkit:true", "audience:executive", "team:production-engineering"]
