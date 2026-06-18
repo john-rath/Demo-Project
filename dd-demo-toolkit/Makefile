@@ -290,8 +290,8 @@ ui-install: ## Create .venv-ui (Python 3.13) and install editable + UI extras
 doctor: ## Preflight the front door (op, docker, port, .env, vertical, credentials, assets)
 	@./.venv-ui/bin/python -m dd_demo_toolkit_ui.doctor
 
-_preflight:  # internal: advisory preflight used by `make ui` — never blocks launch
-	@./.venv-ui/bin/python -m dd_demo_toolkit_ui.doctor --soft --quick || true
+_preflight:  # internal: preflight gate for `make ui` — hard-stops on blocking issues (docker/op down); warnings pass through
+	@./.venv-ui/bin/python -m dd_demo_toolkit_ui.doctor --quick
 
 ui: check-op _preflight down build rum-provision ## ★ SE front door — preflight, rebuild fresh images, provision RUM, then launch the web UI. http://127.0.0.1:8765
 	$(OP_RUN) ./.venv-ui/bin/dd-demo-ui

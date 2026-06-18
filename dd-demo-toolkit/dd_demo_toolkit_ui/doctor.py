@@ -91,16 +91,35 @@ def check_op_authed() -> Check:
                  fix='unlock the 1Password desktop app, or run: eval "$(op signin)"')
 
 
+def _docker_engine_hint() -> str:
+    """Tailor the 'start your engine' fix to the user's Docker runtime.
+
+    Not everyone runs Docker Desktop — Colima, Rancher Desktop, Podman, and
+    remote engines are common. We read the active context (works even when the
+    daemon is down — it's local config) so the remediation isn't misleading.
+    """
+    ctx = ""
+    code, out = _run(["docker", "context", "show"], timeout=4.0)
+    if code == 0:
+        ctx = out.strip().lower()
+    if "colima" in ctx or shutil.which("colima"):
+        return "start your Docker engine — Colima: `colima start` (or open Docker Desktop)"
+    if "desktop" in ctx:
+        return "open Docker Desktop and wait for it to be ready"
+    return "start your Docker engine (open Docker Desktop, or `colima start` for Colima)"
+
+
 def check_docker() -> Check:
     if shutil.which("docker") is None:
         return Check("Docker running", False,
                      detail="`docker` not found on PATH",
-                     fix="install Docker Desktop and start it")
+                     fix="install a Docker engine (Docker Desktop, Colima, …) and start it")
     code, _ = _run(["docker", "info"])
     if code == 0:
         return Check("Docker running", True)
     return Check("Docker running", False,
-                 detail="`docker info` failed", fix="start Docker Desktop")
+                 detail="`docker info` failed — the Docker daemon isn't reachable",
+                 fix=_docker_engine_hint())
 
 
 def check_compose() -> Check:
