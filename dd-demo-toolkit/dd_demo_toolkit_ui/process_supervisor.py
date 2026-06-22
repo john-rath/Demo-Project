@@ -432,7 +432,12 @@ class ProcessSupervisor:
     def _profile_args(self) -> List[str]:
         """Profile flags derived from .env, mirroring the Makefile rules:
         DD_DEMO_MOCK_FLEET=true → mock-app; DD_DEMO_DBM=true or
-        DD_DEMO_SUB_VERTICAL=payment-processor → dbm."""
+        DD_DEMO_SUB_VERTICAL=payment-processor → dbm.
+        Synthetics auto-activates if a Private Location config file exists at
+        .secrets/synthetics-pl-config.json — that's the canonical signal that
+        the user has set up a PL in Datadog and wants the worker running
+        alongside the rest of the demo. No env flag required (one less thing
+        to remember on demo day)."""
         flags: Dict[str, str] = {}
         try:
             for line in (self.project_dir / ".env").read_text(encoding="utf-8").splitlines():
@@ -448,6 +453,12 @@ class ProcessSupervisor:
         if flags.get("DD_DEMO_DBM", "").lower() == "true" or \
                 flags.get("DD_DEMO_SUB_VERTICAL", "") == "payment-processor":
             profiles.append("dbm")
+        # Synthetics PL worker: auto-include when the config file is present.
+        # The file is gitignored and only exists once the user has created the
+        # Private Location in Datadog and saved its JSON config — so its
+        # presence is the right signal.
+        if (self.project_dir / ".secrets" / "synthetics-pl-config.json").exists():
+            profiles.append("synthetics")
         out: List[str] = []
         for p in profiles:
             out += ["--profile", p]

@@ -64,6 +64,35 @@ toolkit secret, update both.
 
 ---
 
+## 0.6 UI-first architecture — `make ui` is the front door (build to this)
+
+The web UI (`make ui`, served by `dd_demo_toolkit_ui/`) is the **single
+SE-facing entry point**. A Sales Engineer should be able to do everything —
+preflight, configure, validate, deploy, tear down, check status, see product
+coverage, browse/scaffold overlays — without leaving the browser, and
+`make ui` is the only command they ever need to type.
+
+The `dd-demo` CLI is **not** the SE path. It is (a) the importable engine the
+UI calls in-process and (b) the interface for CI and the power-user ~20–30% who
+author overlays. Keep that split when extending the toolkit:
+
+- **Build new SE-facing capability UI-first.** Every feature ships a UI surface
+  (a `server.py` endpoint + a control in `static/`), not a CLI-only command.
+- **Implement CLI subcommands as importable functions** so `server.py` can call
+  the same code in-process for fast/read-only work (reuse the `run_in_executor`
+  pattern already in `server.py`) instead of shelling out to `dd-demo`. The CLI
+  command stays a thin wrapper over the function.
+- **`make ui` runs preflight, then launches.** The other ~50 Make targets are
+  "advanced / CI" — keep them working, but they are not the documented SE path.
+  A new SE-facing action must be reachable *in the UI*, not only as a target.
+- The loopback-only bind, `.env` secret masking, and `.gitignore` guard in the
+  UI are part of this front door — don't regress them (see §0.5).
+
+When you add a capability and can't yet give it a full UI surface, record the
+gap in `GA_ROADMAP.md` (the capability→UI audit) so it's tracked, not forgotten.
+
+---
+
 ## 1. Project Scope
 
 `dd-demo-toolkit` is a config-driven Datadog demo framework for Sales

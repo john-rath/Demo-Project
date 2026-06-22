@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dd-demo-toolkit"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Modular Datadog demo framework for sales engineers - build realistic demo environments with simulated metrics, traces, and services"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -76,14 +76,23 @@ dd-demo = "dd_demo_toolkit.cli:main"
 # will fail with a clear error if FastAPI/uvicorn aren't installed.
 dd-demo-ui = "dd_demo_toolkit_ui.cli:main"
 
-[tool.setuptools]
-packages = ["dd_demo_toolkit", "dd_demo_toolkit_ui"]
+# Auto-discover all sub-packages (dd_demo_toolkit.resources, .simulator,
+# .utils, .validation, dd_demo_toolkit_ui, …) so a real wheel ships them.
+# The previous explicit `packages = [...]` listed only the two top-level
+# packages and silently omitted every sub-package from non-editable builds.
+[tool.setuptools.packages.find]
+include = ["dd_demo_toolkit*", "dd_demo_toolkit_ui*"]
 
 [tool.setuptools.package-data]
 dd_demo_toolkit = ["py.typed"]
 # Ship the bundled vanilla UI alongside the wheel so `dd-demo-ui` works
 # straight after `pip install` without needing the source tree.
 dd_demo_toolkit_ui = ["static/*"]
+
+[tool.setuptools.dynamic]
+# Single source of truth for the version: dd_demo_toolkit/__init__.py (__version__).
+# The release workflow (GitHub Actions) asserts the pushed git tag matches this.
+version = {attr = "dd_demo_toolkit.__version__"}
 
 [tool.black]
 line-length = 100
@@ -116,5 +125,5 @@ testpaths = ["tests"]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
-    "integration: live Datadog API checks requiring credentials; run via 'make validate' after 'make up'",
+    "integration: live Datadog API checks requiring credentials; run via 'make validate-live' after 'make up'",
 ]

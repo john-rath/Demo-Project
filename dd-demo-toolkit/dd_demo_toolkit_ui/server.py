@@ -50,6 +50,7 @@ from .dd_validator import (
     resolve_secret_reference,
     validate_credentials,
 )
+from .doctor import has_blocking, run_doctor
 from .process_supervisor import (
     AlreadyRunningError,
     EnvNotResolvedError,
@@ -705,6 +706,69 @@ def build_app(cfg: UIConfig) -> FastAPI:
             return counts
 
         return await asyncio.get_event_loop().run_in_executor(None, _fetch)
+
+    # ----- Preflight & local validation (UI front door) ----------------------
+
+    @app.get("/api/doctor")
+    async def doctor(quick: bool = True) -> Dict[str, Any]:
+        """Preflight checks (op / docker / .env / vertical / credentials /
+        assets) for the Configure-tab Preflight card.
+
+        ``quick`` (default True) skips the network credential check — the
+        Configure tab's "Test connection" covers that — so the card loads
+        fast. The port-free check is omitted (the UI is using the port).
+        Runs in a thread because the checks shell out to op/docker.
+        """
+        def _run() -> Dict[str, Any]:
+            checks = run_doctor(
+                env_path=str(cfg.env_path),
+                verticals_dir=str(cfg.verticals_dir),
+                port=None,
+                quick=quick,
+            )
+            return {
+                "checks": [c.as_dict() for c in checks],
+                "blocking": has_blocking(checks),
+            }
+
+        return await asyncio.get_event_loop().run_in_executor(None, _run)
+
+    @app.get("/api/validate")
+    async def validate(
+        vertical: Optional[str] = None,
+        sub_vertical: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Local, credential-free asset validation (the Style-Guide linter).
+
+        Defaults to the vertical/overlay in `.env` so the Deploy tab can gate
+        the Deploy button on a clean result before any API call.
+        """
+        def _run() -> Dict[str, Any]:
+            from dd_demo_toolkit.validation import summarize, validate_vertical
+
+            v = vertical
+            sv = sub_vertical
+            if not v:
+                on_disk = env_manager.read_env(cfg.env_path, mask=False)
+                v = on_disk.get("DD_DEMO_VERTICAL")
+                if sv is None:
+                    sv = on_disk.get("DD_DEMO_SUB_VERTICAL") or None
+            if not v:
+                return {
+                    "vertical": None, "sub_vertical": None,
+                    "summary": {"errors": 0, "warnings": 0, "infos": 0},
+                    "findings": [],
+                    "error": "no vertical selected (set DD_DEMO_VERTICAL or pass ?vertical=)",
+                }
+            findings = validate_vertical(v, sub_vertical=sv, verticals_dir=str(cfg.verticals_dir))
+            return {
+                "vertical": v, "sub_vertical": sv,
+                "summary": summarize(findings),
+                "findings": [f.as_dict() for f in findings],
+                "error": None,
+            }
+
+        return await asyncio.get_event_loop().run_in_executor(None, _run)
 
     # ----- Static UI ---------------------------------------------------------
 

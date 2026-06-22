@@ -2,7 +2,7 @@
 Integration tests: every metric referenced in every dashboard must return at
 least one data point from the Datadog API in the past hour.
 
-Run via ``make validate`` (wraps with ``op run`` to resolve credentials).
+Run via ``make validate-live`` (wraps with ``op run`` to resolve credentials).
 Skipped automatically when DD_API_KEY / DD_APP_KEY are absent.
 
 These tests are marked ``pytest.mark.integration`` and excluded from the
@@ -77,7 +77,7 @@ def _all_dashboard_metrics() -> List[Tuple[str, str]]:
 @pytest.fixture(scope="session")
 def dd_client():
     if not os.getenv("DD_API_KEY") or not os.getenv("DD_APP_KEY"):
-        pytest.skip("DD_API_KEY / DD_APP_KEY not set — run via 'make validate'")
+        pytest.skip("DD_API_KEY / DD_APP_KEY not set — run via 'make validate-live'")
     from dd_demo_toolkit.utils.dd_api import DatadogAPIClient
     return DatadogAPIClient()
 

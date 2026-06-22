@@ -21,16 +21,12 @@ import yaml
 REPO_ROOT = Path(__file__).parent.parent
 VERTICALS_ROOT = REPO_ROOT / "verticals"
 
-# Metrics from shared demo stack infrastructure rather than the vertical
-# simulator. Extend this list only when a real service in docker-compose
-# actually emits the metric — do not add speculative prefixes.
-#
-# Note: otelcol self-metrics arrive in Datadog with Prometheus underscore
-# naming (otelcol_exporter_sent_spans) because they flow through the
-# prometheus receiver, which preserves Prometheus metric names.
-_PLATFORM_METRIC_PREFIXES = frozenset({
-    "otelcol",  # OTel Collector self-metrics via otel-collector-config.yaml telemetry pipeline
-})
+# Non-env_prefix namespaces emitted by real docker-compose services (otelcol,
+# postgresql, care.companion). Imported from the validator so this static test
+# and `dd-demo validate` share ONE allowlist and can't drift. Extend it there.
+from dd_demo_toolkit.validation.core import (  # noqa: E402
+    PLATFORM_METRIC_PREFIXES as _PLATFORM_METRIC_PREFIXES,
+)
 
 # Widget types that never contain metric data sources — skip them entirely.
 _NO_QUERY_TYPES = frozenset({
