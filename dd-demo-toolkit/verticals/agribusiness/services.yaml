@@ -1,0 +1,64 @@
+services:
+  - name: bunge-data-platform
+    display_name: "Bunge Data Platform (GCP)"
+    description: "Single cloud-based data platform aggregating SAP, Salesforce, and CME market data on GCP (Dataflow/Composer/BigQuery). The shared dependency behind every revenue app and ML model — a data issue here degrades all of them at once."
+    team: "Data & Cloud Platforms"
+    tier: "Tier 1"
+    languages: ["java"]
+    on_call_contact: "data-platform-sre@bunge.example.com"
+    tags:
+      - "incident_domain:data-platform-freshness"
+      - "sla_critical:true"
+
+  - name: frm-pricing-platform
+    display_name: "FRM Pricing Platform"
+    description: "Financial Risk Management pricing engine — Average Price, Min-Max, Price Accelerator contracts off CME futures. Commercial face of the Delta risk analytics system."
+    team: "Commercial Pricing"
+    tier: "Tier 1"
+    languages: ["java"]
+    on_call_contact: "commercial-pricing-sre@bunge.example.com"
+    tags:
+      - "incident_domain:customer-app-impact"
+      - "sla_critical:true"
+
+  - name: bunge-mobile-bff
+    display_name: "Bunge Mobile (BFF)"
+    description: "Backend-for-frontend for the Bunge Mobile app — live cash bids (CME), limit orders, price alerts, digital contracts/eSignature for North American grain producers."
+    team: "Digital / Farmer Solutions"
+    tier: "Tier 1"
+    languages: ["go"]
+    on_call_contact: "farmer-solutions-sre@bunge.example.com"
+    tags:
+      - "incident_domain:customer-app-impact"
+      - "sla_critical:true"
+
+  - name: mybunge-portal
+    display_name: "myBunge Producer Portal"
+    description: "Producer portal for former Viterra customers (my.bunge.us) — cash bids, scale-ticket detail within 10 min of the scales, contracts, settlements, price alerts. PWA."
+    team: "Digital / Farmer Solutions"
+    tier: "Tier 1"
+    languages: ["javascript", "nodejs"]
+    on_call_contact: "farmer-solutions-sre@bunge.example.com"
+    tags:
+      - "incident_domain:customer-app-impact"
+      - "sla_critical:true"
+
+  - name: bungeservices-portal
+    display_name: "BungeServices Portal"
+    description: "SAP-connected North American producer/meal portal — grain pricing offers, online contracts, shipment tracking, payments/ACH. Transaction backbone for the 10,000+ daily customer transactions."
+    team: "Digital / Farmer Solutions"
+    tier: "Tier 1"
+    languages: ["java"]
+    on_call_contact: "farmer-solutions-sre@bunge.example.com"
+    tags:
+      - "incident_domain:customer-app-impact"
+
+  - name: bungeag-web
+    display_name: "BungeAg.com"
+    description: "Central digital destination for North American grain origination — cash bids, futures, facility locations, FRM tools, sustainability programs. Hub linking to BungeServices and Bunge Mobile."
+    team: "Digital / Farmer Solutions"
+    tier: "Tier 2"
+    languages: ["javascript", "nodejs"]
+    on_call_contact: "farmer-solutions-sre@bunge.example.com"
+    tags:
+      - "incident_domain:customer-app-impact"

@@ -1,0 +1,280 @@
+# Agribusiness vertical — global agribusiness IT estate (flagship scenario: Bunge).
+#
+# WHY a dedicated vertical (not a finance/manufacturing overlay): the demo is an
+# IT-observability CONSOLIDATION story (28 fragmented tools -> one platform),
+# set in agribusiness — not retail banking and not factory-floor IoT. Forcing it
+# under finance/manufacturing would drag in banking/assembly-line assets that put
+# a VP off-message. This vertical models the estate on its own terms.
+#
+# THE THESIS (the cross-cutting pitch): every revenue-facing app — Bunge Mobile,
+# BungeServices, myBunge, FRM, BungeAg — depends on ONE GCP data platform (SAP +
+# Salesforce + CME market data). A single data issue (stale CME feed, SAP
+# corruption, failed pipeline) degrades every app at once, and nothing watches it
+# today. The dependency graph below encodes that so AIOps (Watchdog/Bits) can find
+# it. Eduardo's stated domains are all represented: Infrastructure, Network
+# (185 sites / harvest connectivity), Databases (SAP/Oracle), Cloud (AWS/GCP).
+#
+# Namespace: agri.*  ·  No percentile metrics (team preference) — gauges + counters.
+
+vertical:
+  name: agribusiness
+  display_name: "Global Agribusiness (Bunge)"
+  description: "Post-merger global agribusiness consolidating 28+ regional monitoring tools onto one platform. 2,000+ on-prem VMware servers, 500+ network links across 185 sites, AWS + GCP, SAP/Oracle databases, and a GCP data platform powering the customer-facing revenue apps (Bunge Mobile, BungeServices, myBunge, FRM, BungeAg)."
+  env_prefix: agri
+  emit_interval_sec: 15
+
+locations:
+  dimensions:
+  - name: region
+    values:
+    - south-america
+    - north-america
+    - emea
+    - apac
+  - name: environment
+    values:
+    - production
+    - staging
+    - dr-site
+  - name: business_segment
+    values:
+    - agribusiness
+    - refined-specialty-oils
+    - milling
+
+# Which regions each environment is active in (keeps the location product bounded).
+environment_topology:
+  production: [south-america, north-america, emea, apac]
+  staging:    [north-america]
+  dr-site:    [south-america]
+
+# Cosmetic emit-time scale per environment.
+environment_scale:
+  production: 3.0
+  staging:    0.15
+  dr-site:    0.05
+
+device_categories:
+
+  # On-prem VMware estate (95% on-prem) + DBM-supported databases.
+  # agri.db.* lives on ORACLE here on purpose: Datadog DBM supports
+  # Postgres / MySQL / SQL Server / Oracle — NOT SAP HANA. So the query-level
+  # "SELECT *" slow-query story (Jefferson, 3/13) is accurate on Oracle DBM.
+  # SAP HANA and the SAP application layer are modeled separately in the
+  # `sap_landscape` category below, using the integrations that actually
+  # collect them (per Datadog docs).
+  core_infrastructure:
+    ip_base: '10.20'
+    devices:
+    - type: vmware_host
+      manufacturer: VMware
+      model: vSphere-ESXi-8
+      firmware: "8.0u2"
+      count: 40
+      metrics:
+      - {name: agri.host.cpu_pct, type: gauge, unit: "%", range: [20, 82], drift: 4.0}
+      - {name: agri.host.mem_pct, type: gauge, unit: "%", range: [40, 88], drift: 3.0}
+      - {name: agri.host.vm_density, type: gauge, unit: "1", range: [8, 28], drift: 1.0}
+    - type: oracle_database
+      manufacturer: Oracle
+      model: Database-19c
+      firmware: "19.0"
+      count: 6
+      metrics:
+      - {name: agri.db.query_latency_ms, type: gauge, unit: ms, range: [12, 180], drift: 6.0}
+      - {name: agri.db.slow_query_count, type: gauge, unit: "1", range: [0, 10], drift: 0.8}
+      - {name: agri.db.replication_lag_sec, type: gauge, unit: s, range: [0, 8], drift: 0.5}
+      - {name: agri.db.connections_active, type: gauge, unit: "1", range: [80, 620], drift: 30.0}
+
+  # 185 South American sites + 500+ network links (SolarWinds replacement / NDM).
+  # agri.site.connectivity_pct is the harvest-season connectivity KPI.
+  origination_network:
+    ip_base: '10.21'
+    devices:
+    - type: site_network_gateway
+      manufacturer: Cisco
+      model: Catalyst-9300
+      firmware: "17.9.4"
+      count: 30
+      metrics:
+      - {name: agri.site.connectivity_pct, type: gauge, unit: "%", range: [96.0, 100.0], drift: 0.4}
+      - {name: agri.network.link_latency_ms, type: gauge, unit: ms, range: [9, 58], drift: 2.5}
+      - {name: agri.network.packet_loss_pct, type: gauge, unit: "%", range: [0.0, 0.7], drift: 0.08}
+      - {name: agri.network.throughput_mbps, type: gauge, unit: "1", range: [60, 940], drift: 35.0}
+    - type: wan_edge_router
+      manufacturer: Cisco
+      model: ASR-1001-X
+      firmware: "17.6"
+      count: 16
+      metrics:
+      - {name: agri.network.device_cpu_pct, type: gauge, unit: "%", range: [18, 70], drift: 4.0}
+      - {name: agri.network.interface_errors_total, type: gauge, unit: "1", range: [0, 5], drift: 0.3}
+
+  # AWS + GCP (GCP is the declared hyperscaler for new workloads).
+  cloud_platform:
+    ip_base: '10.22'
+    devices:
+    - type: gke_node
+      service: bunge-data-platform
+      manufacturer: Google
+      model: GKE-n2-standard
+      firmware: "1.29"
+      count: 18
+      metrics:
+      - {name: agri.cloud.node_cpu_pct, type: gauge, unit: "%", range: [25, 78], drift: 4.0}
+      - {name: agri.cloud.node_mem_pct, type: gauge, unit: "%", range: [40, 85], drift: 3.0}
+      - {name: agri.cloud.pod_restarts_total, type: gauge, unit: "1", range: [0, 3], drift: 0.2}
+
+  # THE GCP Bunge Data Platform — the linchpin every revenue app depends on.
+  # agri.dataplatform.pricing_feed_age_sec = freshness of the CME market-data feed;
+  # when it climbs, FRM quotes and app cash-bids go stale (silent revenue risk).
+  data_platform:
+    ip_base: '10.23'
+    devices:
+    - type: data_pipeline
+      service: bunge-data-platform
+      manufacturer: Google
+      model: Dataflow-Composer
+      firmware: "2.x"
+      count: 8
+      metrics:
+      - {name: agri.dataplatform.pricing_feed_age_sec, type: gauge, unit: s, range: [2, 28], drift: 2.0}
+      - {name: agri.dataplatform.pipeline_freshness_sec, type: gauge, unit: s, range: [30, 300], drift: 15.0}
+      - {name: agri.dataplatform.sap_sync_lag_sec, type: gauge, unit: s, range: [1, 20], drift: 1.0}
+      - {name: agri.dataplatform.pipeline_error_rate, type: gauge, unit: "1", range: [0.001, 0.02], drift: 0.002}
+      - {name: agri.dataplatform.records_processed_per_sec, type: gauge, unit: "1", range: [500, 5000], drift: 300.0}
+
+  # SAP landscape — modeled ONLY on the SAP integrations actually available in
+  # the Datadog Marketplace, and on exactly what each one collects (verified
+  # against the Marketplace + Datadog docs), so the SAP dashboards are accurate:
+  #   * SAP HANA — Redpeaks (agentless single collector, redpeaks.hana.*):
+  #     memory / CPU / connections / disk / service availability / replication /
+  #     BLOCKED TRANSACTIONS. It does NOT collect expensive/long-running SQL or
+  #     query-level diagnostics — so there is deliberately NO HANA slow-query
+  #     metric. Query-level analytics require DBM (Oracle/SQL Server/Postgres/
+  #     MySQL), modeled on the Oracle device in core_infrastructure.
+  #   * SAP S/4HANA & NetWeaver — Redpeaks / Agentil (agentless,
+  #     redpeaks.netweaver.*): ABAP work processes, response time, dumps,
+  #     IDOC/RFC health, batch jobs.
+  #   * SAP Cloud ALM — RapDev (Cloud ALM APIs -> OTel, rapdev.sap_cloud_alm.*):
+  #     integration monitoring (CPI/AIF/Ariba message counts + failures),
+  #     exceptions, jobs, health. Successor to SAP Solution Manager; this is the
+  #     metric path for the SAP Integration Suite / CPI flow Bunge cares about.
+  #   * SAP Integration Suite / CPI logs are ALSO ingested via API (Log
+  #     Management) — represented as logs, not metrics (Bunge already does this).
+  sap_landscape:
+    ip_base: '10.25'
+    devices:
+    - type: sap_hana_db
+      service: bunge-data-platform
+      manufacturer: SAP
+      model: HANA-2.0
+      firmware: "2.00.078"
+      count: 6
+      metrics:
+      - {name: agri.saphana.memory_used_pct, type: gauge, unit: "%", range: [45, 88], drift: 3.0}
+      - {name: agri.saphana.cpu_pct, type: gauge, unit: "%", range: [20, 78], drift: 4.0}
+      - {name: agri.saphana.connections_open, type: gauge, unit: "1", range: [40, 480], drift: 25.0}
+      - {name: agri.saphana.disk_used_pct, type: gauge, unit: "%", range: [40, 82], drift: 1.5}
+      - {name: agri.saphana.blocked_transactions, type: gauge, unit: "1", range: [0, 12], drift: 1.0}
+      - {name: agri.saphana.service_availability_pct, type: gauge, unit: "%", range: [99.0, 100.0], drift: 0.2}
+    - type: sap_netweaver_instance
+      manufacturer: SAP
+      model: S4HANA-NetWeaver
+      firmware: "7.53"
+      count: 8
+      metrics:
+      - {name: agri.sapnw.work_process_used_pct, type: gauge, unit: "%", range: [30, 85], drift: 4.0}
+      - {name: agri.sapnw.abap_response_time_ms, type: gauge, unit: ms, range: [120, 900], drift: 30.0}
+      - {name: agri.sapnw.abap_dumps, type: gauge, unit: "1", range: [0, 6], drift: 0.4}
+      - {name: agri.sapnw.idoc_failed, type: gauge, unit: "1", range: [0, 8], drift: 0.5}
+      - {name: agri.sapnw.batch_jobs_aborted, type: gauge, unit: "1", range: [0, 4], drift: 0.3}
+    - type: sap_cloud_alm
+      manufacturer: SAP
+      model: Cloud-ALM
+      firmware: "1.0"
+      count: 3
+      metrics:
+      - {name: agri.sapalm.integration_messages, type: gauge, unit: "1", range: [400, 4200], drift: 250.0}
+      - {name: agri.sapalm.integration_failed_messages, type: gauge, unit: "1", range: [0, 14], drift: 1.0}
+      - {name: agri.sapalm.exception_count, type: gauge, unit: "1", range: [0, 20], drift: 1.5}
+
+  # FRM commodity-pricing engine (built on the Delta risk analytics system).
+  commodity_pricing:
+    ip_base: '10.24'
+    devices:
+    - type: pricing_engine
+      service: frm-pricing-platform
+      manufacturer: Custom
+      model: FRM-PriceEngine
+      firmware: "4.3.0"
+      count: 6
+      metrics:
+      - {name: agri.pricing.quote_latency_ms, type: gauge, unit: ms, range: [40, 210], drift: 8.0}
+      - {name: agri.pricing.stale_quote_pct, type: gauge, unit: "%", range: [0.1, 1.8], drift: 0.2}
+      - {name: agri.pricing.error_rate, type: gauge, unit: "1", range: [0.001, 0.009], drift: 0.001}
+
+# Revenue-facing apps + the data platform they all depend on. Drives APM traces +
+# the auto-emitted agri.app.requests_total / errors_total / latency_ms{service_name}.
+# The dependency graph IS the cross-cutting thesis: every app -> bunge-data-platform.
+services:
+- name: bunge-data-platform
+  host: bunge-dataplatform-gcp
+  language: java
+  framework: Spring Boot
+  operations:
+  - {name: "GET /data/pricing-feed", latency_base_ms: 22, latency_p99_ms: 90, error_rate: 0.003}
+  - {name: "POST /data/pipeline/run", latency_base_ms: 180, latency_p99_ms: 700, error_rate: 0.006}
+  - {name: "GET /data/sap/entity", latency_base_ms: 35, latency_p99_ms: 140, error_rate: 0.004}
+
+- name: frm-pricing-platform
+  host: frm-pricing-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - {name: "POST /v1/price/quote", latency_base_ms: 58, latency_p99_ms: 210, error_rate: 0.004}
+  - {name: "POST /v1/price/curve", latency_base_ms: 140, latency_p99_ms: 560, error_rate: 0.006}
+  dependencies:
+  - {service: bunge-data-platform, operation: "GET /data/pricing-feed", probability: 0.9}
+
+- name: bunge-mobile-bff
+  host: bunge-mobile-bff-01
+  language: go
+  framework: net/http
+  operations:
+  - {name: "GET /m/cash-bids", latency_base_ms: 40, latency_p99_ms: 160, error_rate: 0.003}
+  - {name: "POST /m/contract", latency_base_ms: 95, latency_p99_ms: 360, error_rate: 0.004}
+  dependencies:
+  - {service: frm-pricing-platform, operation: "POST /v1/price/quote", probability: 0.7}
+  - {service: bunge-data-platform, operation: "GET /data/pricing-feed", probability: 0.6}
+
+- name: mybunge-portal
+  host: mybunge-portal-01
+  language: javascript
+  framework: Node.js
+  operations:
+  - {name: "GET /portal/scale-ticket", latency_base_ms: 60, latency_p99_ms: 230, error_rate: 0.003}
+  - {name: "GET /portal/cash-bids", latency_base_ms: 48, latency_p99_ms: 190, error_rate: 0.002}
+  dependencies:
+  - {service: bunge-data-platform, operation: "GET /data/sap/entity", probability: 0.8}
+
+- name: bungeservices-portal
+  host: bungeservices-01
+  language: java
+  framework: Spring Boot
+  operations:
+  - {name: "POST /svc/contract", latency_base_ms: 110, latency_p99_ms: 420, error_rate: 0.005}
+  - {name: "GET /svc/payments", latency_base_ms: 52, latency_p99_ms: 200, error_rate: 0.003}
+  dependencies:
+  - {service: bunge-data-platform, operation: "GET /data/sap/entity", probability: 0.85}
+
+- name: bungeag-web
+  host: bungeag-web-01
+  language: javascript
+  framework: Node.js
+  operations:
+  - {name: "GET /cash-bids", latency_base_ms: 44, latency_p99_ms: 180, error_rate: 0.0025}
+  - {name: "GET /facilities", latency_base_ms: 30, latency_p99_ms: 120, error_rate: 0.0015}
+  dependencies:
+  - {service: frm-pricing-platform, operation: "POST /v1/price/quote", probability: 0.5}
+  - {service: bunge-data-platform, operation: "GET /data/pricing-feed", probability: 0.6}

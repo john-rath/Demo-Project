@@ -1,0 +1,126 @@
+monitors:
+  # --- The cross-cutting root cause: the GCP data platform ---
+  - name: "[Agribusiness] CME Pricing Feed Staleness (silent revenue risk)"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.dataplatform.pricing_feed_age_sec{environment:production} by {region} > 20"
+    message: "🕒 CME market-data feed is stale in {{region}} ({{value}}s old). Every downstream app (Bunge Mobile cash bids, FRM quotes, BungeAg) is now pricing on stale data — a silent margin risk with no alerting today. Check the GCP data pipeline."
+    tags:
+      - "incident_domain:data-platform-freshness"
+      - "signal_chain:1-root-cause"
+      - "sla_critical:true"
+    priority: 1
+
+  - name: "[Agribusiness] Data Platform Pipeline Error Rate"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.dataplatform.pipeline_error_rate{environment:production} > 0.015"
+    message: "🔥 GCP data-platform pipeline error rate elevated ({{value}}). Failed/partial pipeline runs corrupt the data every revenue app and ML model reads. Check Dataflow/Composer jobs and SAP source sync."
+    tags:
+      - "incident_domain:data-platform-freshness"
+      - "signal_chain:1-root-cause"
+      - "sla_critical:true"
+    priority: 1
+
+  - name: "[Agribusiness] FRM Stale-Quote Rate High (customer-facing symptom)"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.pricing.stale_quote_pct{environment:production} by {region} > 5"
+    message: "📉 FRM stale-quote rate {{value}}% in {{region}} — producers and desks are quoted on stale prices. This is the customer-facing symptom of an upstream data-platform feed issue (see 'CME Pricing Feed Staleness'). Mispriced contracts during harvest = direct margin loss."
+    tags:
+      - "incident_domain:data-platform-freshness"
+      - "signal_chain:3-symptom"
+      - "sla_critical:true"
+    priority: 1
+
+  - name: "[Agribusiness] SAP Sync Lag High"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.dataplatform.sap_sync_lag_sec{environment:production} by {region} > 15"
+    message: "⏳ SAP→platform sync lag {{value}}s in {{region}}. Contracts/payments in BungeServices & myBunge may reflect stale SAP state."
+    tags:
+      - "incident_domain:data-platform-freshness"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # --- Databases (SAP/Oracle) — Eduardo's DB tower; Jefferson's "select *" scenario ---
+  - name: "[Agribusiness] Oracle Slow-Query Surge (DBM)"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.db.slow_query_count{environment:production} by {device_id} > 6"
+    message: "🐢 Slow-query surge on Oracle DB {{device_id}} ({{value}} slow queries). Often an un-bounded 'SELECT *' — Database Monitoring surfaces it in context (query metrics + explain plan) instead of a manual hunt. Check plans and recent deploys. (DBM covers Oracle/SQL Server/Postgres/MySQL — not HANA.)"
+    tags:
+      - "incident_domain:database-performance"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  - name: "[Agribusiness] Oracle Query Latency High (DBM)"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.db.query_latency_ms{environment:production} by {device_id} > 150"
+    message: "🐌 Oracle query latency high on {{device_id}} ({{value}}ms). Upstream of the apps/data platform — will surface as app slowness if it persists."
+    tags:
+      - "incident_domain:database-performance"
+      - "signal_chain:2-leading-indicator"
+    priority: 3
+
+  - name: "[Agribusiness] SAP HANA Memory Pressure"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.saphana.memory_used_pct{environment:production} by {device_id} > 90"
+    message: "🧠 SAP HANA memory pressure on {{device_id}} ({{value}}%). Collected by the SAP HANA integration (Agent + hdbcli). Sustained pressure risks S/4HANA performance and every app that reads the platform. Check row-store and service heap."
+    tags:
+      - "incident_domain:database-performance"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  - name: "[Agribusiness] SAP ABAP Shortdump Surge"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.sapnw.abap_dumps{environment:production} by {device_id} > 4"
+    message: "🟥 ABAP shortdump surge on SAP instance {{device_id}} ({{value}} dumps). From the SAP S/4HANA & NetWeaver integration — points at a failing transaction or job impacting the BungeServices / myBunge SAP flows."
+    tags:
+      - "incident_domain:database-performance"
+      - "signal_chain:1-root-cause"
+    priority: 2
+
+  - name: "[Agribusiness] SAP Integration Message Failures (Cloud ALM)"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.sapalm.integration_failed_messages{environment:production} > 10"
+    message: "📨 SAP integration message failures climbing ({{value}}/interval) — from SAP Cloud ALM integration monitoring (CPI/AIF/Ariba). The kind of MuleSoft→Salesforce/SAP failure Pedro flagged (duplicate sales orders) surfaces here before it reaches customers."
+    tags:
+      - "incident_domain:data-platform-freshness"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # --- Network / 185 sites — Eduardo's network tower; harvest connectivity ---
+  - name: "[Agribusiness] Origination Site Connectivity Degraded (harvest risk)"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.site.connectivity_pct{environment:production} by {device_id} < 97.5"
+    message: "📡 Site {{device_id}} connectivity degraded to {{value}}%. During harvest a dropped link means grain doesn't move and scale tickets don't post — a revenue event, not just an IT event."
+    tags:
+      - "incident_domain:site-connectivity"
+      - "signal_chain:1-root-cause"
+      - "sla_critical:true"
+    priority: 1
+
+  - name: "[Agribusiness] WAN Link Latency High"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.network.link_latency_ms{environment:production} by {device_id} > 45"
+    message: "🔗 WAN link latency high on {{device_id}} ({{value}}ms). Network path to the GCP platform is degrading — a leading indicator for site app slowness."
+    tags:
+      - "incident_domain:site-connectivity"
+      - "signal_chain:2-leading-indicator"
+    priority: 2
+
+  # --- Customer-facing apps — the symptom layer of the cross-cutting cascade ---
+  - name: "[Agribusiness] Bunge Mobile Error Rate Elevated"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.app.errors_total{service_name:bunge-mobile-bff} by {region} > 8"
+    message: "🔥 Bunge Mobile errors elevated in {{region}} ({{value}}/interval). Farmers can't see cash bids or place contracts during trading hours — they go to a competitor. Check the FRM pricing + data-platform dependency."
+    tags:
+      - "incident_domain:customer-app-impact"
+      - "signal_chain:3-symptom"
+      - "sla_critical:true"
+    priority: 1
+
+  - name: "[Agribusiness] FRM Pricing Service Latency (APM)"
+    type: "query alert"
+    query: "avg(last_5m):avg:agri.app.latency_ms{service_name:frm-pricing-platform} by {region} > 220"
+    message: "🐢 FRM pricing service latency high in {{region}} ({{value}}ms). Quote generation slowing for Bunge Mobile / BungeAg — check the data-platform pricing feed dependency."
+    tags:
+      - "incident_domain:customer-app-impact"
+      - "signal_chain:2-leading-indicator"
+    priority: 2

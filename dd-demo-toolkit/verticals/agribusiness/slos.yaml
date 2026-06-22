@@ -1,0 +1,58 @@
+slos:
+  - name: "Bunge Data Platform Availability"
+    description: "The GCP data platform (SAP + Salesforce + CME market data) must successfully serve 99.9% of requests. It is the single dependency behind every revenue app — a failure here degrades Bunge Mobile, myBunge, BungeServices, FRM, and BungeAg simultaneously."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:agri.app.requests_total{service_name:bunge-data-platform}.as_count() - sum:agri.app.errors_total{service_name:bunge-data-platform}.as_count()"
+      denominator: "sum:agri.app.requests_total{service_name:bunge-data-platform}.as_count()"
+    tags:
+      - "incident_domain:data-platform-freshness"
+      - "sla_critical:true"
+
+  - name: "FRM Pricing Platform Availability"
+    description: "The FRM pricing platform must successfully serve 99.9% of quote/curve requests. Failures or stale prices flow straight to farmer-facing cash bids — direct margin impact (Mauger's 1-2% pricing uplift is at stake)."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:agri.app.requests_total{service_name:frm-pricing-platform}.as_count() - sum:agri.app.errors_total{service_name:frm-pricing-platform}.as_count()"
+      denominator: "sum:agri.app.requests_total{service_name:frm-pricing-platform}.as_count()"
+    tags:
+      - "incident_domain:customer-app-impact"
+      - "sla_critical:true"
+
+  - name: "Bunge Mobile Availability"
+    description: "Bunge Mobile must successfully serve 99.5% of requests. Field-facing cash bids, contracts, and price alerts for North American grain producers — the execution layer for the 65%-direct-origination goal."
+    type: metric
+    target: 99.5
+    timeframe: "30d"
+    query:
+      numerator: "sum:agri.app.requests_total{service_name:bunge-mobile-bff}.as_count() - sum:agri.app.errors_total{service_name:bunge-mobile-bff}.as_count()"
+      denominator: "sum:agri.app.requests_total{service_name:bunge-mobile-bff}.as_count()"
+    tags:
+      - "incident_domain:customer-app-impact"
+
+  - name: "myBunge Scale-Ticket Availability"
+    description: "myBunge must serve scale-ticket lookups 99.9% of the time. Producers are promised scale-ticket detail within 10 minutes of a truck leaving the scales — an explicit, measurable uptime commitment to former Viterra customers."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:agri.app.requests_total{service_name:mybunge-portal}.as_count() - sum:agri.app.errors_total{service_name:mybunge-portal}.as_count()"
+      denominator: "sum:agri.app.requests_total{service_name:mybunge-portal}.as_count()"
+    tags:
+      - "incident_domain:customer-app-impact"
+      - "sla_critical:true"
+
+  - name: "BungeServices Transaction Availability"
+    description: "BungeServices (SAP-connected grain contracting + payments) must succeed on 99.5% of transactions. Backbone of the 10,000+ daily customer transactions; reliability underpins the SG&A efficiency target (43% to 31% of gross profit)."
+    type: metric
+    target: 99.5
+    timeframe: "30d"
+    query:
+      numerator: "sum:agri.app.requests_total{service_name:bungeservices-portal}.as_count() - sum:agri.app.errors_total{service_name:bungeservices-portal}.as_count()"
+      denominator: "sum:agri.app.requests_total{service_name:bungeservices-portal}.as_count()"
+    tags:
+      - "incident_domain:customer-app-impact"

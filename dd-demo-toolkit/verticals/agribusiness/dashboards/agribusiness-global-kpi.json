@@ -1,0 +1,44 @@
+{
+  "title": "Bunge — Global KPI Overview [dd-demo-toolkit:agribusiness]",
+  "description": "Global + regional health for Bunge: the GCP data platform, the 185-site origination network, and the revenue apps on top — one platform replacing 28 fragmented tools. Strategic information for the business, not just infrastructure. [dd-demo-toolkit:agribusiness]",
+  "layout_type": "ordered",
+  "reflow_type": "fixed",
+  "widgets": [
+    {
+      "definition": {"type": "note", "content": "# Bunge — Global KPI Overview\n\nOne platform across the **GCP data platform**, the **185-site network**, and the **revenue apps**. Green/yellow/red on the things that make money — not just server health.", "background_color": "vivid_blue", "font_size": "14", "text_align": "left", "show_tick": false},
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+    {
+      "definition": {"type": "query_value", "title": "CME Feed Age (s)", "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "max:agri.dataplatform.pricing_feed_age_sec{environment:production}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 20, "palette": "white_on_red"}, {"comparator": ">", "value": 12, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 12, "palette": "white_on_green"}]}], "autoscale": true, "custom_unit": "s", "precision": 0},
+      "layout": {"x": 0, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {"type": "query_value", "title": "Sites Online %", "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.site.connectivity_pct{environment:production}", "aggregator": "avg"}], "response_format": "scalar", "conditional_formats": [{"comparator": "<", "value": 97.5, "palette": "white_on_red"}, {"comparator": "<", "value": 99, "palette": "white_on_yellow"}, {"comparator": ">=", "value": 99, "palette": "white_on_green"}]}], "autoscale": true, "custom_unit": "%", "precision": 1},
+      "layout": {"x": 3, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {"type": "query_value", "title": "FRM Quote Latency (ms)", "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "max:agri.pricing.quote_latency_ms{environment:production}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 175, "palette": "white_on_red"}, {"comparator": ">", "value": 150, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 150, "palette": "white_on_green"}]}], "autoscale": true, "custom_unit": "ms", "precision": 0},
+      "layout": {"x": 6, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {"type": "query_value", "title": "Data Pipeline Error Rate", "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.dataplatform.pipeline_error_rate{environment:production}", "aggregator": "avg"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 0.015, "palette": "white_on_red"}, {"comparator": ">", "value": 0.008, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 0.008, "palette": "white_on_green"}]}], "autoscale": true, "precision": 3},
+      "layout": {"x": 9, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "Revenue App Latency by Service (ms)", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.app.latency_ms{environment:production,service_name:(frm-pricing-platform OR bunge-mobile-bff OR mybunge-portal OR bungeservices-portal OR bungeag-web)} by {service_name}"}], "response_format": "timeseries", "display_type": "line"}]},
+      "layout": {"x": 0, "y": 4, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "Origination Site Connectivity by Region (%)", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.site.connectivity_pct{environment:production} by {region}"}], "response_format": "timeseries", "display_type": "line"}]},
+      "layout": {"x": 6, "y": 4, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "CME Pricing Feed Age by Region (s)", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.dataplatform.pricing_feed_age_sec{environment:production} by {region}"}], "response_format": "timeseries", "display_type": "line"}], "markers": [{"value": "y = 20", "display_type": "error dashed", "label": "Stale > 20s"}]},
+      "layout": {"x": 0, "y": 7, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "Data Platform Pipeline Freshness by Region (s)", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.dataplatform.pipeline_freshness_sec{environment:production} by {region}"}], "response_format": "timeseries", "display_type": "line"}]},
+      "layout": {"x": 6, "y": 7, "width": 6, "height": 3}
+    }
+  ]
+}

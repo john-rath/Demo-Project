@@ -1,0 +1,215 @@
+notebooks:
+  - name: "[Agribusiness] Data-Platform Cascade RCA — Stale CME Feed → FRM Mispricing"
+    type: investigation
+    time_range: "1h"
+    cells:
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              # Investigation: producers quoted on stale prices — root cause RCA
+
+              **Symptom (reported, not alerted):** FRM specialists and producers in
+              South America report **cash bids / quotes that look wrong** in Bunge
+              Mobile, myBunge, and BungeAg. No infrastructure alert fired — servers,
+              network, and SAP all look "green." This is the **silent, cross-cutting
+              failure** class: the data is bad, but the infrastructure is fine.
+
+              **Diagnostic gap today:** with 28 fragmented tools, the team would jump
+              between an app tool, a network tool, a DB tool, and SAP Solution Manager
+              and still not see it — because *nothing watches the data platform that
+              feeds every app*. This notebook walks the RCA on one platform, and it
+              matches what Watchdog + Bits AI surface automatically (last cell).
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Step 1 — Confirm the business symptom
+              FRM is quoting on stale prices, and quote latency is climbing. This is
+              what the desk and producers actually feel.
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "FRM stale-quote % by region (the business symptom)"
+            show_legend: true
+            requests:
+              - response_format: timeseries
+                display_type: line
+                queries:
+                  - {data_source: metrics, name: stale, query: "avg:agri.pricing.stale_quote_pct{environment:production} by {region}"}
+                formulas:
+                  - {formula: "stale", alias: "stale quote %"}
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "FRM quote latency by region (avg + max)"
+            show_legend: true
+            requests:
+              - response_format: timeseries
+                display_type: line
+                queries:
+                  - {data_source: metrics, name: avg, query: "avg:agri.pricing.quote_latency_ms{environment:production} by {region}"}
+                  - {data_source: metrics, name: max, query: "max:agri.pricing.quote_latency_ms{environment:production} by {region}"}
+                formulas:
+                  - {formula: "avg", alias: "avg ms"}
+                  - {formula: "max", alias: "max ms"}
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Step 2 — Rule out the usual suspects
+              Before blaming the network (the reflex Shawn described), confirm what is
+              **healthy**: site connectivity, the Oracle DB, and SAP are all normal —
+              so this is **not** a network, database, or SAP problem.
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Healthy: site connectivity % & Oracle query latency (rule out network + DB)"
+            show_legend: true
+            requests:
+              - response_format: timeseries
+                display_type: line
+                queries:
+                  - {data_source: metrics, name: conn, query: "avg:agri.site.connectivity_pct{environment:production}"}
+                  - {data_source: metrics, name: db, query: "avg:agri.db.query_latency_ms{environment:production}"}
+                formulas:
+                  - {formula: "conn", alias: "site connectivity %"}
+                  - {formula: "db", alias: "Oracle query ms"}
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Healthy: SAP HANA memory % & ABAP response (rule out SAP)"
+            show_legend: true
+            requests:
+              - response_format: timeseries
+                display_type: line
+                queries:
+                  - {data_source: metrics, name: hana, query: "avg:agri.saphana.memory_used_pct{environment:production}"}
+                  - {data_source: metrics, name: abap, query: "avg:agri.sapnw.abap_response_time_ms{environment:production}"}
+                formulas:
+                  - {formula: "hana", alias: "HANA mem %"}
+                  - {formula: "abap", alias: "ABAP response ms"}
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Step 3 — Walk upstream: the GCP data platform (root cause)
+              The FRM stale-quote rise tracks **one upstream signal**: the CME
+              market-data feed is aging. The feed-age curve **leads** the stale-quote
+              curve — that is the root cause, and nothing was alerting on it.
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "ROOT CAUSE — CME pricing-feed age (s) leads FRM stale-quote %"
+            show_legend: true
+            requests:
+              - response_format: timeseries
+                display_type: line
+                queries:
+                  - {data_source: metrics, name: feed, query: "avg:agri.dataplatform.pricing_feed_age_sec{environment:production}"}
+                  - {data_source: metrics, name: stale, query: "avg:agri.pricing.stale_quote_pct{environment:production}"}
+                formulas:
+                  - {formula: "feed", alias: "CME feed age (s)"}
+                  - {formula: "stale", alias: "FRM stale quote %"}
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Data-platform pipeline freshness (s) & error rate"
+            show_legend: true
+            requests:
+              - response_format: timeseries
+                display_type: line
+                queries:
+                  - {data_source: metrics, name: fresh, query: "avg:agri.dataplatform.pipeline_freshness_sec{environment:production}"}
+                  - {data_source: metrics, name: err, query: "avg:agri.dataplatform.pipeline_error_rate{environment:production}"}
+                formulas:
+                  - {formula: "fresh", alias: "pipeline freshness (s)"}
+                  - {formula: "err", alias: "pipeline error rate"}
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Step 4 — Blast radius: one feed, every revenue app
+              The Bunge Data Platform feeds **every** customer app. A single stale
+              feed degrades Bunge Mobile cash bids, myBunge, FRM, and BungeAg
+              **simultaneously** — visible in the APM dependency map (every app →
+              `bunge-data-platform`). This is the cross-cutting risk no single-domain
+              tool catches.
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: timeseries
+            title: "Revenue-app throughput by service (all depend on the feed)"
+            show_legend: true
+            requests:
+              - response_format: timeseries
+                display_type: line
+                queries:
+                  - {data_source: metrics, name: reqs, query: "sum:agri.app.requests_total{environment:production,service_name:(bunge-mobile-bff OR mybunge-portal OR frm-pricing-platform OR bungeag-web)} by {service_name}"}
+                formulas:
+                  - {formula: "reqs", alias: "requests"}
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Step 5 — Remediation & recovery
+              Refreshing/repairing the CME pricing pipeline recovers signals **in
+              order**: feed age drops first, then FRM stale-quote % falls, then quote
+              latency and error rate normalize. Watch the feed-age + stale-quote chart
+              above settle back to baseline — recovery confirms causation.
+
+              **Runbook:** restart the Dataflow/Composer pricing-feed job → verify
+              `pricing_feed_age_sec` < 20s → confirm FRM stale-quote % < 1% → close.
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Business impact / ROI
+              - **Direct margin risk:** during harvest, mispriced cash bids and FRM
+                contracts erode the 1–2% pricing edge Mauger cited — on 10,000+
+                transactions/day.
+              - **It was silent:** no infra alert fired. The gap is exactly the
+                data-platform layer no tool watches today.
+              - **MTTR:** Watchdog flagged it with no threshold; this RCA is minutes,
+                not the multi-hour, multi-tool bridge call it is today (Shawn's
+                59-minute rule becomes achievable).
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## How this matches Watchdog + Bits AI (the AIOps proof)
+              You just walked this RCA by hand. **Watchdog** detected
+              `agri.dataplatform.pricing_feed_age_sec` as an anomaly with **no
+              threshold configured**, and correlated it with the FRM stale-quote rise —
+              the same root → symptom chain (`data-platform-freshness`,
+              `signal_chain: 1-root-cause → 3-symptom`). Ask **Bits AI** in plain
+              language — *"why are FRM quotes stale right now?"* — and it returns the
+              stale CME feed as the cause, **citing these signals**, and can enrich +
+              open the ServiceNow incident automatically.
+
+              **The point for the skeptical towers:** the AI is not a black box — this
+              notebook is the human investigation that lands on the *same* answer.
+      - type: notebook_cells
+        attributes:
+          definition:
+            type: markdown
+            text: |
+              ## Follow-ups
+              - Add a freshness SLO on the CME pricing feed (`pricing_feed_age_sec`).
+              - Wire the Watchdog signal → Workflow → ServiceNow auto-incident.
+              - Extend feed-quality monitoring to the SAP and Salesforce sources feeding
+                the same platform (the data-science teams' "garbage in, garbage out").

@@ -1,0 +1,60 @@
+{
+  "title": "Bunge — Infrastructure, Network & SAP [dd-demo-toolkit:agribusiness]",
+  "description": "The infra/network/database estate under evaluation: on-prem VMware compute, the 185-site / 500+ link network (SolarWinds replacement / NDM), Oracle Database Monitoring, and the SAP landscape (HANA + S/4HANA NetWeaver). SAP views show only signals Datadog actually collects. [dd-demo-toolkit:agribusiness]",
+  "layout_type": "ordered",
+  "reflow_type": "fixed",
+  "widgets": [
+    {
+      "definition": {"type": "note", "content": "# Bunge — Infrastructure, Network & SAP\n\nThe **2,000+ server** VMware estate, the **185-site / 500+ link** network, and the **SAP landscape** — on one platform, correlated with the apps they serve.", "background_color": "vivid_blue", "font_size": "14", "text_align": "left", "show_tick": false},
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "VMware Host CPU & Memory by Region (avg %)", "show_legend": true, "requests": [{"formulas": [{"formula": "cpu", "alias": "CPU %"}, {"formula": "mem", "alias": "Mem %"}], "queries": [{"data_source": "metrics", "name": "cpu", "query": "avg:agri.host.cpu_pct{environment:production} by {region}"}, {"data_source": "metrics", "name": "mem", "query": "avg:agri.host.mem_pct{environment:production} by {region}"}], "response_format": "timeseries", "display_type": "line"}]},
+      "layout": {"x": 0, "y": 2, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "WAN Link Latency by Region (ms)", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.network.link_latency_ms{environment:production} by {region}"}], "response_format": "timeseries", "display_type": "line"}], "markers": [{"value": "y = 45", "display_type": "warning dashed", "label": "Investigate > 45ms"}]},
+      "layout": {"x": 6, "y": 2, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "Network Packet Loss by Region (%)", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.network.packet_loss_pct{environment:production} by {region}"}], "response_format": "timeseries", "display_type": "line"}]},
+      "layout": {"x": 0, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "Network Throughput by Region (Mbps)", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.network.throughput_mbps{environment:production} by {region}"}], "response_format": "timeseries", "display_type": "area"}]},
+      "layout": {"x": 6, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "note", "content": "## Databases & SAP — what each integration actually collects\n\n**Oracle / SQL Server / Postgres / MySQL → Database Monitoring** (query metrics, explain plans, the 'SELECT *' story). **SAP HANA → Redpeaks** (memory / CPU / connections / blocked transactions / availability — *not* query-level SQL; HANA isn't a DBM engine and the collector doesn't expose expensive SQL). **SAP S/4HANA → Redpeaks / Agentil NetWeaver** (work processes, ABAP response, dumps, IDOC/RFC). **SAP Cloud ALM → RapDev** (CPI/integration message monitoring, exceptions, jobs). **SAP Integration Suite → logs** via API.", "background_color": "gray", "font_size": "14", "text_align": "left", "show_tick": false},
+      "layout": {"x": 0, "y": 8, "width": 12, "height": 2}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "Oracle Query Latency by Host (ms) — DBM", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.db.query_latency_ms{environment:production} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}], "markers": [{"value": "y = 150", "display_type": "warning dashed", "label": "Slow > 150ms"}]},
+      "layout": {"x": 0, "y": 10, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "Oracle Slow-Query Count by Host — DBM ('SELECT *' surge)", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.db.slow_query_count{environment:production} by {device_id}"}], "response_format": "timeseries", "display_type": "bars"}]},
+      "layout": {"x": 6, "y": 10, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "SAP HANA Memory Used by Host (%) — SAP HANA integration", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.saphana.memory_used_pct{environment:production} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}], "markers": [{"value": "y = 90", "display_type": "error dashed", "label": "Pressure > 90%"}]},
+      "layout": {"x": 0, "y": 13, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "SAP HANA Open Connections & Blocked Transactions", "show_legend": true, "requests": [{"formulas": [{"formula": "conn", "alias": "open connections"}, {"formula": "blocked", "alias": "blocked txns"}], "queries": [{"data_source": "metrics", "name": "conn", "query": "avg:agri.saphana.connections_open{environment:production}"}, {"data_source": "metrics", "name": "blocked", "query": "avg:agri.saphana.blocked_transactions{environment:production}"}], "response_format": "timeseries", "display_type": "line"}]},
+      "layout": {"x": 6, "y": 13, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "SAP NetWeaver Work-Process Utilization by Instance (%)", "show_legend": true, "requests": [{"formulas": [{"formula": "q"}], "queries": [{"data_source": "metrics", "name": "q", "query": "avg:agri.sapnw.work_process_used_pct{environment:production} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]},
+      "layout": {"x": 0, "y": 16, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "SAP ABAP Shortdumps & Failed IDOCs by Instance", "show_legend": true, "requests": [{"formulas": [{"formula": "dumps", "alias": "ABAP dumps"}, {"formula": "idoc", "alias": "failed IDOCs"}], "queries": [{"data_source": "metrics", "name": "dumps", "query": "avg:agri.sapnw.abap_dumps{environment:production} by {device_id}"}, {"data_source": "metrics", "name": "idoc", "query": "avg:agri.sapnw.idoc_failed{environment:production} by {device_id}"}], "response_format": "timeseries", "display_type": "bars"}]},
+      "layout": {"x": 6, "y": 16, "width": 6, "height": 3}
+    },
+    {
+      "definition": {"type": "timeseries", "title": "SAP Integration Messages & Failures (Cloud ALM — CPI/AIF/Ariba)", "show_legend": true, "requests": [{"formulas": [{"formula": "msgs", "alias": "messages"}, {"formula": "failed", "alias": "failed"}], "queries": [{"data_source": "metrics", "name": "msgs", "query": "sum:agri.sapalm.integration_messages{environment:production}"}, {"data_source": "metrics", "name": "failed", "query": "sum:agri.sapalm.integration_failed_messages{environment:production}"}], "response_format": "timeseries", "display_type": "line"}]},
+      "layout": {"x": 0, "y": 19, "width": 12, "height": 3}
+    }
+  ]
+}

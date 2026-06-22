@@ -168,17 +168,23 @@ class TestConfigValidation:
 class TestVerticalListing:
     """Test vertical discovery and listing."""
 
-    def test_list_verticals_returns_all_five(self):
-        """Test that list_verticals returns all five verticals."""
+    def test_list_verticals_returns_all_known(self):
+        """list_verticals returns all shipped verticals. Uses a subset/>= check
+        so adding a new vertical (e.g. agribusiness) doesn't break the suite."""
         loader = ConfigLoader()
         verticals = loader.list_verticals()
 
-        assert len(verticals) == 5, f"Expected 5 verticals, got {len(verticals)}"
-        expected = ["finance", "healthcare", "hospitality", "insurance", "manufacturing"]
+        expected = [
+            "agribusiness", "finance", "healthcare",
+            "hospitality", "insurance", "manufacturing",
+        ]
         for exp in expected:
             assert (
                 exp in verticals
             ), f"Expected vertical '{exp}' not found in list"
+        assert len(verticals) >= len(expected), (
+            f"Expected at least {len(expected)} verticals, got {len(verticals)}"
+        )
 
     def test_list_verticals_includes_metadata(self):
         """Test that each vertical name in list is non-empty and loadable."""
