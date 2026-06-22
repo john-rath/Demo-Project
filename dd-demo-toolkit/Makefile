@@ -64,7 +64,7 @@ _LIFECYCLE_PROFILES := $(_DBM_PROFILE) $(_MOCK_PROFILE)
         logs-payment-processor \
         logs-experiment \
         clean-orphans clean-all \
-        ui ui-install doctor _preflight test validate-live
+        ui ui-install doctor _preflight _ui-docker-refresh test validate-live
 
 help: ## List available targets
 	@echo ""
@@ -290,10 +290,20 @@ ui-install: ## Create .venv-ui (Python 3.13) and install editable + UI extras
 doctor: ## Preflight the front door (op, docker, port, .env, vertical, credentials, assets)
 	@./.venv-ui/bin/python -m dd_demo_toolkit_ui.doctor
 
-_preflight:  # internal: preflight gate for `make ui` — hard-stops on blocking issues (docker/op down); warnings pass through
+_preflight:  # internal: preflight gate for `make ui` — hard-stops only on blocking issues (e.g. op not signed in). Docker is optional/non-blocking.
 	@./.venv-ui/bin/python -m dd_demo_toolkit_ui.doctor --quick
 
-ui: check-op _preflight down build rum-provision ## ★ SE front door — preflight, rebuild fresh images, provision RUM, then launch the web UI. http://127.0.0.1:8765
+_ui-docker-refresh:  # internal: Docker is OPTIONAL. If it's up, refresh images so the simulator/Deploy tabs are ready; if not, launch the UI in local mode.
+	@if docker info >/dev/null 2>&1; then \
+	    echo "  Docker detected — refreshing images for the simulator/Deploy tabs…"; \
+	    $(COMPOSE) $(_LIFECYCLE_PROFILES) down --remove-orphans >/dev/null 2>&1 || true; \
+	    $(COMPOSE) --profile setup --profile teardown --profile teardown-all $(_LIFECYCLE_PROFILES) build || true; \
+	else \
+	    echo "  Docker not running — launching the UI in local mode."; \
+	    echo "  (Configure / Validate / Deploy assets work without Docker; start Docker or Colima only for the local simulator.)"; \
+	fi
+
+ui: check-op _preflight _ui-docker-refresh rum-provision ## ★ SE front door — preflight, (optional) Docker image refresh, provision RUM, then launch the web UI. http://127.0.0.1:8765
 	$(OP_RUN) ./.venv-ui/bin/dd-demo-ui
 
 test: ## Run the unit + static analysis test suite (no secrets needed)

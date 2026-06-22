@@ -1,8 +1,52 @@
 # GA & Self-Service Roadmap
 
-**Status: GA push in progress (Phase 0).** This is the durable, in-repo companion
-to the approved working plan — it tracks how `dd-demo-toolkit` becomes
-self-service for the SE org. Update it as phases land.
+**Status (2026-06-22): Phase 0 ✅ complete · Phase 1 ~70% · Phases 2–5 not started.**
+Durable, in-repo companion to the approved working plan. The Status & handoff
+block below is the current source of truth; the per-phase detail further down is
+the original plan.
+
+## Status & handoff (2026-06-22)
+
+**Test suite:** 166 passing (was 153 + 5 pre-existing failures — all fixed:
+3 dashboard-namespace + 2 env-manager whitespace). **Nothing is committed** —
+working tree on `version-two`, mixed with prior WIP. Branch/commit before merging.
+
+**Done**
+- **Phase 0 (all):** UI-first codified (`CLAUDE.md` §0.6 + `README.md`); `make ui`
+  is the front door; `.venv`→`.venv-ui` + `validate`→`validate-live` Makefile
+  fixes; dynamic version (`pyproject` ← `__init__.__version__`); packaging
+  auto-discovery fix (`packages.find`); this roadmap + capability→UI audit.
+- **Phase 1 — validation framework** (`dd_demo_toolkit/validation/`, ~30 Style-Guide
+  rules, 19 tests) + **`dd-demo validate`** + a pre-`setup` gate. Caught & fixed a
+  real deploy bug (manufacturing `executive_report`).
+- **Phase 1 — `doctor` preflight** (`dd_demo_toolkit_ui/doctor.py`) wired into
+  `make ui`; **Docker made optional/non-blocking** (run-local default; Colima-aware)
+  per the direction change.
+- **Phase 1 — UI front-door endpoints** `GET /api/doctor` + `GET /api/validate`
+  (`server.py`, tested via `tests/test_ui_doctor_validate.py`).
+
+**Remaining to finish Phase 1 (GA core)**
+- **#8 Idempotent upsert-by-name** — add `--upsert` (default over destructive
+  `--clean`), `update_monitor/dashboard/workflow/slo` in `utils/dd_api.py`, managers
+  match the teardown identity key (`create_team` is the reference). Unit-test-only
+  verification (each SE has their own org; no live deploy authorized).
+- **#9 UI frontend wiring** — surface Preflight card + "Validate" button + Deploy-tab
+  gate in `static/{index.html,app.js}`; add `GET /api/coverage` once Phase 2 lands.
+- **Finish Docker-optional** — the UI Deploy/teardown still shell `docker compose run`
+  in `process_supervisor.py`; switch to invoking `dd-demo` directly so asset-deploy
+  is Docker-free (simulator stays Docker opt-in). Has 19 supervisor tests to update.
+- **#10** — guided 1Password bootstrap in the UI + opt-in `docker-compose.dev.yaml`
+  (bind-mount `verticals/` to skip rebuilds on edit).
+
+**Remaining (later phases)** — **P2** product catalog + per-vertical `products.yaml`
++ `ProductModule` (make `DD_DEMO_PRODUCTS` load-bearing) + `dd-demo coverage` +
+`dd-demo new-overlay` scaffolder + `CONTRIBUTING.md`/`CODEOWNERS`/PR template;
+**P3** GitHub Actions (`ci.yml`, `release.yml`, `nightly-smoke.yml`); **P4** product
+coverage waves to ~90%; **P5** cloud/AWS (Fargate MVP → EKS).
+
+**Open decision (blocks P3):** GA repo home/slug — `pyproject` urls say
+`DataDog/dd-demo-toolkit`; git remote is `john-rath/Demo-Project`. Decide before
+CI image names / release tags / AWS OIDC.
 
 ## Guiding decisions
 
@@ -16,6 +60,13 @@ self-service for the SE org. Update it as phases land.
   and PR it back. CI gates every PR so `main` stays releasable.
 - **Each SE uses their own Datadog org/sandbox** → no multi-tenant locking; we
   keep only `--upsert` idempotency for a clean demo→reset→redemo loop.
+- **Docker is optional (run-local default).** The core path — configure,
+  `dd-demo validate`, and `dd-demo setup` (deploy dashboards/monitors/etc. to
+  the org; pure Datadog API) — runs as local processes, no containers. Docker is
+  opt-in, only for the local containerized simulator/mock-app (telemetry). The
+  `doctor` treats Docker as non-blocking and `make ui` launches without it. The
+  remaining step to full Docker-free UI is having the Deploy tab run `dd-demo`
+  directly instead of `docker compose run` (tracked under the #9/exec-model work).
 
 ## Phases
 

@@ -110,28 +110,33 @@ def _docker_engine_hint() -> str:
 
 
 def check_docker() -> Check:
+    # OPTIONAL — Docker is needed only for the local containerized simulator /
+    # mock-app. Configure, validate, and `dd-demo setup` (deploy assets) all
+    # run as local processes with no Docker, so this never blocks `make ui`.
+    label = "Docker engine (optional — local simulator only)"
     if shutil.which("docker") is None:
-        return Check("Docker running", False,
-                     detail="`docker` not found on PATH",
-                     fix="install a Docker engine (Docker Desktop, Colima, …) and start it")
+        return Check(label, True, level="info", skipped=True,
+                     detail="not installed — only needed to run the local container stack")
     code, _ = _run(["docker", "info"])
     if code == 0:
-        return Check("Docker running", True)
-    return Check("Docker running", False,
-                 detail="`docker info` failed — the Docker daemon isn't reachable",
+        return Check(label, True, level="info", detail="reachable")
+    return Check(label, False, level="warn",
+                 detail="not reachable — fine unless you start the local simulator/mock-app",
                  fix=_docker_engine_hint())
 
 
 def check_compose() -> Check:
+    # Also optional — only relevant alongside Docker for the local stack.
+    label = "docker compose (optional)"
     if shutil.which("docker") is None:
-        return Check("docker compose available", False, skipped=True,
-                     detail="skipped — docker not installed")
+        return Check(label, True, level="info", skipped=True,
+                     detail="skipped — Docker not installed (optional)")
     code, _ = _run(["docker", "compose", "version"])
     if code == 0:
-        return Check("docker compose available", True)
-    return Check("docker compose available", False,
-                 detail="`docker compose version` failed",
-                 fix="update Docker Desktop (needs compose v2)")
+        return Check(label, True, level="info")
+    return Check(label, False, level="warn",
+                 detail="`docker compose version` failed (needed only for the local stack)",
+                 fix="install Docker with compose v2 if you'll run the local simulator")
 
 
 def check_port_free(port: int = DEFAULT_PORT) -> Check:
