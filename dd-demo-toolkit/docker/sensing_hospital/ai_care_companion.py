@@ -77,6 +77,26 @@ SCENARIOS = [
 ]
 
 
+# IT auto-remediation actions the Bits AI + Workflow Automation loop applies to
+# the AI-serving stack when it detects degradation. Tagged (`remediation:`) on
+# every emission — additive alongside scenario/role/phase — so IT-facing views
+# (e.g. the Zero-Touch Resolution dashboard's "Auto-Remediation Outcomes") can
+# break down by what the automation DID rather than by clinical scenario.
+# Weighted so the primary RAG-latency fix dominates, matching the demo narrative.
+REMEDIATION_ACTIONS = [
+    "rag-poll-rate-clamp",   # clamp the RAG knowledge-base poll rate (the headline fix)
+    "kb-cache-warm",         # warm/rebuild the knowledge-base cache
+    "config-rollback",       # roll back the last config push
+    "replica-failover",      # fail over to a healthy model-serving replica
+    "conn-pool-resize",      # resize the DB/vector-store connection pool
+]
+REMEDIATION_WEIGHTS = [40, 22, 16, 12, 10]
+
+
+def _pick_remediation() -> str:
+    return random.choices(REMEDIATION_ACTIONS, weights=REMEDIATION_WEIGHTS, k=1)[0]
+
+
 def _phase() -> str:
     return "degraded" if (time.time() - _START) % CYCLE_SEC >= (CYCLE_SEC - DEGRADED_SEC) else "normal"
 
@@ -128,7 +148,8 @@ def ask(body: dict | None = None):
 
 
 def _emit_metrics(scenario, phase, retrieval_ms, total_ms, halluc, grounded, escalate, tokens, cost):
-    tags = [f"scenario:{scenario['type']}", f"role:{scenario['role']}", f"phase:{phase}"]
+    tags = [f"scenario:{scenario['type']}", f"role:{scenario['role']}", f"phase:{phase}",
+            f"remediation:{_pick_remediation()}"]
     statsd.increment("care.companion.requests_total", tags=tags)
     statsd.gauge("care.companion.latency_ms", total_ms, tags=tags)
     statsd.gauge("care.companion.retrieval_latency_ms", retrieval_ms, tags=tags)

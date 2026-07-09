@@ -136,11 +136,11 @@
     },
     {
       "definition": {
-        "title": "Auto-Remediation Outcomes",
+        "title": "Auto-Remediation Outcomes — by IT action",
         "type": "toplist",
         "requests": [{
           "response_format": "scalar",
-          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.requests_total{*} by {scenario}.as_count()", "aggregator": "sum"}],
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.requests_total{remediation:*} by {remediation}.as_count()", "aggregator": "sum"}],
           "formulas": [{"formula": "query1 * 0.85", "limit": {"count": 5, "order": "desc"}}]
         }],
         "style": {"palette": "green"}
