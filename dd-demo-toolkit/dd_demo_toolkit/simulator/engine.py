@@ -377,55 +377,33 @@ class SimulatorEngine:
         locations_config = self.config.get("locations", {})
         dimensions = locations_config.get("dimensions", [])
 
-        # Generate all location combinations
-        location_values = {}
-        for dim in dimensions:
-            location_values[dim["name"]] = dim.get("values", [])
+        # Devices are placed by INDEPENDENT per-dimension round-robin (see the
+        # per-device loop below): each dimension's values cycle by (i % len),
+        # so every value of every dimension is represented as the count grows.
+        # This gives even marginal coverage across floors/wings/campuses/plants/
+        # etc. and avoids the cartesian-walk failure mode where a modest-count
+        # device type piles entirely into the first combo of a large product —
+        # e.g. once a high-cardinality `campus` dimension makes each floor/wing
+        # cell 120 combos wide, a consecutive walk never leaves floor 1 / east.
+        dim_values = [
+            (d["name"], list(d.get("values", [])))
+            for d in dimensions
+            if d.get("values")
+        ]
+        dim_names = {name for name, _ in dim_values}
 
-        # Cartesian product of location dimensions
-        def generate_locations(dims_list, idx=0, current=None):
-            if current is None:
-                current = {}
-            if idx >= len(dims_list):
-                yield current.copy()
-                return
-            dim_name = dims_list[idx]["name"]
-            for value in location_values[dim_name]:
-                current[dim_name] = value
-                yield from generate_locations(dims_list, idx + 1, current)
-
-        locations = list(generate_locations(dimensions))
-
-        # Filter to topology-allowed (region, environment) pairs when configured.
-        # Combos that lack region or environment dimensions are kept as-is.
-        if self._env_topology:
-            allowed = {
+        # When an environment topology constrains which (region, environment)
+        # pairs are valid (e.g. staging exists only in some regions), assign the
+        # two together from the allowed-pair list rather than round-robining them
+        # independently — so we never emit a disallowed combo, and every allowed
+        # pair is still covered as the count grows.
+        env_pairs = None
+        if self._env_topology and "region" in dim_names and "environment" in dim_names:
+            env_pairs = sorted(
                 (region, env)
                 for env, regions in self._env_topology.items()
                 for region in regions
-            }
-            locations = [
-                loc for loc in locations
-                if (loc.get("region"), loc.get("environment")) in allowed
-                or "region" not in loc
-                or "environment" not in loc
-            ]
-
-        # Reorder locations so consecutive indices cycle through all
-        # region/environment pairs before repeating the same pair in another BU.
-        # Without this, a global counter causes small-count device types to land
-        # entirely within one or two region/env combos (e.g. all in us-east-1/prod),
-        # leaving staging and dr-site empty on the dashboard.
-        #
-        # After sorting by (non-geo dims..., region, environment), the first N
-        # entries (one per unique region/env pair) cover all environments, so any
-        # device type with count >= number_of_region_env_pairs hits every env.
-        non_env_dim_names = [d["name"] for d in dimensions if d["name"] not in ("region", "environment")]
-        locations.sort(key=lambda loc: (
-            tuple(loc.get(d, "") for d in non_env_dim_names),
-            loc.get("region", ""),
-            loc.get("environment", ""),
-        ))
+            )
 
         # Create devices for each category
         device_categories = self.config.get("device_categories", {})
@@ -460,18 +438,21 @@ class SimulatorEngine:
                     )
                     metrics.append(metric)
 
-                # Create device instances.
-                # Use a per-type location_counter (reset to 0 for each device type)
-                # so every type starts at index 0 in the reordered locations list,
-                # guaranteeing the same even spread across region/env pairs.
+                # Independent per-dimension round-robin: cycling each dimension
+                # by (i % len(values)) guarantees every floor/wing/campus/plant/
+                # etc. is represented as `count` grows, instead of piling a
+                # modest-count type into the first combo of a large product.
                 # device_id_counter stays global to ensure unique device IDs.
-                location_counter = 0
-                for _ in range(count):
-                    location_idx = location_counter % len(locations)
-                    location = locations[location_idx]
+                for i in range(count):
+                    location = {name: vals[i % len(vals)] for name, vals in dim_values}
+                    # Respect environment topology: region + environment must be
+                    # a valid pair, so assign them together from the allowed set.
+                    if env_pairs:
+                        region, env = env_pairs[i % len(env_pairs)]
+                        location["region"] = region
+                        location["environment"] = env
 
                     if department_pool:
-                        location = location.copy()
                         location["department"] = random.choice(department_pool)
 
                     device = DeviceProfile(
@@ -488,7 +469,6 @@ class SimulatorEngine:
                     )
                     self.fleet.append(device)
                     device_id_counter += 1
-                    location_counter += 1
 
         logger.info(
             f"Built fleet with {len(self.fleet)} devices across "

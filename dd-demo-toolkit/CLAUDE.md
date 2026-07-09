@@ -483,6 +483,33 @@ teardown.
 
 ---
 
+## 6a. Fleet location distribution (2026-07-09)
+
+`engine._build_fleet` places each device type's instances by **independent
+per-dimension round-robin** — `location = {name: values[i % len(values)] ...}`
+for `i` in `0..count-1`. This guarantees every value of every location
+dimension is represented as the count grows (e.g. 45 devices across
+`floor`(5)×`wing`(4)×`campus`(15) → all 5 floors, all 4 wings, all 15
+campuses). `(region, environment)` is the one exception: when
+`config.environment_topology` is set, the pair is assigned together from the
+allowed-pair list (never round-robined independently), so a disallowed combo
+like `staging` in a region without staging is never emitted.
+
+This **replaced** the earlier consecutive cartesian-walk
+(`location_counter % len(locations)` over the sorted product). That approach
+filled combos in order, so once a high-cardinality dimension existed (the
+Ascension overlay's `campus` makes each floor/wing cell 120 combos wide), a
+modest-count device type never left the first cell — the whole fleet showed as
+`floor:1, wing:east` on the dashboard, and the Floor-3/East cell that the base
+`wifi_cascade` plugin targets went empty. Round-robin fixes both and needs no
+special handling when new high-cardinality dimensions are added.
+
+Regression tests: `tests/test_fleet_location_distribution.py` (marginal
+coverage + topology-pair safety). Adding a location dimension in an overlay is
+therefore safe for distribution — see STYLE_GUIDE §2.3 / §10.
+
+---
+
 ## 7. Working-on-this-project tips
 
 - **DBM demo is now vertical-agnostic.** Set `DD_DEMO_DBM=true` in `.env` to start the three DBM containers (`authorization-db`, `datadog-agent-pp`, `authorization-db-worker`) alongside any vertical's simulator. `make down` stops everything. Setting `DD_DEMO_SUB_VERTICAL=payment-processor` still auto-activates the DBM stack (backward compatible — no `.env` changes needed for existing setups). The cascade plugin writes `/cascade-state/phase.json` (shared volume) each tick; the DB worker reads it to choose normal vs. degraded query patterns. `make build` is required after editing the db-worker (`docker/authorization-db-worker/worker.py`).
