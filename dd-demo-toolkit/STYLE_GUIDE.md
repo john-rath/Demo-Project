@@ -530,6 +530,32 @@ description** beyond appending narrative.
 - Single-direction threshold only. For range checks, two monitors.
 - For ratio thresholds: `sum:errors / sum:requests * 100 > 5` — always include `* 100` if expressing as %.
 
+### 5.6 Synthetics monitors cannot be deleted via the monitor API
+
+Datadog auto-creates a backing **monitor** for every Synthetics test, with
+`type: "synthetics alert"`. If the Synthetics test is tagged
+`dd-demo-toolkit:true` (as the sensing-hospital synthetics are), its monitor
+inherits those tags and gets swept up by `MonitorManager.teardown`'s tag
+filter — but `DELETE /api/v1/monitor/{id}` rejects it:
+
+```
+400 - {"errors":["Monitor (...) is a Synthetics monitor and can only be deleted in Synthetics"]}
+```
+
+Every `dd-demo setup --clean` / `teardown` therefore logged an ERROR per
+Synthetics monitor. **Fix (2026-06-30):** `MonitorManager.teardown` now skips
+monitors with `type == "synthetics alert"` (helper `_is_synthetics_monitor`)
+and tracks them under `total_skipped` / `skipped_synthetics_ids` rather than
+attempting the delete. A defensive `except` also downgrades the 400 to a skip
+if the list payload ever omits `type`. Synthetics tests (and their monitors)
+are owned and torn down via the **Synthetics API** — the sensing-hospital
+synthetics manager (`docker/sensing_hospital/synthetics/manage_synthetics.py`),
+not the monitor manager.
+
+Takeaway when adding a resource manager that deletes by tag: a tag filter can
+match resources owned by *another* Datadog subsystem (Synthetics, SLOs,
+CI tests). Filter by resource sub-type and skip what your API can't delete.
+
 ---
 
 ## 6. SLO conventions

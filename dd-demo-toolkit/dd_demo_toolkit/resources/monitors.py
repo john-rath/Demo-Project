@@ -17,6 +17,21 @@ from dd_demo_toolkit.utils.dd_api import DatadogAPIClient
 logger = logging.getLogger(__name__)
 
 
+# Datadog reports Synthetics-owned monitors with this monitor type. They are
+# created automatically by Synthetics tests and CANNOT be deleted through
+# /api/v1/monitor — the API returns 400 "is a Synthetics monitor and can only
+# be deleted in Synthetics". They are owned + torn down via the Synthetics API
+# (e.g. the sensing-hospital synthetics manager), so monitor teardown must skip
+# them rather than erroring on every run. See STYLE_GUIDE.md §5.6.
+_SYNTHETICS_MONITOR_TYPE = "synthetics alert"
+
+
+def _is_synthetics_monitor(monitor: Dict[str, Any]) -> bool:
+    """True if the monitor is a Synthetics-owned monitor (cannot be deleted
+    via /api/v1/monitor)."""
+    return (monitor.get("type") or "").strip().lower() == _SYNTHETICS_MONITOR_TYPE
+
+
 class MonitorManager:
     """Manages deployment and lifecycle of Datadog monitors."""
 
@@ -292,7 +307,9 @@ class MonitorManager:
             "deleted_ids": [],
             "deleted_names": [],
             "errors": [],
+            "skipped_synthetics_ids": [],
             "total_deleted": 0,
+            "total_skipped": 0,
             "total_errors": 0,
         }
 
@@ -321,6 +338,23 @@ class MonitorManager:
             ]
             scope_label = f"vertical '{vertical_name}'"
 
+        # Synthetics-owned monitors carry the same toolkit tags (the Synthetics
+        # tests are tagged dd-demo-toolkit:true) but cannot be deleted via
+        # /api/v1/monitor. Skip them here — they are removed via the Synthetics
+        # API — so teardown doesn't error on every deploy's --clean step.
+        synthetics_skipped = [m for m in monitors_to_delete if _is_synthetics_monitor(m)]
+        if synthetics_skipped:
+            monitors_to_delete = [
+                m for m in monitors_to_delete if not _is_synthetics_monitor(m)
+            ]
+            result["skipped_synthetics_ids"] = [m.get("id") for m in synthetics_skipped]
+            result["total_skipped"] = len(synthetics_skipped)
+            logger.info(
+                f"Skipping {len(synthetics_skipped)} Synthetics monitor(s) — owned "
+                "by Synthetics tests; remove these via the Synthetics API, not "
+                "/api/v1/monitor."
+            )
+
         logger.info(
             f"Found {len(monitors_to_delete)} monitor(s) to delete for {scope_label}"
         )
@@ -342,6 +376,17 @@ class MonitorManager:
                     result["total_deleted"] += 1
                     logger.info(f"Deleted monitor {monitor_id} ({monitor_name})")
             except RuntimeError as e:
+                # Defensive: if a Synthetics monitor slips past the type filter
+                # (e.g. the list response omitted `type`), Datadog returns a 400
+                # telling us so. Treat it as a skip, not a teardown error.
+                if "synthetics monitor" in str(e).lower():
+                    result["skipped_synthetics_ids"].append(monitor_id)
+                    result["total_skipped"] += 1
+                    logger.info(
+                        f"Skipping Synthetics monitor {monitor_id} — remove via "
+                        "the Synthetics API, not /api/v1/monitor."
+                    )
+                    continue
                 error_msg = f"Failed to delete monitor {monitor_id}: {str(e)}"
                 result["errors"].append(error_msg)
                 result["total_errors"] += 1
@@ -349,6 +394,7 @@ class MonitorManager:
 
         logger.info(
             f"Monitor teardown complete: {result['total_deleted']} deleted, "
+            f"{result['total_skipped']} skipped (Synthetics), "
             f"{result['total_errors']} errors"
         )
 
