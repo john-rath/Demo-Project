@@ -1,0 +1,32 @@
+# Ascension overlay — Service Catalog entries for the two services that
+# anchor the care-experience cascade. Tag scheme matches the base healthcare
+# services.yaml: vertical:healthcare and dd-demo-toolkit:true are auto-injected.
+# On-prem vs. cloud is conveyed in the description today (no new tag key).
+
+services:
+
+  - dd-service: rtls-location-service
+    display-name: "RTLS Location Service (on-prem)"
+    description: "On-prem real-time location service. Ingests staff-badge and asset location events from the CareSense room-sensing gateways and resolves the nearest available caregiver. Root cause of the Ascension care-experience cascade: a config drift makes its location-event sync lag climb, starving the cloud routing engine of fresh location data. Java Spring Boot."
+    owner: "Digital Health Engineering"
+    tier: "Tier 1"
+    languages: ["java"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:hipaa"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+
+  - dd-service: care-experience-platform
+    display-name: "Care Experience Platform (cloud)"
+    description: "Cloud platform that routes care-team requests to the nearest caregiver and powers the bedside engagement tablets. Consumes location data from rtls-location-service; saturates when that data goes stale, driving nurse-call acknowledgement latency and patient-responsiveness degradation. Go / Gin."
+    owner: "Digital Health Engineering"
+    tier: "Tier 1"
+    languages: ["go"]
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "compliance:hipaa"
+      - "team:digital-health"
+      - "incident_domain:care-experience"

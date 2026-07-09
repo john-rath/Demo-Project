@@ -1,0 +1,61 @@
+workflows:
+
+  - name: "[Healthcare/Ascension] RTLS Config Pin & Sync Restart Recovery"
+    description: "Self-heal for the Ascension care-experience cascade: pins rtls-location-service to last-good config, restarts the location-sync workers, waits for staleness to drain, verifies call-acknowledgement recovery, notifies digital-health ops."
+    trigger:
+      type: monitor
+      monitor_tags:
+        - "incident_domain:care-experience"
+        - "signal_chain:1-root-cause"
+    steps:
+
+      - name: gather_context
+        type: datadog_query
+        description: "Capture current RTLS sync lag per gateway in MedSurg."
+        parameters:
+          query: "avg:hospital.sensing.rtls_sync_lag_ms{device_type:room_sensing_gateway,department:MedSurg} by {device_id}"
+
+      - name: pin_rtls_config
+        type: http_request
+        description: "Pin rtls-location-service to last-good config and restart the location-sync workers."
+        parameters:
+          method: POST
+          url: "https://rtls-loc.ascension.internal/admin/config/pin-last-good"
+          headers:
+            X-Auth-Token: "{{vault.rtls_admin_token}}"
+            Content-Type: "application/json"
+          body:
+            scope: "department:MedSurg"
+            restart_sync_workers: true
+
+      - name: wait_for_staleness_drain
+        type: sleep
+        description: "Allow ~90s for stale location data to clear and routing to recover."
+        parameters:
+          duration_seconds: 90
+
+      - name: verify_routing_recovered
+        type: datadog_query
+        description: "Verify care-team routing latency dropped below the cascade threshold."
+        parameters:
+          query: "avg(last_5m):avg:hospital.cxp.care_team_routing_latency_ms{department:MedSurg} < 1500"
+
+      - name: verify_call_ack_recovered
+        type: datadog_query
+        description: "Verify patient call-acknowledgement latency is back inside the patient-experience target."
+        parameters:
+          query: "avg(last_5m):avg:hospital.cxp.call_ack_latency_sec{department:MedSurg} < 30"
+
+      - name: notify_digital_health_ops
+        type: slack_message
+        description: "Notify the digital-health ops channel that the fix and recovery are confirmed."
+        parameters:
+          channel: "#digital-health-ops"
+          message: "✅ Ascension RTLS config pinned and sync restarted. Care-team routing and patient call-acknowledgement back inside thresholds. Open a change ticket to root-cause the config push."
+
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "workflow-type:auto-remediation"

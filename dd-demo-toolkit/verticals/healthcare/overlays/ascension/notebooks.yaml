@@ -1,0 +1,478 @@
+notebooks:
+
+  - id: "ascension-care-experience-rca"
+    name: "🛰️ Ascension Sensing Hospital — Care-Experience Cascade (Bits AI SRE Walkthrough)"
+    type: investigation
+    description: "Symptom: MedSurg patients report long waits after pressing the call button, and bedside tablets feel sluggish. Root cause: an on-prem rtls-location-service config drift makes staff-badge location data stale, so the cloud care-experience-platform can't route care-team requests to the nearest caregiver. This notebook walks the four phases the way Bits AI SRE narrows it — from the bedside symptom back to the on-prem root cause — and closes with a patient-experience ROI view."
+    time_range: "1h"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+      - "signal_chain_root:rtls-location-sync"
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Ascension Sensing Hospital — Care-Experience Cascade RCA
+
+              **Symptom report:** The MedSurg charge nurse pages: *"Patients
+              are waiting too long after hitting the call button, and the
+              bedside tablets are crawling. Nothing is 'down' — it just
+              feels broken."*
+
+              **The end-user's view first.** This is not a traditional
+              infrastructure page — no host is down, no pump is offline. The
+              people who feel it are the **patient in the bed** and the
+              **care provider** trying to reach them. Bits AI SRE closes the
+              gap by walking *upstream* from the bedside symptom to the
+              on-prem location service that feeds the cloud routing engine.
+
+              ---
+              ## Step 1 — Confirm the symptom (the bedside)
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "avg"
+                    query: "avg:hospital.cxp.call_ack_latency_sec{device_type:room_sensing_gateway,department:MedSurg} by {department}"
+                  - data_source: "metrics"
+                    name: "max"
+                    query: "max:hospital.cxp.call_ack_latency_sec{device_type:room_sensing_gateway,department:MedSurg} by {department}"
+                formulas:
+                  - formula: "avg"
+                    alias: "Call ack avg (s)"
+                  - formula: "max"
+                    alias: "Call ack max (s)"
+                display_type: "line"
+            yaxis:
+              scale: "linear"
+            markers:
+              - value: "y = 60"
+                display_type: "error dashed"
+                label: "Patient waiting"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              Patient call-acknowledgement latency is real and localized to
+              **MedSurg**. Perceived responsiveness confirms the patient is
+              feeling it:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "score"
+                    query: "avg:hospital.cxp.responsiveness_score{device_type:room_sensing_gateway,department:MedSurg} by {department}"
+                formulas:
+                  - formula: "score"
+                    alias: "Perceived responsiveness"
+                display_type: "line"
+            markers:
+              - value: "y = 70"
+                display_type: "error dashed"
+                label: "HCAHPS responsiveness risk"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 2 — Rule out the bedside devices (the obvious-but-wrong lane)
+
+              Is it the tablets or the room gateways themselves? Their health
+              is normal — CPU, memory, battery, signal all nominal. The
+              end-user devices are *carrying* the symptom, not *causing* it:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "cpu"
+                    query: "avg:hospital.device.cpu_usage_pct{device_type:room_sensing_gateway,department:MedSurg} by {device_id}"
+                formulas:
+                  - formula: "cpu"
+                    alias: "Gateway CPU %"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 3 — Walk upstream: care-team routing (leading indicator)
+
+              The symptom is the bedside wait. The leading indicator is the
+              **care-team routing latency** — the cloud platform can't resolve
+              the nearest caregiver fast enough. Notice it climbs *before* the
+              call-ack symptom peaks:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "routing"
+                    query: "avg:hospital.cxp.care_team_routing_latency_ms{device_type:room_sensing_gateway,department:MedSurg} by {device_id}"
+                formulas:
+                  - formula: "routing"
+                    alias: "Care-team routing latency (ms)"
+                display_type: "line"
+            markers:
+              - value: "y = 4000"
+                display_type: "error dashed"
+                label: "Routing degraded"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 4 — The root cause: on-prem RTLS location sync
+
+              Why can't the cloud route? Because the **on-prem
+              rtls-location-service** is feeding it stale staff-badge
+              locations. RTLS sync lag is the earliest mover in the whole
+              chain — this is where Bits AI SRE lands the root cause:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lag"
+                    query: "avg:hospital.sensing.rtls_sync_lag_ms{device_type:room_sensing_gateway,department:MedSurg} by {device_id}"
+                  - data_source: "metrics"
+                    name: "stale"
+                    query: "avg:hospital.sensing.location_staleness_sec{device_type:room_sensing_gateway,department:MedSurg} by {department}"
+                formulas:
+                  - formula: "lag"
+                    alias: "RTLS sync lag (ms)"
+                  - formula: "stale"
+                    alias: "Location staleness (s)"
+                display_type: "line"
+            markers:
+              - value: "y = 3000"
+                display_type: "error dashed"
+                label: "Cascade threshold (ms)"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              And the service trace confirms the on-prem → cloud direction:
+              `rtls-location-service` latency rises first, then
+              `care-experience-platform` error rate follows.
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "errs"
+                    query: "sum:hospital.app.errors_total{service_name:care-experience-platform}.as_count()"
+                  - data_source: "metrics"
+                    name: "reqs"
+                    query: "sum:hospital.app.requests_total{service_name:care-experience-platform}.as_count()"
+                formulas:
+                  - formula: "errs / reqs * 100"
+                    alias: "care-experience-platform error %"
+                display_type: "line"
+            markers:
+              - value: "y = 5"
+                display_type: "error dashed"
+                label: "5%"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 5 — Why this is NOT the Floor 3 East WiFi cascade
+
+              | Axis | WiFi/pump cascade | This cascade |
+              |---|---|---|
+              | Location | Floor 3 East | MedSurg (care_sensing fleet, all campuses) |
+              | Signals | `hospital.network.*`, device signal | `hospital.sensing.*`, `hospital.cxp.*` |
+              | Domain | `incident_domain:network-to-device` | `incident_domain:care-experience` |
+              | Story | AP saturation → pump disconnects | RTLS sync drift → routing → bedside |
+
+              Disjoint signals, locations, and incident domains let Bits AI
+              SRE isolate this story without dragging in the WiFi cascade.
+
+              ---
+              ## Step 6 — Remediation timeline
+
+              Automated repair pins `rtls-location-service` to last-good config
+              and restarts the sync workers. Watch RTLS lag, routing latency,
+              and call-ack recover together:
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "lag"
+                    query: "avg:hospital.sensing.rtls_sync_lag_ms{device_type:room_sensing_gateway,department:MedSurg}"
+                  - data_source: "metrics"
+                    name: "routing"
+                    query: "avg:hospital.cxp.care_team_routing_latency_ms{device_type:room_sensing_gateway,department:MedSurg}"
+                  - data_source: "metrics"
+                    name: "ack"
+                    query: "avg:hospital.cxp.call_ack_latency_sec{device_type:room_sensing_gateway,department:MedSurg}"
+                formulas:
+                  - formula: "lag"
+                    alias: "RTLS sync lag (ms)"
+                  - formula: "routing"
+                    alias: "Routing latency (ms)"
+                  - formula: "ack"
+                    alias: "Call ack (s)"
+                display_type: "line"
+        type: "notebook_cells"
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## ROI / Business Impact
+
+              **What just happened, in operations terms.** Across the MedSurg
+              sensing fleet (~45 instrumented rooms spread over 15 Ascension
+              hospitals), an on-prem config drift made staff location data
+              stale for ~9 minutes. During that window, call-acknowledgement
+              rose from ~18s to ~150s and perceived responsiveness fell below
+              the HCAHPS-risk line. The patient and the bedside nurse felt
+              every second of it.
+
+              **Per-incident ROI (manual vs. automated):**
+
+              | | Manual triage | Bits AI SRE + auto-repair |
+              |---|---|---|
+              | Time to root cause | ~45 min (chase the tablets/Wi-Fi first) | ~3 min (lands on RTLS sync) |
+              | Time to recovery | ~60 min | ~5 min |
+              | Patient call-waits > 60s | ~140 | ~15 |
+              | Nurse-minutes lost to misrouted alerts | ~90 | ~10 |
+
+              At a nurse loaded cost of ~$70/hr and biomed/IT at ~$110/hr,
+              cutting MTTR from ~60 min to ~5 min saves roughly **$95 of
+              direct labor per incident** — before counting the patient-
+              experience cost.
+
+              **Annualized scaling (illustrative, at Ascension's footprint):**
+
+              | Scope | Incidents/yr | Hours saved | Direct-labor value |
+              |---|---|---|---|
+              | Single hospital | ~50 | ~46 | ~$4.8K |
+              | Region (15 hospitals) | ~750 | ~690 | ~$72K |
+              | National (140 hospitals) | ~7,000 | ~6,400 | ~$670K |
+
+              **Strategic value beyond direct labor:**
+              - **HCAHPS responsiveness & quietness** — the two domains this
+                cascade threatens are directly tied to reimbursement.
+              - **Sentinel-event prevention** — a slow call-button response in
+                a fall- or sepsis-risk patient is a patient-safety event
+                ($200K–$1M each).
+              - **Nurse retention** — misrouted alerts and alarm fatigue are
+                top drivers of burnout (RN turnover $40K–$80K each).
+
+              **Bottom line:** seeing the hospital the way the *patient* sees
+              it — and auto-repairing the on-prem root cause before it reaches
+              the bedside — pays for itself on the first prevented sentinel
+              event, and scales across all ~140 Ascension hospitals from one
+              platform.
+
+              ---
+              ## Follow-ups
+              - Root-cause the rtls-location-service config push (change mgmt).
+              - Capacity-plan the location-sync workers.
+              - Add a guardrail monitor on `hospital.sensing.rtls_sync_lag_ms`
+                so future drift is caught upstream of the bedside.
+        type: "notebook_cells"
+
+  - id: "ascension-ai-care-companion-rca"
+    name: "🤖 Ascension AI Care Companion — Hallucination-Risk Incident (Bits AI Walkthrough)"
+    type: investigation
+    description: "Executive AI-safety RCA: the RAG knowledge base slows → the AI Care Companion answers with less grounding → hallucination risk climbs, escalations spike, patients wait. The end-to-end RUM → APM → LLM Observability story, with clinical-safety + cost evals."
+    time_range: "1h"
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "team:digital-health", "incident_domain:ai-care-companion", "audience:executive"]
+    cells:
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Ascension AI Care Companion — Hallucination-Risk Incident
+
+              **For the room:** your AI Care Companion answers patient and
+              clinician questions. It is only as trustworthy as it is *grounded*
+              and *fast*. This notebook shows — in one pane — patient experience
+              (RUM), the service path (APM), and the AI's own behavior (LLM
+              Observability evals), so you catch an AI-safety problem **before a
+              patient feels it**.
+
+              ---
+              ## Step 1 — Root cause: the knowledge base slows down
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "rag", query: "avg:care.companion.retrieval_latency_ms{*}"}
+                formulas:
+                  - {formula: "rag", alias: "RAG retrieval latency (ms)"}
+                display_type: "line"
+            markers:
+              - {value: "y = 800", display_type: "error dashed", label: "Grounding at risk"}
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 2 — Leading indicator: hallucination risk climbs
+
+              As retrieval slows, the model answers with less grounding. The
+              **hallucination-risk eval** (LLM Observability) rises — the
+              earliest safety signal, well before a human notices a bad answer.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "halluc", query: "avg:care.companion.hallucination_risk{*}"}
+                  - {data_source: "metrics", name: "grounded", query: "avg:care.companion.groundedness{*}"}
+                formulas:
+                  - {formula: "halluc", alias: "Hallucination risk"}
+                  - {formula: "grounded", alias: "Groundedness"}
+                display_type: "line"
+            markers:
+              - {value: "y = 0.3", display_type: "error dashed", label: "Hallucination threshold"}
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 3 — Patient-visible symptoms: escalations + latency
+
+              The AI does the safe thing — it escalates to a human rather than
+              guess — so **escalation rate spikes** and **patients wait longer**.
+              Care-team load rises exactly when the AI is least able to help.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "esc", query: "sum:care.companion.escalations_total{*}.as_count()"}
+                  - {data_source: "metrics", name: "reqs", query: "sum:care.companion.requests_total{*}.as_count()"}
+                formulas:
+                  - {formula: "esc / reqs * 100", alias: "Escalation rate %"}
+                display_type: "line"
+            markers:
+              - {value: "y = 25", display_type: "warning dashed", label: "Escalation SLA"}
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "lat", query: "avg:care.companion.latency_ms{*}"}
+                formulas:
+                  - {formula: "lat", alias: "Patient-facing latency (ms)"}
+                display_type: "line"
+            markers:
+              - {value: "y = 3000", display_type: "error dashed", label: "Patient wait threshold"}
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 4 — Cost of the incident (CIO/CFO view)
+
+              AI isn't free. Token volume and cost-per-interaction are tracked
+              per scenario, so you can see the spend behind the AI care
+              experience — and that a degraded model often costs *more* (longer
+              prompts, retries) while delivering *less*.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - {data_source: "metrics", name: "cost", query: "avg:care.companion.cost_usd{*} by {scenario}"}
+                formulas:
+                  - {formula: "cost", alias: "Cost / interaction ($) by scenario"}
+                display_type: "line"
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Why this needs Datadog
+
+              Without this, you learn the AI is unsafe when a **patient or
+              clinician reports a bad answer** — after the fact. Here, the
+              **LLM Observability hallucination eval** fires within minutes,
+              the **linked RUM → APM → LLM trace** shows the slow knowledge-base
+              call as the cause, and the **monitors** page the on-call before
+              patient safety, care-team load, or trust take a hit. One platform:
+              patient experience, AI quality, infrastructure, and cost — together.
+        type: "notebook_cells"

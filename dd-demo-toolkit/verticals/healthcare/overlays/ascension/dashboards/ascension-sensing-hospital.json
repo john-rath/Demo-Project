@@ -1,0 +1,341 @@
+{
+  "title": "Ascension — Sensing Hospital: Patient Experience",
+  "description": "Ascension sensing-hospital live telemetry from the patient and care-provider perspective: RTLS room sensing, care-team routing, nurse-call acknowledgement, perceived responsiveness, bedside engagement tablets (EuD), and room comfort — across the Ascension hospital fleet (use the $campus template variable to scope to one hospital). Includes the on-prem rtls-location-service → cloud care-experience-platform cascade view used for Bits AI SRE root-cause walks. No staffing data — service quality only.",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Ascension Sensing Hospital — Patient Experience (MedSurg)\n**The view the patient and the care provider actually feel.** Every MedSurg room is instrumented with a CareSense RTLS gateway, a bedside engagement tablet (EuD), and an ambient comfort sensor, across the Ascension hospital fleet.\n\nRoot cause flows **on-prem `rtls-location-service` → cloud `care-experience-platform` → the bedside**. Use the template variables to scope by campus / floor / wing / department.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+
+    {
+      "definition": {
+        "title": "Sensing Gateways Online",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.device.online{device_type:room_sensing_gateway,$campus,$floor,$wing,$department}", "aggregator": "last"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 0, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "RTLS Sync Lag avg (ms)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.sensing.rtls_sync_lag_ms{device_type:room_sensing_gateway,$campus,$floor,$wing,$department}", "aggregator": "avg"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 3000, "palette": "white_on_red"}, {"comparator": ">", "value": 1000, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 1000, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 2, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Routing Latency avg (ms)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.care_team_routing_latency_ms{device_type:room_sensing_gateway,$campus,$floor,$wing,$department}", "aggregator": "avg"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 4000, "palette": "white_on_red"}, {"comparator": ">", "value": 1500, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 1500, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 4, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Call Ack avg (s)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.call_ack_latency_sec{device_type:room_sensing_gateway,$campus,$floor,$wing,$department}", "aggregator": "avg"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 60, "palette": "white_on_red"}, {"comparator": ">", "value": 35, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 35, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 6, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Responsiveness avg",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.responsiveness_score{device_type:room_sensing_gateway,$campus,$floor,$wing,$department}", "aggregator": "avg"}], "response_format": "scalar", "conditional_formats": [{"comparator": "<", "value": 70, "palette": "white_on_red"}, {"comparator": "<", "value": 82, "palette": "white_on_yellow"}, {"comparator": ">=", "value": 82, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 8, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Bedside App max (ms)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.cxp.bedside_app_latency_ms{device_type:bedside_engagement_tablet,$campus,$floor,$wing,$department}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 2500, "palette": "white_on_red"}, {"comparator": ">", "value": 1500, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 1500, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 10, "y": 2, "width": 2, "height": 2}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## RTLS Location Sensing — root-cause lane (on-prem)",
+        "background_color": "yellow",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 4, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "RTLS Sync Lag (per gateway, ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.sensing.rtls_sync_lag_ms{device_type:room_sensing_gateway,$campus,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 3000", "display_type": "error dashed", "label": "Cascade threshold"}]
+      },
+      "layout": {"x": 0, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Staff Location Staleness (sec)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.sensing.location_staleness_sec{device_type:room_sensing_gateway,$campus,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "area"}],
+        "markers": [{"value": "y = 120", "display_type": "warning dashed", "label": "Stale (2m)"}]
+      },
+      "layout": {"x": 6, "y": 5, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Care-Team Routing — leading indicator (cloud)",
+        "background_color": "vivid_orange",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 8, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Care-Team Routing Latency (per gateway, ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.care_team_routing_latency_ms{device_type:room_sensing_gateway,$campus,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 4000", "display_type": "error dashed", "label": "Routing degraded"}]
+      },
+      "layout": {"x": 0, "y": 9, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Care-Team Routing Failures (per dept)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.cxp.routing_failures_total{$campus,$floor,$wing,$department} by {department}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 6, "y": 9, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Patient Experience — symptom lane (the bedside)",
+        "background_color": "vivid_orange",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 12, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Patient Call Acknowledgement Latency (avg / max, s)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "avg"}, {"formula": "max", "alias": "max"}], "queries": [{"data_source": "metrics", "name": "avg", "query": "avg:hospital.cxp.call_ack_latency_sec{device_type:room_sensing_gateway,$campus,$floor,$wing,$department}"}, {"data_source": "metrics", "name": "max", "query": "max:hospital.cxp.call_ack_latency_sec{device_type:room_sensing_gateway,$campus,$floor,$wing,$department}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 60", "display_type": "error dashed", "label": "Patient waiting"}]
+      },
+      "layout": {"x": 0, "y": 13, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Perceived Responsiveness Score (per dept)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.responsiveness_score{device_type:room_sensing_gateway,$campus,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 70", "display_type": "error dashed", "label": "HCAHPS risk"}]
+      },
+      "layout": {"x": 6, "y": 13, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Bedside Engagement Tablet Latency — EuD (per device, ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.bedside_app_latency_ms{device_type:bedside_engagement_tablet,$campus,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 2500", "display_type": "error dashed", "label": "EuD degraded"}]
+      },
+      "layout": {"x": 0, "y": 16, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Comfort Requests Unmet (per dept)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.cxp.comfort_requests_unmet_total{$campus,$floor,$wing,$department} by {department}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 6, "y": 16, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Service Cascade — on-prem RTLS → cloud Care Experience Platform",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 19, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "care-experience-platform Error Rate (%)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "errors / requests * 100", "alias": "error %"}], "queries": [{"data_source": "metrics", "name": "errors", "query": "sum:hospital.app.errors_total{service_name:care-experience-platform}.as_count()"}, {"data_source": "metrics", "name": "requests", "query": "sum:hospital.app.requests_total{service_name:care-experience-platform}.as_count()"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 5", "display_type": "error dashed", "label": "5%"}]
+      },
+      "layout": {"x": 0, "y": 20, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "rtls-location-service Latency (avg, ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.app.latency_ms{service_name:rtls-location-service}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 1500", "display_type": "warning dashed", "label": "Latency anomaly"}]
+      },
+      "layout": {"x": 6, "y": 20, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Sensing Fleet Health & Room Comfort",
+        "background_color": "white",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 23, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Gateway CPU (%)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.device.cpu_usage_pct{device_type:room_sensing_gateway,$campus,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 0, "y": 24, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Gateway Memory (%)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.device.memory_usage_pct{device_type:room_sensing_gateway,$campus,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 4, "y": 24, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Bedside Tablet Battery (%)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.device.battery_pct{device_type:bedside_engagement_tablet,$campus,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 20", "display_type": "warning dashed", "label": "Low battery"}]
+      },
+      "layout": {"x": 8, "y": 24, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Room Temperature (°C)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.room_temp_celsius{device_type:ambient_comfort_sensor,$campus,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 25", "display_type": "warning dashed", "label": "Too warm"}, {"value": "y = 20", "display_type": "warning dashed", "label": "Too cold"}]
+      },
+      "layout": {"x": 0, "y": 27, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Room Noise Level (dB)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.noise_level_db{device_type:ambient_comfort_sensor,$campus,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 60", "display_type": "warning dashed", "label": "Quietness risk"}]
+      },
+      "layout": {"x": 4, "y": 27, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Room Light Level (lux)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.light_level_lux{device_type:ambient_comfort_sensor,$campus,$floor,$wing,$department} by {department}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 8, "y": 27, "width": 4, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Across the Ascension Hospital Fleet — multi-campus telemetry range\nThe sensing fleet spans ~15 Ascension hospitals. These views break the room-sensing signals out **by campus** so you can spot a single hospital drifting from the rest, or scope the whole board to one hospital with the `$campus` template variable.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 30, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Sensing Gateways Online by Campus",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.device.online{device_type:room_sensing_gateway,$campus,$floor,$wing,$department} by {campus}"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 0, "y": 31, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "RTLS Sync Lag by Campus (avg, ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.sensing.rtls_sync_lag_ms{device_type:room_sensing_gateway,$campus,$floor,$wing,$department} by {campus}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 3000", "display_type": "error dashed", "label": "Cascade threshold"}]
+      },
+      "layout": {"x": 6, "y": 31, "width": 6, "height": 3}
+    }
+  ],
+  "template_variables": [
+    {"name": "campus", "prefix": "campus", "default": "*"},
+    {"name": "floor", "prefix": "floor", "default": "*"},
+    {"name": "wing", "prefix": "wing", "default": "*"},
+    {"name": "department", "prefix": "department", "default": "*"}
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}
