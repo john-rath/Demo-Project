@@ -1,0 +1,392 @@
+{
+  "title": "Ascension — AI Care Companion: Patient Experience & AI Safety",
+  "description": "Executive view of the patient-facing AI Care Companion. One pane combining (a) real-user telemetry from the care-portal via RUM, (b) AI safety signals — hallucination risk, groundedness, clinical escalation — and (c) AI cost + performance. Designed to answer three questions in 30 seconds: Are patients having a good experience? Is the AI safe? What is it costing us? Every 30 minutes the service self-degrades for ~5 minutes — that window is visible as a spike in RAG retrieval latency, a climb in hallucination risk, a rise in escalation rate, and a drop in groundedness, all at the same time.",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Ascension — AI Care Companion\n**The patient-facing AI, end-to-end, on one page.** Real users on care-portal (RUM, top) → backend AI service (APM, middle) → LLM Observability (clinical safety + cost, throughout). Watch the **AI SAFETY** band — when the RAG knowledge base slows down, hallucination risk climbs, groundedness drops, and the model escalates more patient cases to human nurses. That cascade is the demo's centerpiece.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+
+    {
+      "definition": {
+        "title": "Live Patient Sessions (1h)",
+        "type": "query_value",
+        "requests": [{
+          "response_format": "scalar",
+          "queries": [{"data_source": "rum", "name": "query1", "search": {"query": "@type:session service:care-portal"}, "indexes": ["*"], "compute": {"aggregation": "count"}, "group_by": []}],
+          "formulas": [{"formula": "query1"}]
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 0, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "AI Questions Answered (1h)",
+        "type": "query_value",
+        "requests": [{
+          "response_format": "scalar",
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.requests_total{*}.as_count()", "aggregator": "sum"}],
+          "formulas": [{"formula": "query1"}]
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 3, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Critical Escalations (1h)",
+        "type": "query_value",
+        "requests": [{
+          "response_format": "scalar",
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.escalations_total{*}.as_count()", "aggregator": "sum"}],
+          "formulas": [{"formula": "query1"}],
+          "conditional_formats": [
+            {"comparator": ">", "value": 30, "palette": "white_on_red"},
+            {"comparator": ">", "value": 10, "palette": "white_on_yellow"},
+            {"comparator": ">=", "value": 0, "palette": "white_on_green"}
+          ]
+        }],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 6, "y": 2, "width": 3, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "AI Cost — Last 1h ($)",
+        "type": "query_value",
+        "requests": [{
+          "response_format": "scalar",
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.cost_usd{*}", "aggregator": "sum"}],
+          "formulas": [{"formula": "query1"}]
+        }],
+        "autoscale": true,
+        "precision": 2
+      },
+      "layout": {"x": 9, "y": 2, "width": 3, "height": 2}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## PATIENT EXPERIENCE — care-portal (RUM)",
+        "background_color": "blue",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 4, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Patient Sessions Over Time",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [{"data_source": "rum", "name": "query1", "search": {"query": "@type:session service:care-portal"}, "indexes": ["*"], "compute": {"aggregation": "count", "interval": 60000}, "group_by": []}],
+          "formulas": [{"formula": "query1", "alias": "Sessions"}],
+          "display_type": "area",
+          "style": {"palette": "cool"}
+        }]
+      },
+      "layout": {"x": 0, "y": 5, "width": 8, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Frontend Errors",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [{"data_source": "rum", "name": "query1", "search": {"query": "@type:error service:care-portal"}, "indexes": ["*"], "compute": {"aggregation": "count", "interval": 60000}, "group_by": []}],
+          "formulas": [{"formula": "query1", "alias": "JS errors"}],
+          "display_type": "bars",
+          "style": {"palette": "warm"}
+        }]
+      },
+      "layout": {"x": 8, "y": 5, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Page Load — Largest Contentful Paint (LCP, ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [
+            {"data_source": "rum", "name": "avg_lcp", "search": {"query": "@type:view service:care-portal"}, "indexes": ["*"], "compute": {"aggregation": "avg", "metric": "@view.largest_contentful_paint"}, "group_by": []},
+            {"data_source": "rum", "name": "max_lcp", "search": {"query": "@type:view service:care-portal"}, "indexes": ["*"], "compute": {"aggregation": "max", "metric": "@view.largest_contentful_paint"}, "group_by": []}
+          ],
+          "formulas": [{"formula": "avg_lcp", "alias": "avg"}, {"formula": "max_lcp", "alias": "max"}],
+          "display_type": "line"
+        }],
+        "markers": [{"value": "y = 2500", "display_type": "warning dashed", "label": "Web Vitals: needs improvement"}, {"value": "y = 4000", "display_type": "error dashed", "label": "Web Vitals: poor"}]
+      },
+      "layout": {"x": 0, "y": 8, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Interaction Responsiveness — INP (ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [
+            {"data_source": "rum", "name": "avg_inp", "search": {"query": "@type:view service:care-portal"}, "indexes": ["*"], "compute": {"aggregation": "avg", "metric": "@view.interaction_to_next_paint"}, "group_by": []},
+            {"data_source": "rum", "name": "max_inp", "search": {"query": "@type:view service:care-portal"}, "indexes": ["*"], "compute": {"aggregation": "max", "metric": "@view.interaction_to_next_paint"}, "group_by": []}
+          ],
+          "formulas": [{"formula": "avg_inp", "alias": "avg"}, {"formula": "max_inp", "alias": "max"}],
+          "display_type": "line"
+        }],
+        "markers": [{"value": "y = 200", "display_type": "warning dashed", "label": "Web Vitals: needs improvement"}, {"value": "y = 500", "display_type": "error dashed", "label": "Web Vitals: poor"}]
+      },
+      "layout": {"x": 6, "y": 8, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## AI SAFETY & QUALITY — clinical correctness, not just availability",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 11, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Hallucination Risk (0 = grounded, 1 = fabricated)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [
+            {"data_source": "metrics", "name": "avg_h", "query": "avg:care.companion.hallucination_risk{*}"},
+            {"data_source": "metrics", "name": "max_h", "query": "max:care.companion.hallucination_risk{*}"}
+          ],
+          "formulas": [{"formula": "avg_h", "alias": "avg risk"}, {"formula": "max_h", "alias": "max risk"}],
+          "display_type": "line",
+          "style": {"palette": "warm"}
+        }],
+        "markers": [{"value": "y = 0.3", "display_type": "warning dashed", "label": "Elevated risk"}, {"value": "y = 0.5", "display_type": "error dashed", "label": "Clinical escalation threshold"}]
+      },
+      "layout": {"x": 0, "y": 12, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Groundedness — answer supported by knowledge base (1 = fully grounded)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [
+            {"data_source": "metrics", "name": "avg_g", "query": "avg:care.companion.groundedness{*}"},
+            {"data_source": "metrics", "name": "min_g", "query": "min:care.companion.groundedness{*}"}
+          ],
+          "formulas": [{"formula": "avg_g", "alias": "avg"}, {"formula": "min_g", "alias": "min"}],
+          "display_type": "line",
+          "style": {"palette": "cool"}
+        }],
+        "markers": [{"value": "y = 0.8", "display_type": "warning dashed", "label": "Quality floor"}, {"value": "y = 0.6", "display_type": "error dashed", "label": "Unacceptable"}]
+      },
+      "layout": {"x": 6, "y": 12, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Clinical Escalation Rate — % of patient questions routed to a human nurse",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [
+            {"data_source": "metrics", "name": "esc", "query": "sum:care.companion.escalations_total{*}.as_count()"},
+            {"data_source": "metrics", "name": "req", "query": "sum:care.companion.requests_total{*}.as_count()"}
+          ],
+          "formulas": [{"formula": "esc / req * 100", "alias": "escalation %"}],
+          "display_type": "area",
+          "style": {"palette": "warm"}
+        }],
+        "markers": [{"value": "y = 15", "display_type": "warning dashed", "label": "Normal upper bound"}, {"value": "y = 30", "display_type": "error dashed", "label": "Triage capacity at risk"}]
+      },
+      "layout": {"x": 0, "y": 15, "width": 8, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Escalations by Clinical Scenario",
+        "type": "toplist",
+        "requests": [{
+          "response_format": "scalar",
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.escalations_total{*} by {scenario}.as_count()", "aggregator": "sum"}],
+          "formulas": [{"formula": "query1", "limit": {"count": 5, "order": "desc"}}]
+        }],
+        "style": {"palette": "orange"}
+      },
+      "layout": {"x": 8, "y": 15, "width": 4, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## AI COST & PERFORMANCE — RAG knowledge base is the root cause when it degrades",
+        "background_color": "vivid_yellow",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 18, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "AI Spend ($/min)",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.cost_usd{*}"}],
+          "formulas": [{"formula": "query1", "alias": "$"}],
+          "display_type": "area",
+          "style": {"palette": "purple"}
+        }]
+      },
+      "layout": {"x": 0, "y": 19, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Tokens Consumed",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.tokens_total{*}"}],
+          "formulas": [{"formula": "query1", "alias": "tokens"}],
+          "display_type": "line"
+        }]
+      },
+      "layout": {"x": 4, "y": 19, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Cost by Scenario ($)",
+        "type": "toplist",
+        "requests": [{
+          "response_format": "scalar",
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.cost_usd{*} by {scenario}", "aggregator": "sum"}],
+          "formulas": [{"formula": "query1", "limit": {"count": 5, "order": "desc"}}]
+        }],
+        "style": {"palette": "purple"}
+      },
+      "layout": {"x": 8, "y": 19, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Root Cause Lens: RAG Knowledge-Base Latency vs Total AI Latency (ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [
+            {"data_source": "metrics", "name": "rag", "query": "avg:care.companion.retrieval_latency_ms{*}"},
+            {"data_source": "metrics", "name": "total", "query": "avg:care.companion.latency_ms{*}"}
+          ],
+          "formulas": [
+            {"formula": "rag", "alias": "RAG retrieval (root cause)"},
+            {"formula": "total", "alias": "Total patient-facing latency"}
+          ],
+          "display_type": "line",
+          "style": {"palette": "dog_classic"}
+        }],
+        "markers": [{"value": "y = 800", "display_type": "warning dashed", "label": "RAG slow"}, {"value": "y = 2000", "display_type": "error dashed", "label": "Patient experience impacted"}]
+      },
+      "layout": {"x": 0, "y": 22, "width": 12, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## LIVE AI ACTIVITY — what the AI is doing right now",
+        "background_color": "vivid_green",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 25, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Top Clinical Scenarios (volume)",
+        "type": "toplist",
+        "requests": [{
+          "response_format": "scalar",
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.requests_total{*} by {scenario}.as_count()", "aggregator": "sum"}],
+          "formulas": [{"formula": "query1", "limit": {"count": 5, "order": "desc"}}]
+        }],
+        "style": {"palette": "datadog16"}
+      },
+      "layout": {"x": 0, "y": 26, "width": 4, "height": 4}
+    },
+    {
+      "definition": {
+        "title": "Patient vs Clinician Mix",
+        "type": "toplist",
+        "requests": [{
+          "response_format": "scalar",
+          "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.requests_total{*} by {role}.as_count()", "aggregator": "sum"}],
+          "formulas": [{"formula": "query1", "limit": {"count": 5, "order": "desc"}}]
+        }],
+        "style": {"palette": "datadog16"}
+      },
+      "layout": {"x": 4, "y": 26, "width": 4, "height": 4}
+    },
+    {
+      "definition": {
+        "title": "LLM Observability Traces (ml_app:ai-care-companion)",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{
+          "response_format": "timeseries",
+          "queries": [{"data_source": "llm_observability", "name": "query1", "search": {"query": "@ml_app:ai-care-companion"}, "indexes": ["*"], "compute": {"aggregation": "count", "interval": 60000}, "group_by": []}],
+          "formulas": [{"formula": "query1", "alias": "Traces"}],
+          "display_type": "bars",
+          "style": {"palette": "purple"}
+        }]
+      },
+      "layout": {"x": 8, "y": 26, "width": 4, "height": 4}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "### Deep-link to the live data\n- **[LLM Observability — every prompt, retrieval, and response](https://app.datadoghq.com/llm/traces?query=%40ml_app%3Aai-care-companion)** — click any span for prompt, response, RAG documents, and inline safety evals.\n- **[RUM — patient sessions on care-portal](https://app.datadoghq.com/rum/sessions?query=%40service%3Acare-portal)** — replay an actual patient interaction frame-by-frame.\n- **[APM — ai-care-companion service](https://app.datadoghq.com/apm/services/ai-care-companion)** — backend traces correlated to the patient session above.\n\n**Demo cue:** during a degraded window, click the RAG latency spike on the Root-Cause chart → \"View related traces\" → land on the slow KB call → \"View related LLM Obs span\" → see the actual prompt + hallucinated answer the model gave a real patient.",
+        "background_color": "white",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": true,
+        "tick_pos": "50%",
+        "tick_edge": "top",
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 30, "width": 12, "height": 3}
+    }
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

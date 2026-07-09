@@ -1,0 +1,214 @@
+{
+  "title": "Ascension — End-User Devices (EuD): Patient & Clinician",
+  "description": "Ascension end-user-device experience for the patient-facing bedside engagement tablet and the care-provider clinician mobile: app launch, crashes/hangs, on-device network RTT, session health, and round-trip latency to the cloud care-experience-platform — across the Ascension hospital fleet (scope with $campus). During the care-experience cascade these signals degrade as a downstream symptom — Bits AI SRE detects the patient-experience anomaly and isolates it to the on-prem RTLS root cause via the disjoint hospital.sensing.* signals. Built for Ascension; no staffing data.",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# End-User Devices (EuD) — the device in the hand\n**Patient** holds the *bedside engagement tablet*; the **care provider** carries the *clinician mobile*. This view is the experience of the devices themselves — launch, crashes, on-device network, session health — across the Ascension hospital fleet.\n\n**Bits AI detection:** because the care-experience cascade lives in disjoint signals (`hospital.sensing.*` / `hospital.cxp.*` / `hospital.eud.*`, `incident_domain:care-experience`, MedSurg), Bits AI SRE can flag the EuD degradation and trace it upstream to the on-prem `rtls-location-service` without pulling in the Floor 3 East WiFi cascade.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+
+    {
+      "definition": {
+        "title": "App Launch max (ms)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.eud.app_launch_ms{$campus,$floor,$wing,$department}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 4000, "palette": "white_on_red"}, {"comparator": ">", "value": 2000, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 2000, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 0, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "App Crashes (15m)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.eud.app_crashes_total{$campus,$floor,$wing,$department}.as_count()", "aggregator": "sum"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 6, "palette": "white_on_red"}, {"comparator": ">", "value": 2, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 2, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 2, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "App Hangs (15m)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.eud.app_hang_total{$campus,$floor,$wing,$department}.as_count()", "aggregator": "sum"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 4, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Network RTT avg (ms)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.eud.network_rtt_ms{$campus,$floor,$wing,$department}", "aggregator": "avg"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 1500, "palette": "white_on_red"}, {"comparator": ">", "value": 800, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 800, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 6, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Avg Session (min)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.eud.session_length_min{$campus,$floor,$wing,$department}", "aggregator": "avg"}], "response_format": "scalar"}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 8, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Clinician Secure-Msg max (ms)",
+        "type": "query_value",
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "max:hospital.eud.secure_msg_latency_ms{device_type:clinician_mobile,$campus,$floor,$wing,$department}", "aggregator": "max"}], "response_format": "scalar", "conditional_formats": [{"comparator": ">", "value": 2500, "palette": "white_on_red"}, {"comparator": ">", "value": 1200, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 1200, "palette": "white_on_green"}]}],
+        "autoscale": true,
+        "precision": 0
+      },
+      "layout": {"x": 10, "y": 2, "width": 2, "height": 2}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Patient & Clinician App Experience (by device type)",
+        "background_color": "vivid_orange",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 4, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "App Launch Time (ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.eud.app_launch_ms{$campus,$floor,$wing,$department} by {device_type}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 4000", "display_type": "error dashed", "label": "Launch degraded"}]
+      },
+      "layout": {"x": 0, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "On-Device Network RTT (ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.eud.network_rtt_ms{$campus,$floor,$wing,$department} by {device_type}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 1500", "display_type": "error dashed", "label": "Device feels slow"}]
+      },
+      "layout": {"x": 6, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "App Crashes (per device type)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.eud.app_crashes_total{$campus,$floor,$wing,$department} by {device_type}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 0, "y": 8, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "App Hangs (per device type)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.eud.app_hang_total{$campus,$floor,$wing,$department} by {device_type}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 6, "y": 8, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Round-trip to the cloud Care Experience Platform",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 11, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Bedside Tablet App Round-Trip (per device, ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.cxp.bedside_app_latency_ms{device_type:bedside_engagement_tablet,$campus,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 2500", "display_type": "error dashed", "label": "EuD degraded"}]
+      },
+      "layout": {"x": 0, "y": 12, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Clinician Secure-Messaging Latency (per device, ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.eud.secure_msg_latency_ms{device_type:clinician_mobile,$campus,$floor,$wing,$department} by {device_id}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 2500", "display_type": "error dashed", "label": "Coordination degraded"}]
+      },
+      "layout": {"x": 6, "y": 12, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## End-User Device Fleet Health",
+        "background_color": "white",
+        "font_size": "14",
+        "text_align": "left",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 15, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Devices Online (per device type)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:hospital.eud.sessions_total{$campus,$floor,$wing,$department} by {device_type}.as_count()"}], "response_format": "timeseries", "display_type": "bars"}]
+      },
+      "layout": {"x": 0, "y": 16, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Battery (per device type, %)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "tablet"}, {"formula": "clinician"}], "queries": [{"data_source": "metrics", "name": "tablet", "query": "avg:hospital.device.battery_pct{device_type:bedside_engagement_tablet,$campus,$floor,$wing,$department}"}, {"data_source": "metrics", "name": "clinician", "query": "avg:hospital.device.battery_pct{device_type:clinician_mobile,$campus,$floor,$wing,$department}"}], "response_format": "timeseries", "display_type": "line"}],
+        "markers": [{"value": "y = 20", "display_type": "warning dashed", "label": "Low battery"}]
+      },
+      "layout": {"x": 4, "y": 16, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Avg Session Length (per device type, min)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"formulas": [{"formula": "query1"}], "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:hospital.eud.session_length_min{$campus,$floor,$wing,$department} by {device_type}"}], "response_format": "timeseries", "display_type": "line"}]
+      },
+      "layout": {"x": 8, "y": 16, "width": 4, "height": 3}
+    }
+  ],
+  "template_variables": [
+    {"name": "campus", "prefix": "campus", "default": "*"},
+    {"name": "floor", "prefix": "floor", "default": "*"},
+    {"name": "wing", "prefix": "wing", "default": "*"},
+    {"name": "department", "prefix": "department", "default": "*"}
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

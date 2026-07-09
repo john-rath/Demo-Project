@@ -1,0 +1,43 @@
+slos:
+
+  - name: "Care-Team Routing Success Rate (Ascension)"
+    description: "Care-team requests must be routed to the nearest caregiver without failure. Drops when stale RTLS location data starves the routing engine. Rolling 30-day window."
+    type: metric
+    target: 99.0
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.cxp.routing_requests_total{department:MedSurg}.as_count() - sum:hospital.cxp.routing_failures_total{department:MedSurg}.as_count()"
+      denominator: "sum:hospital.cxp.routing_requests_total{department:MedSurg}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+
+  - name: "care-experience-platform Availability (Ascension)"
+    description: "The cloud routing/engagement platform is the choke point for the patient experience. Target 99.9%."
+    type: metric
+    target: 99.9
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.app.requests_total{service_name:care-experience-platform}.as_count() - sum:hospital.app.errors_total{service_name:care-experience-platform}.as_count()"
+      denominator: "sum:hospital.app.requests_total{service_name:care-experience-platform}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:digital-health"
+      - "incident_domain:care-experience"
+
+  - name: "Sensing Gateway Fleet Uptime (Ascension)"
+    description: "CareSense room sensing gateways must stay online so each patient room keeps RTLS, call routing, and comfort sensing. Target 99.5%."
+    type: metric
+    target: 99.5
+    timeframe: "30d"
+    query:
+      numerator: "sum:hospital.device.online{device_type:room_sensing_gateway}.as_count()"
+      denominator: "sum:hospital.device.heartbeats_total{device_type:room_sensing_gateway}.as_count()"
+    tags:
+      - "vertical:healthcare"
+      - "dd-demo-toolkit:true"
+      - "team:biomed"
+      - "incident_domain:care-experience"
