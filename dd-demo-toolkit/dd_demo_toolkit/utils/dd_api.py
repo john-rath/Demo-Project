@@ -261,6 +261,76 @@ class DatadogAPIClient:
         result["dashboards"] = all_dashboards
         return result
 
+    # --- Dashboard lists (manual/custom) --------------------------------
+    # Datadog has no API to "favorite"/star a dashboard (that is a per-user UI
+    # preference; `is_favorite` is read-only). A manual dashboard list is the
+    # supported, shared equivalent — it groups the toolkit's dashboards under
+    # one entry in the left nav for every user. See DashboardManager.
+
+    def create_dashboard_list(self, name: str) -> Dict[str, Any]:
+        """
+        Create a manual (custom) dashboard list.
+
+        Args:
+            name: Display name of the list.
+
+        Returns:
+            API response including the new list's ``id``.
+        """
+        return self._request(
+            "POST", "/api/v1/dashboard/lists/manual", json_data={"name": name}
+        )
+
+    def list_dashboard_lists(self) -> Dict[str, Any]:
+        """
+        List manual dashboard lists.
+
+        Returns:
+            API response shaped like ``{"dashboard_lists": [{"id", "name", ...}]}``.
+        """
+        return self._request("GET", "/api/v1/dashboard/lists/manual")
+
+    def add_dashboards_to_list(
+        self, list_id: Any, items: List[Dict[str, str]]
+    ) -> Dict[str, Any]:
+        """
+        Add dashboards to a manual list (v2 endpoint).
+
+        Args:
+            list_id: ID of the manual dashboard list.
+            items: List of ``{"id": <dashboard_id>, "type": <dashboard_type>}``
+                where type is a Datadog dashboard type enum value
+                (e.g. ``custom_timeboard`` for ordered dashboards,
+                ``custom_screenboard`` for free-layout).
+
+        Returns:
+            API response listing the dashboards added.
+        """
+        payload = {
+            "dashboards": [
+                {"type": item["type"], "id": str(item["id"])} for item in items
+            ]
+        }
+        return self._request(
+            "POST",
+            f"/api/v2/dashboard/lists/manual/{list_id}/dashboards",
+            json_data=payload,
+        )
+
+    def delete_dashboard_list(self, list_id: Any) -> Dict[str, Any]:
+        """
+        Delete a manual dashboard list by ID (does not delete its dashboards).
+
+        Args:
+            list_id: ID of the manual dashboard list.
+
+        Returns:
+            API response.
+        """
+        return self._request(
+            "DELETE", f"/api/v1/dashboard/lists/manual/{list_id}"
+        )
+
     def create_monitor(self, json_payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         Create a new monitor.

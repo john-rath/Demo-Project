@@ -14,6 +14,24 @@ from dd_demo_toolkit.utils.dd_api import DatadogAPIClient
 
 logger = logging.getLogger(__name__)
 
+# Datadog has no API to favorite/star a dashboard (per-user UI preference).
+# Instead we group each vertical's toolkit dashboards into a shared manual
+# "dashboard list", auto-created on deploy and removed on teardown, so they sit
+# one click away in the left nav for every user. All toolkit dashboards use
+# `layout_type: ordered` (STYLE_GUIDE §4.4) → the `custom_timeboard` type.
+_DASHBOARD_LIST_PREFIX = "dd-demo-toolkit"
+
+
+def _dashboard_list_name(vertical_name: str) -> str:
+    """Stable name for a vertical's toolkit dashboard list (deploy + teardown
+    must agree on this so the list is reused, not duplicated)."""
+    return f"{_DASHBOARD_LIST_PREFIX} — {vertical_name}"
+
+
+def _dashboard_type(payload: Dict[str, Any]) -> str:
+    """Datadog dashboard-list item type for a dashboard payload."""
+    return "custom_screenboard" if payload.get("layout_type") == "free" else "custom_timeboard"
+
 
 class DashboardManager:
     """Manages deployment and lifecycle of Datadog dashboards."""
@@ -59,7 +77,10 @@ class DashboardManager:
             "errors": [],
             "total_created": 0,
             "total_errors": 0,
+            "dashboard_list_id": None,
         }
+        # (id, type) of each created dashboard, for grouping into the list.
+        created_items: List[Dict[str, str]] = []
 
         if not dashboards_dir.exists():
             logger.info(f"No dashboards directory found at {dashboards_dir}")
@@ -118,6 +139,7 @@ class DashboardManager:
                     dashboard_id = response.get("id")
                     if dashboard_id:
                         result["created_ids"].append(dashboard_id)
+                        created_items.append({"id": dashboard_id, "type": _dashboard_type(payload)})
                         # Build dashboard URL
                         site = api_client.site
                         url = f"https://app.{site}/dashboard/{dashboard_id}"
@@ -146,12 +168,46 @@ class DashboardManager:
                 result["total_errors"] += 1
                 logger.error(error_msg)
 
+        # Group the created dashboards into a shared, per-vertical dashboard
+        # list (the API-supported stand-in for "favorites"). Non-fatal: the
+        # dashboards themselves deployed fine even if listing fails, so a
+        # grouping error is logged as a warning, not a deploy error.
+        if not dry_run and created_items:
+            list_name = _dashboard_list_name(vertical_name)
+            try:
+                list_id = self._ensure_dashboard_list(api_client, list_name)
+                api_client.add_dashboards_to_list(list_id, created_items)
+                result["dashboard_list_id"] = list_id
+                logger.info(
+                    "Added %d dashboard(s) to dashboard list '%s' (id=%s)",
+                    len(created_items), list_name, list_id,
+                )
+            except (RuntimeError, KeyError) as e:
+                logger.warning(
+                    "Dashboards deployed, but grouping into list '%s' was skipped: %s",
+                    list_name, e,
+                )
+
         logger.info(
             f"Dashboard deployment complete: {result['total_created']} created, "
             f"{result['total_errors']} errors"
         )
 
         return result
+
+    @staticmethod
+    def _ensure_dashboard_list(api_client: DatadogAPIClient, name: str) -> Any:
+        """Return the ID of the manual dashboard list named ``name``, reusing an
+        existing one (idempotent across re-deploys) or creating it if absent."""
+        existing = api_client.list_dashboard_lists().get("dashboard_lists", []) or []
+        for lst in existing:
+            if lst.get("name") == name and lst.get("id") is not None:
+                return lst["id"]
+        created = api_client.create_dashboard_list(name)
+        list_id = created.get("id")
+        if list_id is None:
+            raise RuntimeError(f"create_dashboard_list returned no id for '{name}'")
+        return list_id
 
     def teardown(
         self,
@@ -181,6 +237,7 @@ class DashboardManager:
             "errors": [],
             "total_deleted": 0,
             "total_errors": 0,
+            "deleted_list_ids": [],
         }
 
         try:
@@ -229,6 +286,31 @@ class DashboardManager:
                 result["errors"].append(error_msg)
                 result["total_errors"] += 1
                 logger.error(error_msg)
+
+        # Remove the per-vertical dashboard list(s) created at deploy time.
+        # Exact-name match for a single vertical; prefix match for the
+        # all-verticals sweep. Non-fatal — a leftover empty list is cosmetic,
+        # and deleting a list never deletes its dashboards.
+        try:
+            lists = api_client.list_dashboard_lists().get("dashboard_lists", []) or []
+            if vertical_name is None:
+                targets = [l for l in lists
+                           if str(l.get("name", "")).startswith(_DASHBOARD_LIST_PREFIX)]
+            else:
+                want = _dashboard_list_name(vertical_name)
+                targets = [l for l in lists if l.get("name") == want]
+            for lst in targets:
+                lid = lst.get("id")
+                if lid is None:
+                    continue
+                if dry_run:
+                    logger.info(f"[DRY RUN] Would delete dashboard list {lid} ('{lst.get('name')}')")
+                else:
+                    api_client.delete_dashboard_list(lid)
+                    logger.info(f"Deleted dashboard list {lid} ('{lst.get('name')}')")
+                result["deleted_list_ids"].append(lid)
+        except RuntimeError as e:
+            logger.warning("Dashboard-list cleanup skipped: %s", e)
 
         logger.info(
             f"Dashboard teardown complete: {result['total_deleted']} deleted, "

@@ -510,6 +510,40 @@ therefore safe for distribution — see STYLE_GUIDE §2.3 / §10.
 
 ---
 
+## 6b. Dashboard grouping / "favorites" (2026-07-09)
+
+**Datadog has no API to favorite/star a dashboard.** Favorites are a per-user
+UI preference; `is_favorite` appears only (read-only) in list responses, and
+there is no `favorite` field on `POST`/`PUT /api/v1/dashboard` nor a dedicated
+endpoint. So the toolkit cannot auto-star dashboards on deploy.
+
+The supported, shared equivalent is a **manual dashboard list**, auto-managed
+by `DashboardManager`:
+
+- On deploy, after creating a vertical's dashboards, they are grouped into a
+  list named `dd-demo-toolkit — <vertical>` (`_dashboard_list_name`) via
+  `create_dashboard_list` + `add_dashboards_to_list`. The list is reused if it
+  already exists (idempotent), created otherwise. Overlays deploy under the
+  BASE vertical name (§6.6), so overlay dashboards land in the same
+  per-vertical list.
+- Item type is derived from the payload: `layout_type: free` →
+  `custom_screenboard`, else `custom_timeboard` (all toolkit dashboards are
+  ordered → timeboard).
+- On teardown, the list is removed too — exact-name match for a single
+  vertical, `dd-demo-toolkit`-prefix match for `--all-verticals`. Deleting a
+  list never deletes its dashboards.
+- Grouping is **non-fatal**: a dashboard-list API failure logs a warning and
+  does not count as a deploy error (the dashboards themselves deployed fine).
+
+API client methods live in `utils/dd_api.py`
+(`create_dashboard_list` / `list_dashboard_lists` / `add_dashboards_to_list` /
+`delete_dashboard_list`). Endpoints: create/list/delete on
+`/api/v1/dashboard/lists/manual`, add on
+`POST /api/v2/dashboard/lists/manual/{id}/dashboards`. Regression tests:
+`tests/test_dashboard_list_grouping.py`.
+
+---
+
 ## 7. Working-on-this-project tips
 
 - **DBM demo is now vertical-agnostic.** Set `DD_DEMO_DBM=true` in `.env` to start the three DBM containers (`authorization-db`, `datadog-agent-pp`, `authorization-db-worker`) alongside any vertical's simulator. `make down` stops everything. Setting `DD_DEMO_SUB_VERTICAL=payment-processor` still auto-activates the DBM stack (backward compatible — no `.env` changes needed for existing setups). The cascade plugin writes `/cascade-state/phase.json` (shared volume) each tick; the DB worker reads it to choose normal vs. degraded query patterns. `make build` is required after editing the db-worker (`docker/authorization-db-worker/worker.py`).
