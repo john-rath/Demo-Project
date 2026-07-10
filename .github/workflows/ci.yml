@@ -34,6 +34,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so datadog-ci can attach git metadata (branch,
+          # commit, author) to the uploaded coverage report.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -45,7 +49,41 @@ jobs:
           pip install -e '.[dev,ui]'
       - name: Run tests
         working-directory: dd-demo-toolkit
-        run: pytest
+        # Enable Datadog Test Optimization (`pytest --ddtrace`) when the
+        # DD_API_KEY secret is configured; otherwise run plain pytest so the
+        # suite still passes for forks / unconfigured repos. Either way,
+        # pytest-cov writes coverage.xml (see pyproject `addopts`).
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ vars.DD_SITE || 'datadoghq.com' }}
+          DD_CIVISIBILITY_ENABLED: "true"
+          DD_CIVISIBILITY_AGENTLESS_ENABLED: "true"
+          DD_SERVICE: dd-demo-toolkit
+          DD_ENV: ci
+        run: |
+          if [ -n "$DD_API_KEY" ]; then
+            echo "Datadog Test Optimization enabled"
+            pytest --ddtrace
+          else
+            echo "DD_API_KEY not set — running tests without Test Optimization"
+            pytest
+          fi
+      - name: Upload code coverage to Datadog
+        # Runs after tests (pass or fail) so partial coverage still uploads.
+        # No-op when the secret is absent; never fails the build.
+        if: ${{ always() }}
+        continue-on-error: true
+        working-directory: dd-demo-toolkit
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_SITE: ${{ vars.DD_SITE || 'datadoghq.com' }}
+        run: |
+          if [ -n "$DD_API_KEY" ] && [ -f coverage.xml ]; then
+            npm install -g @datadog/datadog-ci
+            datadog-ci coverage upload coverage.xml
+          else
+            echo "Skipping Datadog coverage upload (DD_API_KEY unset or coverage.xml missing)"
+          fi
 
   validate-verticals:
     # Every vertical's YAML/JSON/plugins must parse cleanly.

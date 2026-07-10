@@ -574,3 +574,13 @@ API client methods live in `utils/dd_api.py`
 - The `env_prefix` in `config.yaml` must match the literal metric
   namespace used everywhere else (it is *not* templated at deploy time —
   the prefix was historically inlined into every query string).
+- **Datadog Test Optimization + Code Coverage flow from CI** (2026-07-09).
+  `pytest` writes `coverage.xml` (Cobertura, via `--cov-report=xml` in
+  `pyproject.toml`); the `pytest` job in `.github/workflows/ci.yml` runs
+  `pytest --ddtrace` (Test Optimization) and `datadog-ci coverage upload
+  coverage.xml` (Code Coverage). Both are **gated on the `DD_API_KEY` GitHub
+  Actions secret** and no-op without it, so forks/unconfigured repos still pass.
+  Prereqs to see data in Datadog: set the `DD_API_KEY` secret (+ optional
+  `DD_SITE` repo variable) and connect the GitHub source-code integration.
+  Coverage is intentionally partial (~35%) — the uncovered paths are what the
+  Bits AI Dev Agent ("Bits Code") targets to auto-generate tests for.

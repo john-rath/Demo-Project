@@ -54,6 +54,10 @@ dev = [
     # ProcessSupervisor tests in test_ui_supervisor.py use @pytest.mark.asyncio
     # to drive the async start/stop/subscribe paths.
     "pytest-asyncio>=0.23",
+    # Datadog Test Optimization: `pytest --ddtrace` reports test results (and
+    # enables flaky-test detection) to Datadog CI Visibility in CI. Inert
+    # locally unless the CI Visibility env vars are set.
+    "ddtrace>=2.8",
 ]
 # `pip install dd-demo-toolkit[ui]` pulls in the web layer.
 # Kept as an extra (rather than a hard dep) so command-line-only users
@@ -116,7 +120,9 @@ check_untyped_defs = false
 [tool.pytest.ini_options]
 minversion = "7.0"
 # Coverage for both packages — keep the UI honest as it grows.
-addopts = "-v --cov=dd_demo_toolkit --cov=dd_demo_toolkit_ui --cov-report=term-missing"
+# --cov-report=xml emits coverage.xml (Cobertura) for `datadog-ci coverage
+# upload` in CI → Datadog Code Coverage. term-missing stays for local runs.
+addopts = "-v --cov=dd_demo_toolkit --cov=dd_demo_toolkit_ui --cov-report=term-missing --cov-report=xml"
 testpaths = ["tests"]
 # pytest-asyncio: STRICT mode requires every async test to be explicitly
 # marked. Prevents accidental "sync test calling async fn → silent skip"
