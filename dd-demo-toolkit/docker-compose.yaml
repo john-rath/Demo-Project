@@ -609,6 +609,32 @@ services:
     profiles:
       - mock-app
 
+  # Ascension Care Companion — agentic LLM Observability generator (agentless).
+  # Streams multi-step agent traces (agent → tools → RAG → LLM) + evaluations
+  # straight to Datadog LLM Observability. Agentless: it needs only outbound
+  # HTTPS + DD_API_KEY — no Agent, no otel-collector, no depends_on. The key is
+  # taken from the op-run shell env via ${DD_API_KEY:?...} (NEVER env_file, per
+  # the secret policy §0.5), so `make ui` / `make up` supply it from 1Password.
+  # Gated by the `agentic` profile (DD_DEMO_AGENTIC=true). Also runnable
+  # standalone off the docker stack — see agentic_demo/README.md.
+  ascension-care-agent:
+    build: {context: ./agentic_demo, dockerfile: Containerfile}
+    container_name: dd-demo-ascension-care-agent
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DD_API_KEY=${DD_API_KEY:?DD_API_KEY not set — run via `make ui`/`make up` so op run resolves it from .env}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_LLMOBS_ML_APP=ascension-care-companion
+      - DD_SERVICE=ascension-care-companion
+      - DD_ENV=prod
+      # Quality-regression cadence (overridable in .env). Shorter = a degraded
+      # window shows up faster during a live demo.
+      - COMPANION_CYCLE_SEC=${COMPANION_CYCLE_SEC:-900}
+      - COMPANION_DEGRADED_SEC=${COMPANION_DEGRADED_SEC:-180}
+    restart: unless-stopped
+    profiles:
+      - agentic
+
   care-event-router:
     build: {context: ./docker/sensing_hospital, dockerfile: Dockerfile}
     container_name: dd-demo-care-event-router

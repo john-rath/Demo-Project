@@ -432,7 +432,8 @@ class ProcessSupervisor:
     def _profile_args(self) -> List[str]:
         """Profile flags derived from .env, mirroring the Makefile rules:
         DD_DEMO_MOCK_FLEET=true → mock-app; DD_DEMO_DBM=true or
-        DD_DEMO_SUB_VERTICAL=payment-processor → dbm.
+        DD_DEMO_SUB_VERTICAL=payment-processor → dbm;
+        DD_DEMO_AGENTIC=true → agentic (agentless LLM-Obs care companion).
         Synthetics auto-activates if a Private Location config file exists at
         .secrets/synthetics-pl-config.json — that's the canonical signal that
         the user has set up a PL in Datadog and wants the worker running
@@ -442,7 +443,7 @@ class ProcessSupervisor:
         try:
             for line in (self.project_dir / ".env").read_text(encoding="utf-8").splitlines():
                 s = line.strip()
-                for key in ("DD_DEMO_MOCK_FLEET", "DD_DEMO_DBM", "DD_DEMO_SUB_VERTICAL"):
+                for key in ("DD_DEMO_MOCK_FLEET", "DD_DEMO_DBM", "DD_DEMO_SUB_VERTICAL", "DD_DEMO_AGENTIC"):
                     if s.startswith(key + "="):
                         flags[key] = s.split("=", 1)[1].strip().strip('"').strip("'")
         except OSError:
@@ -450,6 +451,8 @@ class ProcessSupervisor:
         profiles: List[str] = []
         if flags.get("DD_DEMO_MOCK_FLEET", "").lower() == "true":
             profiles.append("mock-app")
+        if flags.get("DD_DEMO_AGENTIC", "").lower() == "true":
+            profiles.append("agentic")
         if flags.get("DD_DEMO_DBM", "").lower() == "true" or \
                 flags.get("DD_DEMO_SUB_VERTICAL", "") == "payment-processor":
             profiles.append("dbm")

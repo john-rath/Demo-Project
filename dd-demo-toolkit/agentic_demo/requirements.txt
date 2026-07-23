@@ -1,0 +1,3 @@
+# Ascension Care Companion — agentic LLM Observability demo.
+# Agentless: talks straight to Datadog with DD_API_KEY (no Agent, no collector).
+ddtrace>=2.8

@@ -57,3 +57,6 @@ docker/sensing_hospital/ccm/focus_costs.csv
 
 # Private location config + any other local-only secrets (file-mounted into containers).
 .secrets/
+
+# Standalone agentic demo throwaway venv
+agentic_demo/.venv-agentic/
