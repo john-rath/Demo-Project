@@ -26,6 +26,7 @@
     selectOverlay: $("#select-overlay"),
     productsGrid: $("#products-grid"),
     toggleMockFleet: $("#toggle-mock-fleet"),
+    toggleAgentic: $("#toggle-agentic"),
     selectSite: $("#select-site"),
     inputApiKey: $("#input-api-key"),
     inputAppKey: $("#input-app-key"),
@@ -214,6 +215,10 @@
       els.toggleMockFleet.checked =
         (store.env.DD_DEMO_MOCK_FLEET || "").toLowerCase() === "true";
     }
+    if (els.toggleAgentic) {
+      els.toggleAgentic.checked =
+        (store.env.DD_DEMO_AGENTIC || "").toLowerCase() === "true";
+    }
   }
 
   // Read the currently-checked product keys from the DOM.
@@ -286,6 +291,7 @@
       // (sensing-postgres), so we must NOT start the finance DB here.
       DD_DEMO_DBM: (products.includes("dbm") && els.selectVertical.value === "finance") ? "true" : "false",
       DD_DEMO_MOCK_FLEET: els.toggleMockFleet && els.toggleMockFleet.checked ? "true" : "false",
+      DD_DEMO_AGENTIC: els.toggleAgentic && els.toggleAgentic.checked ? "true" : "false",
       DISPLAY_NAME: els.inputDisplayName.value,
       EMIT_INTERVAL: els.inputEmitInterval.value,
       OTEL_EXPORTER_OTLP_ENDPOINT: els.inputOtelEndpoint.value,
