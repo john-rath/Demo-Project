@@ -385,6 +385,45 @@ nav.tabs {
 .log-line.err   { color: var(--err); }
 .log-line.warn  { color: var(--warn); }
 .log-line.info  { color: var(--text-muted); }
+.log-line.debug { color: var(--text-muted); opacity: 0.7; }
+
+/* Live per-panel log-level filter. Each line carries its own level via a
+ * class (err/warn/info/debug); the pane carries the selected minimum level
+ * via data-min-level. Lines below the selected level are hidden purely in
+ * CSS, so flipping the selector instantly re-renders already-streamed lines
+ * AND every new streamed line — no re-fetch, no restart.
+ *
+ * Ranking (low → high): debug < info < warn < err.
+ *   min-level=err   → show err only
+ *   min-level=warn  → show warn + err
+ *   min-level=info  → show info + warn + err   (default; original behavior)
+ *   min-level=debug → show everything
+ */
+.log-pane[data-min-level="err"]  .log-line.warn,
+.log-pane[data-min-level="err"]  .log-line.info,
+.log-pane[data-min-level="err"]  .log-line.debug,
+.log-pane[data-min-level="warn"] .log-line.info,
+.log-pane[data-min-level="warn"] .log-line.debug,
+.log-pane[data-min-level="info"] .log-line.debug {
+  display: none;
+}
+
+.log-level {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--text-muted);
+}
+
+.log-level select {
+  padding: 2px 6px;
+  font-size: 12px;
+}
 
 .deploy-summary {
   align-items: center;

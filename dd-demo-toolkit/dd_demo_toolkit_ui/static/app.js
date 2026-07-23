@@ -40,6 +40,8 @@
     btnSave: $("#btn-save"),
     testResult: $("#test-result"),
     saveResult: $("#save-result"),
+    simLogLevel: $("#sim-log-level"),
+    deployLogLevel: $("#deploy-log-level"),
   };
 
   // Sentinel used by the backend's env_manager. Keep in sync.
@@ -402,6 +404,58 @@
     return pane.closest(".card-log").querySelector(".log-source");
   }
 
+  // ----- Live per-panel log-level filter -----------------------------------
+  //
+  // Each of the two log panels ("simulator", "deploy") remembers its own
+  // minimum display level. Filtering is applied purely via a data-min-level
+  // attribute on the .log-pane (CSS hides lower-level lines), so selecting a
+  // level instantly re-filters already-rendered lines and every new streamed
+  // line with no re-fetch and no restart.
+  const LOG_LEVELS = ["err", "warn", "info", "debug"];
+  const DEFAULT_LOG_LEVEL = "info"; // Info+ — matches the original behavior.
+  const LOG_LEVEL_STORAGE_PREFIX = "ddDemoUi.logLevel.";
+
+  function logPaneFor(panel) {
+    return document.querySelector(`[data-log-pane="${panel}"]`);
+  }
+  function logLevelSelectFor(panel) {
+    return document.querySelector(`[data-log-level="${panel}"]`);
+  }
+
+  function loadLogLevel(panel) {
+    let stored = null;
+    try {
+      stored = window.localStorage.getItem(LOG_LEVEL_STORAGE_PREFIX + panel);
+    } catch (e) {
+      stored = null; // localStorage may be unavailable (privacy mode); ignore.
+    }
+    return LOG_LEVELS.includes(stored) ? stored : DEFAULT_LOG_LEVEL;
+  }
+  function saveLogLevel(panel, level) {
+    try {
+      window.localStorage.setItem(LOG_LEVEL_STORAGE_PREFIX + panel, level);
+    } catch (e) {
+      /* best-effort persistence; ignore quota / disabled storage */
+    }
+  }
+
+  // Apply a level to a panel: reflect it on the pane (drives the CSS filter)
+  // and keep the <select> in sync. Does NOT persist by itself.
+  function applyLogLevel(panel, level) {
+    if (!LOG_LEVELS.includes(level)) level = DEFAULT_LOG_LEVEL;
+    const pane = logPaneFor(panel);
+    if (pane) pane.dataset.minLevel = level;
+    const select = logLevelSelectFor(panel);
+    if (select && select.value !== level) select.value = level;
+  }
+
+  // Restore both panels' persisted levels on load (default Info+).
+  function initLogLevels() {
+    for (const panel of ["simulator", "deploy"]) {
+      applyLogLevel(panel, loadLogLevel(panel));
+    }
+  }
+
   function renderProcessRow(name) {
     const row = document.querySelector(`.process-row[data-process="${name}"]`);
     if (!row) return;
@@ -476,6 +530,13 @@
   // status=5XX is a strong signal of a real server-side error even when
   // the surrounding line is at INFO level (simulator's chaos injections
   // log INFO lines that include status=500). Same for 4XX → warn.
+  // Every line is classified into exactly one of four levels:
+  //   "err" | "warn" | "info" | "debug"
+  // The err/warn detection is unchanged (see the note above about trusting
+  // log-level TOKENS, not free-text substrings). DEBUG is detected the same
+  // token-bounded way (ALL-CAPS Python style and tab-delimited OTel style).
+  // Anything not matched is treated as "info" — that's the bulk of normal
+  // output and the level the user filters down FROM.
   function classifyLine(line) {
     if (/\bERROR\b/.test(line)) return "err";
     if (/\bWARN(ING)?\b/.test(line)) return "warn";
@@ -483,21 +544,79 @@
     if (/\twarn(ing)?\b/.test(line)) return "warn";
     if (/\bstatus=5\d\d\b/.test(line)) return "err";
     if (/\bstatus=4\d\d\b/.test(line)) return "warn";
-    return "";
+    if (/\bDEBUG\b/.test(line)) return "debug";
+    if (/\tdebug\b/.test(line)) return "debug";
+    if (/\bdebug\b/.test(line)) return "debug";
+    return "info";
+  }
+
+  // Pane retention caps. The overall cap matches the server-side buffer so
+  // the DOM doesn't grow unbounded during long simulator runs. But a naive
+  // "evict the oldest child" policy loses ERRORS under an INFO flood: a burst
+  // of thousands of INFO lines pushes earlier errors out of the DOM before
+  // the user ever thinks to filter. So we protect a tail of the most recent
+  // err/warn lines and only ever evict info/debug lines once that protected
+  // set would be touched.
+  const LOG_PANE_MAX = 5000;        // total lines kept in the DOM per pane
+  const LOG_KEEP_SIGNIFICANT = 300; // recent err/warn lines never evicted by floods
+
+  function isSignificant(el) {
+    return el.classList.contains("err") || el.classList.contains("warn");
+  }
+
+  // Evict from the top until the pane is under LOG_PANE_MAX, but skip
+  // err/warn lines that fall inside the protected recent-significant tail.
+  // Walk oldest-first; drop the first info/debug we find, or an err/warn only
+  // if it's older than the newest LOG_KEEP_SIGNIFICANT significant lines.
+  function capLogPane(pane) {
+    while (pane.children.length > LOG_PANE_MAX) {
+      // Count significant lines so we know which are inside the protected tail.
+      let significantTotal = 0;
+      for (const el of pane.children) {
+        if (isSignificant(el)) significantTotal++;
+      }
+      // Number of oldest significant lines that are OUTSIDE the protected tail
+      // and are therefore eligible for eviction.
+      let evictableSignificant = Math.max(0, significantTotal - LOG_KEEP_SIGNIFICANT);
+
+      let removed = false;
+      let significantSeen = 0;
+      for (const el of pane.children) {
+        if (isSignificant(el)) {
+          // This significant line is evictable only if it's among the oldest
+          // ones beyond the protected tail.
+          if (significantSeen < evictableSignificant) {
+            pane.removeChild(el);
+            removed = true;
+            break;
+          }
+          significantSeen++;
+        } else {
+          // info/debug: always the first thing we're willing to drop.
+          pane.removeChild(el);
+          removed = true;
+          break;
+        }
+      }
+      // Safety valve: if everything left is protected-significant (can't
+      // happen while LOG_KEEP_SIGNIFICANT < LOG_PANE_MAX, but be robust),
+      // drop the oldest line so we can never loop forever.
+      if (!removed) {
+        pane.removeChild(pane.firstChild);
+      }
+    }
   }
 
   function appendLogLine(pane, line) {
     const div = document.createElement("div");
     div.className = "log-line";
-    const cls = classifyLine(line);
-    if (cls) div.classList.add(cls);
+    const cls = classifyLine(line);        // always one of err/warn/info/debug
+    div.classList.add(cls);
+    div.dataset.level = cls;
     div.textContent = line;
     pane.appendChild(div);
 
-    // Cap the pane at ~5000 lines to match the server-side buffer; older
-    // lines fall off the top. Keeps the DOM from getting huge during long
-    // simulator runs.
-    while (pane.children.length > 5000) pane.removeChild(pane.firstChild);
+    capLogPane(pane);
   }
 
   function maybeAutoscroll(pane, name) {
@@ -789,6 +908,17 @@
       b.addEventListener("click", () => clearLogPane(b.dataset.logTarget));
     });
 
+    // Per-panel log-level selectors. Changing one instantly re-filters both
+    // already-rendered and future lines (pure CSS via data-min-level) and
+    // persists the choice for next load.
+    document.querySelectorAll("[data-log-level]").forEach((sel) => {
+      sel.addEventListener("change", () => {
+        const panel = sel.dataset.logLevel;
+        applyLogLevel(panel, sel.value);
+        saveLogLevel(panel, sel.value);
+      });
+    });
+
     // Status tab refresh button.
     const btnRefresh = document.getElementById("btn-refresh-status");
     if (btnRefresh) {
@@ -808,6 +938,10 @@
 
   async function init() {
     wire();
+
+    // Restore each log panel's persisted level (default Info+) before any
+    // lines stream in, so the filter is correct from the first line.
+    initLogLevels();
 
     // Health check first; failure here means the rest is doomed.
     try {

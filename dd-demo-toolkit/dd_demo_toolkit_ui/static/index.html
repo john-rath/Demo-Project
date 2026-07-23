@@ -214,6 +214,15 @@
           <h2>Live log</h2>
           <span class="muted log-source"></span>
           <span class="spacer"></span>
+          <label class="log-level">
+            level
+            <select id="sim-log-level" data-log-level="simulator">
+              <option value="err">Errors only</option>
+              <option value="warn">Warnings+</option>
+              <option value="info" selected>Info+</option>
+              <option value="debug">Debug (all)</option>
+            </select>
+          </label>
           <label class="checkbox">
             <input type="checkbox" id="sim-autoscroll" checked />
             auto-scroll
@@ -295,6 +304,15 @@
           <h2>Live log</h2>
           <span class="muted log-source">no run yet</span>
           <span class="spacer"></span>
+          <label class="log-level">
+            level
+            <select id="deploy-log-level" data-log-level="deploy">
+              <option value="err">Errors only</option>
+              <option value="warn">Warnings+</option>
+              <option value="info" selected>Info+</option>
+              <option value="debug">Debug (all)</option>
+            </select>
+          </label>
           <label class="checkbox">
             <input type="checkbox" id="deploy-autoscroll" checked />
             auto-scroll
