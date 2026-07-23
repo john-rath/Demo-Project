@@ -1,0 +1,26 @@
+# Ascension Care Companion — agentic LLM Observability demo.
+# Container image for a NON-Docker runtime (Podman, nerdctl/containerd, Apple
+# `container`, Finch). It's plain OCI, so `docker build` also works if needed.
+#
+# Build & run (Podman shown; swap `podman` for `nerdctl`):
+#   podman build -t ascension-care-agent -f Containerfile .
+#   podman run --rm -e DD_API_KEY=$DD_API_KEY -e DD_SITE=${DD_SITE:-datadoghq.com} \
+#       ascension-care-agent --count 200
+#
+# Agentless — the container needs only outbound HTTPS to Datadog; no Agent,
+# no OTel collector, no sidecars.
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY ascension_care_agent.py .
+
+# DD_API_KEY / DD_SITE are provided at run time (-e). ml_app/service/env can be
+# overridden too. Extra args after the image name pass through to the script.
+ENV DD_SITE=datadoghq.com \
+    DD_LLMOBS_ML_APP=ascension-care-companion \
+    DD_SERVICE=ascension-care-companion \
+    DD_ENV=prod
+
+ENTRYPOINT ["python", "ascension_care_agent.py"]

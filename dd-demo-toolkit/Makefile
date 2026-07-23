@@ -50,8 +50,16 @@ _MOCK_FLEET := $(shell grep '^DD_DEMO_MOCK_FLEET=' .env 2>/dev/null | cut -d= -f
 # lifecycle so they ride along with `make up`.
 _MOCK_PROFILE := $(if $(filter true,$(_MOCK_FLEET)),--profile mock-app,)
 
+# Read the agentic LLM-Obs demo flag from .env (empty if not set).
+_AGENTIC := $(shell grep '^DD_DEMO_AGENTIC=' .env 2>/dev/null | cut -d= -f2 | tr -d ' \r')
+
+# Activate the `agentic` profile when DD_DEMO_AGENTIC=true. Adds the agentless
+# Ascension Care Companion (multi-step agent traces + evaluations streamed
+# straight to Datadog LLM Observability) so it rides along with `make up`/`make ui`.
+_AGENTIC_PROFILE := $(if $(filter true,$(_AGENTIC)),--profile agentic,)
+
 # Combined profile flags for the default lifecycle targets.
-_LIFECYCLE_PROFILES := $(_DBM_PROFILE) $(_MOCK_PROFILE)
+_LIFECYCLE_PROFILES := $(_DBM_PROFILE) $(_MOCK_PROFILE) $(_AGENTIC_PROFILE)
 
 .PHONY: help check-op migrate-secrets \
         build rebuild up up-d down logs ps \
