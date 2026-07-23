@@ -1,0 +1,234 @@
+{
+  "title": "Ascension — Agentic AI Command Center",
+  "description": "The single pane for Ascension's AI Care Companion agentic system: live agentic execution (LLM Observability), automated quality + safety evaluations, cost across model providers, safety guardrails, and the self-detected quality regression that heals itself. Executive-grade — answers 'is the AI safe, good, and cost-effective?' in 30 seconds, then deep-links to the agent graph, provider experiments, and annotation queues. Every 30 minutes the companion self-degrades for ~5 minutes: watch RAG retrieval latency spike, groundedness fall, hallucination and escalation rise together, then recover.",
+  "widgets": [
+    {
+      "definition": {
+        "type": "note",
+        "content": "# Ascension — Agentic AI Command Center\n**The AI Care Companion, end to end.** Live agentic execution (LLM Observability) → automated **quality + safety evaluations** → **cost across model providers** → **guardrails** → the self-detected quality regression that heals itself. Built for Ascension across its multi-campus system.\n\nThe agent plans, calls tools (multi-campus EMR, RTLS bed status, prior-auth), retrieves Ascension care guidance (RAG), and generates a grounded answer — every step traced. Deep-links to the **agent graph, provider experiments, and annotation queues** are at the bottom.",
+        "background_color": "vivid_blue",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": {"x": 0, "y": 0, "width": 12, "height": 2}
+    },
+
+    {
+      "definition": {
+        "title": "AI Interactions (1h)",
+        "type": "query_value",
+        "requests": [{"response_format": "scalar", "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.requests_total{$scenario}.as_count()", "aggregator": "sum"}], "formulas": [{"formula": "query1"}]}],
+        "autoscale": true, "precision": 0
+      },
+      "layout": {"x": 0, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Avg Groundedness",
+        "type": "query_value",
+        "requests": [{"response_format": "scalar", "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:care.companion.groundedness{$scenario}", "aggregator": "avg"}], "formulas": [{"formula": "query1"}], "conditional_formats": [{"comparator": "<", "value": 0.6, "palette": "white_on_red"}, {"comparator": "<", "value": 0.8, "palette": "white_on_yellow"}, {"comparator": ">=", "value": 0.8, "palette": "white_on_green"}]}],
+        "autoscale": true, "precision": 2
+      },
+      "layout": {"x": 2, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Hallucination Risk (max)",
+        "type": "query_value",
+        "requests": [{"response_format": "scalar", "queries": [{"data_source": "metrics", "name": "query1", "query": "max:care.companion.hallucination_risk{$scenario}", "aggregator": "max"}], "formulas": [{"formula": "query1"}], "conditional_formats": [{"comparator": ">", "value": 0.5, "palette": "white_on_red"}, {"comparator": ">", "value": 0.3, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 0.3, "palette": "white_on_green"}]}],
+        "autoscale": true, "precision": 2
+      },
+      "layout": {"x": 4, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Escalations to Human (1h)",
+        "type": "query_value",
+        "requests": [{"response_format": "scalar", "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.escalations_total{$scenario}.as_count()", "aggregator": "sum"}], "formulas": [{"formula": "query1"}], "conditional_formats": [{"comparator": ">", "value": 40, "palette": "white_on_red"}, {"comparator": ">", "value": 15, "palette": "white_on_yellow"}, {"comparator": ">=", "value": 0, "palette": "white_on_green"}]}],
+        "autoscale": true, "precision": 0
+      },
+      "layout": {"x": 6, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "AI Cost — 1h ($)",
+        "type": "query_value",
+        "requests": [{"response_format": "scalar", "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.cost_usd{$scenario}", "aggregator": "sum"}], "formulas": [{"formula": "query1"}]}],
+        "autoscale": true, "precision": 2
+      },
+      "layout": {"x": 8, "y": 2, "width": 2, "height": 2}
+    },
+    {
+      "definition": {
+        "title": "Patient-Facing Latency avg (ms)",
+        "type": "query_value",
+        "requests": [{"response_format": "scalar", "queries": [{"data_source": "metrics", "name": "query1", "query": "avg:care.companion.latency_ms{$scenario}", "aggregator": "avg"}], "formulas": [{"formula": "query1"}], "conditional_formats": [{"comparator": ">", "value": 3000, "palette": "white_on_red"}, {"comparator": ">", "value": 2000, "palette": "white_on_yellow"}, {"comparator": "<=", "value": 2000, "palette": "white_on_green"}]}],
+        "autoscale": true, "precision": 0
+      },
+      "layout": {"x": 10, "y": 2, "width": 2, "height": 2}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## LIVE AGENT ACTIVITY — what the agent is actually doing (LLM Observability)",
+        "background_color": "blue", "font_size": "14", "text_align": "left", "show_tick": false, "has_padding": true
+      },
+      "layout": {"x": 0, "y": 4, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Agent Runs Over Time — ml_app:ascension-care-companion",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{"response_format": "timeseries", "queries": [{"data_source": "llm_observability", "name": "query1", "search": {"query": "@ml_app:ascension-care-companion"}, "indexes": ["*"], "compute": {"aggregation": "count", "interval": 60000}, "group_by": []}], "formulas": [{"formula": "query1", "alias": "Agent runs"}], "display_type": "bars", "style": {"palette": "cool"}}]
+      },
+      "layout": {"x": 0, "y": 5, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Interactions by Clinical Scenario",
+        "type": "toplist",
+        "requests": [{"response_format": "scalar", "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.requests_total{$scenario} by {scenario}.as_count()", "aggregator": "sum"}], "formulas": [{"formula": "query1", "limit": {"count": 8, "order": "desc"}}]}],
+        "style": {"palette": "datadog16"}
+      },
+      "layout": {"x": 6, "y": 5, "width": 3, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Patient vs Clinician Mix",
+        "type": "toplist",
+        "requests": [{"response_format": "scalar", "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.requests_total{$scenario} by {role}.as_count()", "aggregator": "sum"}], "formulas": [{"formula": "query1", "limit": {"count": 5, "order": "desc"}}]}],
+        "style": {"palette": "datadog16"}
+      },
+      "layout": {"x": 9, "y": 5, "width": 3, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## AI QUALITY & SAFETY — evaluated automatically, not just 'is it up'",
+        "background_color": "vivid_purple", "font_size": "14", "text_align": "left", "show_tick": false, "has_padding": true
+      },
+      "layout": {"x": 0, "y": 8, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "Groundedness vs Hallucination Risk",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"response_format": "timeseries", "queries": [{"data_source": "metrics", "name": "grounded", "query": "avg:care.companion.groundedness{$scenario}"}, {"data_source": "metrics", "name": "halluc", "query": "avg:care.companion.hallucination_risk{$scenario}"}], "formulas": [{"formula": "grounded", "alias": "Groundedness (1=grounded)"}, {"formula": "halluc", "alias": "Hallucination risk (0=grounded)"}], "display_type": "line"}],
+        "markers": [{"value": "y = 0.8", "display_type": "warning dashed", "label": "Quality floor"}, {"value": "y = 0.3", "display_type": "error dashed", "label": "Hallucination threshold"}]
+      },
+      "layout": {"x": 0, "y": 9, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Clinical Escalation Rate — % routed to a human",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{"response_format": "timeseries", "queries": [{"data_source": "metrics", "name": "esc", "query": "sum:care.companion.escalations_total{$scenario}.as_count()"}, {"data_source": "metrics", "name": "req", "query": "sum:care.companion.requests_total{$scenario}.as_count()"}], "formulas": [{"formula": "esc / req * 100", "alias": "escalation %"}], "display_type": "area", "style": {"palette": "warm"}}],
+        "markers": [{"value": "y = 15", "display_type": "warning dashed", "label": "Normal upper bound"}, {"value": "y = 30", "display_type": "error dashed", "label": "Triage capacity at risk"}]
+      },
+      "layout": {"x": 6, "y": 9, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Root Cause: RAG Knowledge-Base Retrieval vs Total Latency (ms)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"response_format": "timeseries", "queries": [{"data_source": "metrics", "name": "rag", "query": "avg:care.companion.retrieval_latency_ms{$scenario}"}, {"data_source": "metrics", "name": "total", "query": "avg:care.companion.latency_ms{$scenario}"}], "formulas": [{"formula": "rag", "alias": "RAG retrieval (root cause)"}, {"formula": "total", "alias": "Total patient-facing"}], "display_type": "line", "style": {"palette": "dog_classic"}}],
+        "markers": [{"value": "y = 800", "display_type": "warning dashed", "label": "RAG slow"}, {"value": "y = 2000", "display_type": "error dashed", "label": "Patient experience impacted"}]
+      },
+      "layout": {"x": 0, "y": 12, "width": 6, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Hallucination Risk by Scenario (max)",
+        "type": "timeseries",
+        "show_legend": true,
+        "requests": [{"response_format": "timeseries", "queries": [{"data_source": "metrics", "name": "query1", "query": "max:care.companion.hallucination_risk{$scenario} by {scenario}"}], "formulas": [{"formula": "query1"}], "display_type": "line"}],
+        "markers": [{"value": "y = 0.3", "display_type": "error dashed", "label": "Elevated risk"}]
+      },
+      "layout": {"x": 6, "y": 12, "width": 6, "height": 3}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## COST & MODEL EXPERIMENTS — quality vs spend, across providers",
+        "background_color": "vivid_yellow", "font_size": "14", "text_align": "left", "show_tick": false, "has_padding": true
+      },
+      "layout": {"x": 0, "y": 15, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "title": "AI Spend ($/min)",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{"response_format": "timeseries", "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.cost_usd{$scenario}"}], "formulas": [{"formula": "query1", "alias": "$"}], "display_type": "area", "style": {"palette": "purple"}}]
+      },
+      "layout": {"x": 0, "y": 16, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Tokens Consumed",
+        "type": "timeseries",
+        "show_legend": false,
+        "requests": [{"response_format": "timeseries", "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.tokens_total{$scenario}"}], "formulas": [{"formula": "query1", "alias": "tokens"}], "display_type": "line"}]
+      },
+      "layout": {"x": 4, "y": 16, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "title": "Cost by Scenario ($)",
+        "type": "toplist",
+        "requests": [{"response_format": "scalar", "queries": [{"data_source": "metrics", "name": "query1", "query": "sum:care.companion.cost_usd{$scenario} by {scenario}", "aggregator": "sum"}], "formulas": [{"formula": "query1", "limit": {"count": 5, "order": "desc"}}]}],
+        "style": {"palette": "purple"}
+      },
+      "layout": {"x": 8, "y": 16, "width": 4, "height": 3}
+    },
+    {
+      "definition": {
+        "type": "note",
+        "content": "### Compare model providers (Experiments)\nThe **[Ascension Care Companion Quality experiments](https://app.datadoghq.com/llm/experiments)** run the same clinical eval set across **8 model providers** (OpenAI, Anthropic, Google, Mistral, Meta, Cohere) and score each on groundedness, must-mention recall, citation recall, and escalation correctness.\n\n**Demo cue:** open the Experiments **Tradeoff** view — quality (F1 / groundedness) on one axis, cost on the other — and pick the model that meets the clinical-safety bar at the lowest cost, with data.",
+        "background_color": "white", "font_size": "14", "text_align": "left", "show_tick": true, "tick_pos": "50%", "tick_edge": "top", "has_padding": true
+      },
+      "layout": {"x": 0, "y": 19, "width": 12, "height": 2}
+    },
+
+    {
+      "definition": {
+        "type": "note",
+        "content": "## OUTCOMES — safe, grounded AI at Ascension scale",
+        "background_color": "vivid_green", "font_size": "14", "text_align": "left", "show_tick": false, "has_padding": true
+      },
+      "layout": {"x": 0, "y": 21, "width": 12, "height": 1}
+    },
+    {
+      "definition": {
+        "type": "note",
+        "content": "## Why this matters (CIO / CMO view)\n\n**Every AI answer is scored for clinical grounding and hallucination risk — automatically, before a patient or clinician is harmed.** When the knowledge base slows and grounding drops, Datadog detects it in minutes (not from a bad-answer report), pages the on-call, and the model can fall back or escalate.\n\n| | Without LLM Observability | With Datadog |\n|---|---|---|\n| Detect an AI-safety regression | after a clinician reports a bad answer | **~minutes**, automatically |\n| Root-cause a slow/low-quality answer | manual, cross-team | **one linked trace** (RAG → LLM) |\n| Choose a model | vibes / vendor claims | **experiments: quality vs cost** |\n| Human review of risky answers | ad hoc | **annotation queues** |\n\n*Modeled across Ascension's ~140-hospital footprint with 24/7 patient + clinician AI activity.*",
+        "background_color": "vivid_yellow", "font_size": "14", "text_align": "left", "show_tick": false, "has_padding": true
+      },
+      "layout": {"x": 0, "y": 22, "width": 7, "height": 5}
+    },
+    {
+      "definition": {
+        "type": "note",
+        "content": "### Deep-links to the live data\n- **[LLM Observability — agent traces & graph](https://app.datadoghq.com/llm/traces?query=%40ml_app%3Aascension-care-companion)** — open a `multi_campus_transfer` trace to see the agent plan, call tools, retrieve, and hand off to the transfer-coordinator sub-agent.\n- **[Evaluations](https://app.datadoghq.com/llm/evaluations?query=%40ml_app%3Aascension-care-companion)** — groundedness, hallucination, PHI handling, escalation appropriateness.\n- **[Experiments — provider comparison](https://app.datadoghq.com/llm/experiments)** — the 8-provider quality/cost matrix.\n- **[Annotation Queues](https://app.datadoghq.com/llm/annotations)** — Quality / Safety / Evaluator-Calibration human review.\n\n**Demo cue:** during a degraded window, click the RAG-latency spike above → **View related traces** → land on the slow `clinical_guidance_kb` retrieval → see the prompt + answer the model gave.",
+        "background_color": "white", "font_size": "14", "text_align": "left", "show_tick": false, "has_padding": true
+      },
+      "layout": {"x": 7, "y": 22, "width": 5, "height": 5}
+    }
+  ],
+  "template_variables": [
+    {"name": "scenario", "prefix": "scenario", "default": "*"}
+  ],
+  "layout_type": "ordered",
+  "notify_list": [],
+  "reflow_type": "fixed"
+}

@@ -476,3 +476,239 @@ notebooks:
               patient safety, care-team load, or trust take a hit. One platform:
               patient experience, AI quality, infrastructure, and cost — together.
         type: "notebook_cells"
+
+  - id: "ascension-agentic-ai-story"
+    name: "🤖 Ascension Agentic AI — Monitoring the Care Companion End-to-End (CTO Walkthrough)"
+    type: investigation
+    description: "The executive story of Ascension's agentic AI Care Companion: how Datadog monitors a multi-step agent (plan → tools → RAG → generate → self-critique) for quality, safety, and cost — detects a live quality regression before patients feel it, blocks unsafe requests with guardrails, compares model providers with experiments, and routes risky answers to human review via annotation queues. Closes with ROI at Ascension scale."
+    time_range: "1h"
+    tags: ["vertical:healthcare", "dd-demo-toolkit:true", "team:digital-health", "incident_domain:ai-care-companion", "audience:executive"]
+    cells:
+
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              # Ascension Agentic AI — Monitoring the Care Companion End-to-End
+
+              **The pitch:** Ascension's AI Care Companion isn't a single prompt —
+              it's an **agent**. For each patient or clinician request it *plans*,
+              calls *tools* (multi-campus EMR, RTLS bed status, prior-auth),
+              *retrieves* Ascension care guidance (RAG), *generates* a grounded
+              answer, and sometimes *critiques and revises* it or hands off to a
+              specialist sub-agent. An AI you can't see is an AI you can't trust.
+
+              This notebook shows how Datadog **LLM Observability** makes every
+              step visible and measurable — quality, safety, and cost — so an
+              AI-safety problem is caught **before a patient feels it**.
+
+              Companion dashboard: **Ascension — Agentic AI Command Center**.
+
+              ---
+              ## Step 1 — See the agent work (agentic execution)
+
+              Volume of agent interactions across clinical scenarios. Each one is
+              a full multi-step **agent trace** — open the
+              **[agent graph](https://app.datadoghq.com/llm/traces?query=%40ml_app%3Aascension-care-companion)**
+              and expand a `multi_campus_transfer` to watch it fan a bed search
+              across campuses and hand off to the transfer-coordinator sub-agent.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "reqs"
+                    query: "sum:care.companion.requests_total{*} by {scenario}.as_count()"
+                formulas:
+                  - formula: "reqs"
+                    alias: "Interactions by scenario"
+                display_type: "bars"
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 2 — Every answer is scored (quality + safety evals)
+
+              Datadog evaluates each response for **groundedness** (is it backed
+              by Ascension guidance?) and **hallucination risk** — automatically,
+              on every interaction. This is AI *correctness*, not just uptime.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "grounded"
+                    query: "avg:care.companion.groundedness{*}"
+                  - data_source: "metrics"
+                    name: "halluc"
+                    query: "avg:care.companion.hallucination_risk{*}"
+                formulas:
+                  - formula: "grounded"
+                    alias: "Groundedness (1 = grounded)"
+                  - formula: "halluc"
+                    alias: "Hallucination risk (0 = grounded)"
+                display_type: "line"
+            markers:
+              - value: "y = 0.8"
+                display_type: "warning dashed"
+                label: "Quality floor"
+              - value: "y = 0.3"
+                display_type: "error dashed"
+                label: "Hallucination threshold"
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 3 — Catch the regression before patients do
+
+              Every ~30 minutes the RAG knowledge base slows down. Watch the
+              **root cause** (retrieval latency) spike — and the patient-visible
+              symptom (escalation rate) climb right behind it as the model, less
+              sure of its grounding, defers more cases to humans. Datadog detects
+              this within minutes and pages the on-call.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "rag"
+                    query: "avg:care.companion.retrieval_latency_ms{*}"
+                formulas:
+                  - formula: "rag"
+                    alias: "RAG retrieval latency (ms) — root cause"
+                display_type: "line"
+            markers:
+              - value: "y = 800"
+                display_type: "warning dashed"
+                label: "RAG slow"
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "timeseries"
+            show_legend: true
+            requests:
+              - response_format: "timeseries"
+                queries:
+                  - data_source: "metrics"
+                    name: "esc"
+                    query: "sum:care.companion.escalations_total{*}.as_count()"
+                  - data_source: "metrics"
+                    name: "req"
+                    query: "sum:care.companion.requests_total{*}.as_count()"
+                formulas:
+                  - formula: "esc / req * 100"
+                    alias: "Escalation rate %"
+                display_type: "area"
+            markers:
+              - value: "y = 30"
+                display_type: "error dashed"
+                label: "Triage capacity at risk"
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 4 — Guardrails: the AI refuses the unsafe ask
+
+              Some requests must never be answered. When a patient asks for
+              controlled-substance dosing (Ascension policy ECP-19.4), or an
+              attacker tries a prompt-injection to exfiltrate other patients'
+              records, the **safety guardrail blocks and escalates** — and the
+              block is a first-class, audited **error trace** in LLM Observability
+              (`GuardrailBlocked`). Filter the traces to
+              `scenario:controlled_substance_dosing` or `scenario:prompt_injection`
+              to show the room a live, blocked jailbreak.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## Step 5 — Choose the model with data (experiments)
+
+              The same clinical eval set runs across **8 model providers**
+              (OpenAI, Anthropic, Google, Mistral, Meta, Cohere) as Datadog
+              **[Experiments](https://app.datadoghq.com/llm/experiments)**, scored
+              on groundedness, must-mention recall, citation recall, and
+              escalation correctness. Use the **Tradeoff** view to pick the model
+              that clears the clinical-safety bar at the lowest cost — evidence,
+              not vendor claims.
+
+              ---
+              ## Step 6 — Keep humans in the loop (annotation queues)
+
+              Risky or low-confidence answers flow into **[annotation
+              queues](https://app.datadoghq.com/llm/annotations)** — Quality
+              Review, Safety Review, Evaluator Calibration — where clinicians
+              apply pass/fail and category labels. Those human verdicts become
+              the next dataset (to fine-tune) and the ground truth that keeps the
+              automated evaluators honest.
+        type: "notebook_cells"
+      - attributes:
+          definition:
+            type: "markdown"
+            text: |
+              ---
+              ## ROI / Business Impact
+
+              **What just happened, in operations terms.** Across Ascension's AI
+              Care Companion — patient + clinician interactions, 24/7, fleet-wide —
+              a knowledge-base slowdown pushed hallucination risk up and grounding
+              down for ~5 minutes each cycle. Automated detection + fallback keeps
+              a bad answer from ever reaching a patient.
+
+              **Per-incident ROI (manual vs. Datadog):**
+
+              | | Without LLM Obs | With Datadog |
+              |---|---|---|
+              | Time to detect an AI-safety regression | after a reported bad answer (hours–days) | ~minutes (auto) |
+              | Time to root cause | manual, cross-team (~45 min) | one linked trace (~3 min) |
+              | Bad answers reaching patients / incident | dozens | near-zero (fallback + escalate) |
+              | Model selection | vendor claims | experiment-backed |
+
+              **Annualized scaling (illustrative, Ascension footprint):**
+
+              | Scope | AI interactions/yr | Analyst hours saved | Value |
+              |---|---|---|---|
+              | Single hospital | ~1.2M | ~120 | ~$13K |
+              | Region (15 hospitals) | ~18M | ~1,800 | ~$190K |
+              | National (140 hospitals) | ~170M | ~16,800 | ~$1.8M |
+
+              **Strategic value beyond direct labor:**
+              - **Patient-safety events avoided** — a hallucinated clinical answer
+                is a sentinel-event risk ($200K–$1M each).
+              - **AI cost control** — provider experiments routinely cut
+                token/inference spend 30–60% at equal quality.
+              - **Trust & adoption** — clinicians use an AI they can see is
+                grounded and audited; that's what gets it out of pilot.
+              - **Compliance** — every unsafe request is blocked and audited.
+
+              **Bottom line:** monitoring the AI the way you monitor everything
+              else — quality, safety, and cost on one platform — is what makes an
+              agentic Care Companion safe enough to scale across all ~140
+              Ascension hospitals.
+
+              ---
+              ## Follow-ups
+              - Wire a monitor on `care.companion.hallucination_risk` and the
+                LLM Obs hallucination eval so a regression pages the on-call.
+              - Add the winning experiment model to the companion's config.
+              - Route `GuardrailBlocked` traces to the Safety Review queue.
+        type: "notebook_cells"
